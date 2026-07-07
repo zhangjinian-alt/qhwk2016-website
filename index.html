@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>青花微课 - 小学数学教师个人教学网站</title>
+<style>
+/* ===== CSS Variables & Reset ===== */
+:root {
+  --primary: #4A90D9;
+  --primary-light: #7AB8F5;
+  --primary-dark: #3570B0;
+  --primary-bg: #EBF5FF;
+  --white: #FFFFFF;
+  --bg: #F5F7FA;
+  --bg-card: #FFFFFF;
+  --text: #2C3E50;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --text-light: #8899AA;
+  --border: #E8ECF1;
+  --success: #52C41A;
+  --warning: #FAAD14;
+  --danger: #FF4D4F;
+  --star: #FFC857;
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
+  --font: 'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;
+  --transition: all 0.25s ease;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body {
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  line-height:1.6;
+  min-height:100vh;
+}
+a { text-decoration:none; color:inherit; }
+button { cursor:pointer; border:none; background:none; font-family:inherit; }
+img { max-width:100%; display:block; }
+
+/* ===== Header ===== */
+.header {
+  background:var(--white);
+  box-shadow:var(--shadow-sm);
+  position:sticky; top:0; z-index:100;
+  padding:0 20px;
+}
+.header-inner {
+  max-width:1200px; margin:0 auto;
+  display:flex; align-items:center; justify-content:space-between;
+  height:64px; gap:20px;
+}
+.logo {
+  display:flex; align-items:center; gap:10px;
+  font-size:20px; font-weight:700; color:var(--primary);
+  flex-shrink:0;
+}
+.logo-icon {
+  width:36px; height:36px; background:var(--primary);
+  border-radius:10px; display:flex; align-items:center; justify-content:center;
+  font-size:20px; color:white;
+}
+.nav-desktop {
+  display:flex; gap:4px; overflow-x:auto; flex:1; justify-content:center;
+}
+.nav-desktop a {
+  padding:8px 14px; border-radius:8px; font-size:14px; font-weight:500;
+  color:var(--text-secondary); white-space:nowrap; transition:var(--transition);
+}
+.nav-desktop a:hover, .nav-desktop a.active {
+  background:var(--primary-bg); color:var(--primary);
+}
+.mode-switch {
+  display:flex; background:var(--bg); border-radius:20px; padding:3px;
+  flex-shrink:0;
+}
+.mode-btn {
+  padding:6px 14px; border-radius:17px; font-size:13px; font-weight:500;
+  color:var(--text-muted); transition:var(--transition);
+}
+.mode-btn.active { background:var(--primary); color:white; }
+.menu-toggle {
+  display:none; font-size:24px; color:var(--text);
+  padding:8px; border-radius:8px;
+}
+
+/* ===== Mobile Nav ===== */
+.mobile-nav {
+  display:none; position:fixed; top:64px; left:0; right:0; bottom:0;
+  background:var(--white); z-index:99; padding:20px; overflow-y:auto;
+}
+.mobile-nav.open { display:block; }
+.mobile-nav a {
+  display:block; padding:14px 20px; font-size:16px; font-weight:500;
+  color:var(--text); border-radius:12px; margin-bottom:4px;
+  transition:var(--transition);
+}
+.mobile-nav a:hover, .mobile-nav a.active {
+  background:var(--primary-bg); color:var(--primary);
+}
+
+/* ===== Main Layout ===== */
+.page { display:none; }
+.page.active { display:block; animation:fadeIn 0.35s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+.container { max-width:1200px; margin:0 auto; padding:0 20px; }
+
+/* ===== Hero ===== */
+.hero {
+  background:linear-gradient(135deg, #4A90D9 0%, #7AB8F5 40%, #EBF5FF 100%);
+  padding:60px 20px; text-align:center;
+}
+.hero .container { max-width:800px; }
+.hero-badge {
+  display:inline-flex; align-items:center; gap:8px;
+  background:rgba(255,255,255,0.9); padding:8px 20px;
+  border-radius:20px; font-size:15px; font-weight:600; color:var(--primary);
+  margin-bottom:24px; box-shadow:var(--shadow-sm);
+}
+.hero-badge .mascot { font-size:24px; }
+.hero h1 {
+  font-size:clamp(28px,5vw,42px); font-weight:700;
+  color:var(--text); margin-bottom:12px;
+}
+.hero p.subtitle { font-size:18px; color:#6B8299; margin-bottom:32px; }
+.hero-cta { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
+.btn {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:14px 32px; border-radius:24px; font-size:16px; font-weight:600;
+  transition:var(--transition);
+}
+.btn-primary {
+  background:var(--primary); color:white;
+  box-shadow:0 6px 20px rgba(74,144,217,0.3);
+}
+.btn-primary:hover { background:var(--primary-dark); transform:translateY(-1px); }
+.btn-outline {
+  background:white; color:var(--primary);
+  border:2px solid var(--primary);
+}
+.btn-outline:hover { background:var(--primary-bg); }
+.stats-row { display:flex; gap:40px; justify-content:center; margin-top:32px; flex-wrap:wrap; }
+.stat-item { display:flex; align-items:center; gap:8px; font-size:17px; font-weight:600; color:var(--text); }
+.stat-item span:first-child { font-size:22px; }
+
+/* ===== Section Styles ===== */
+.section { padding:48px 0; }
+.section-title {
+  font-size:clamp(22px,3vw,28px); font-weight:700;
+  color:var(--text); margin-bottom:24px;
+}
+
+/* ===== Cards Grid ===== */
+.card-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr));
+  gap:20px;
+}
+.card {
+  background:var(--bg-card); border-radius:var(--radius-lg);
+  padding:24px; box-shadow:var(--shadow); transition:var(--transition);
+}
+.card:hover { box-shadow:var(--shadow-lg); transform:translateY(-2px); }
+
+/* ===== Task Section ===== */
+.task-grid {
+  display:grid; grid-template-columns:380px 1fr; gap:24px;
+}
+.video-card {
+  background:var(--bg-card); border-radius:var(--radius-lg);
+  padding:24px; box-shadow:var(--shadow);
+}
+.video-thumb {
+  width:100%; height:200px; border-radius:var(--radius);
+  background:linear-gradient(135deg, #4A90D9, #7AB8F5);
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:16px; position:relative; cursor:pointer;
+}
+.video-thumb .play-btn {
+  width:60px; height:60px; background:rgba(255,255,255,0.85);
+  border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:24px; color:var(--primary); box-shadow:var(--shadow);
+}
+.video-card h3 { font-size:18px; font-weight:600; margin-bottom:4px; }
+.video-card .meta { font-size:14px; color:var(--text-muted); }
+.exercise-card {
+  background:var(--bg-card); border-radius:var(--radius-lg);
+  padding:24px; box-shadow:var(--shadow);
+}
+.exercise-card h3 { font-size:18px; font-weight:600; margin-bottom:16px; }
+.exercise-item {
+  display:flex; align-items:center; gap:12px; padding:12px 16px;
+  background:var(--bg); border-radius:var(--radius-sm);
+  margin-bottom:10px; cursor:pointer; transition:var(--transition);
+}
+.exercise-item:hover { background:var(--primary-bg); }
+.exercise-item .checkbox {
+  width:24px; height:24px; border:2px solid var(--primary);
+  border-radius:6px; display:flex; align-items:center; justify-content:center;
+  font-size:14px; color:white; flex-shrink:0; transition:var(--transition);
+}
+.exercise-item.done .checkbox { background:var(--success); border-color:var(--success); }
+.exercise-item.done { background:#F0FFF4; }
+.exercise-item.done .ex-text { text-decoration:line-through; color:var(--text-muted); }
+.reward-row { display:flex; align-items:center; gap:8px; margin-top:16px; font-size:14px; color:var(--text-muted); }
+
+/* ===== Quick Entry ===== */
+.quick-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr));
+  gap:16px;
+}
+.quick-card {
+  background:var(--bg-card); border-radius:var(--radius-lg);
+  padding:28px 20px; text-align:center; box-shadow:var(--shadow);
+  transition:var(--transition); cursor:pointer;
+}
+.quick-card:hover { box-shadow:var(--shadow-lg); transform:translateY(-2px); }
+.quick-card .icon {
+  width:56px; height:56px; border-radius:16px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:28px; margin:0 auto 12px;
+}
+.quick-card h4 { font-size:16px; font-weight:600; margin-bottom:4px; }
+.quick-card p { font-size:13px; color:var(--text-muted); }
+
+/* ===== Page: Classroom ===== */
+.course-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr));
+  gap:20px;
+}
+.course-card {
+  background:var(--bg-card); border-radius:var(--radius-lg);
+  overflow:hidden; box-shadow:var(--shadow); transition:var(--transition); cursor:pointer;
+}
+.course-card:hover { box-shadow:var(--shadow-lg); transform:translateY(-2px); }
+.course-thumb {
+  height:180px; display:flex; align-items:center; justify-content:center;
+  position:relative;
+}
+.course-info { padding:20px; }
+.course-info h3 { font-size:17px; font-weight:600; margin-bottom:8px; }
+.course-info .grade-badge {
+  display:inline-block; padding:4px 12px; border-radius:12px;
+  font-size:13px; font-weight:500; background:var(--primary-bg); color:var(--primary);
+}
+
+/* ===== Page: Thinking ===== */
+.level-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr));
+  gap:20px;
+}
+.level-card {
+  background:var(--bg-card); border-radius:var(--radius-lg);
+  padding:28px; box-shadow:var(--shadow); text-align:center;
+}
+.level-card .stars { font-size:28px; margin-bottom:8px; }
+.level-card h3 { font-size:18px; font-weight:600; margin-bottom:8px; }
+.level-card .locked { opacity:0.5; filter:grayscale(1); }
+
+/* ===== Page: Parent ===== */
+.notice-list { display:flex; flex-direction:column; gap:12px; }
+.notice-item {
+  background:var(--bg-card); border-radius:var(--radius);
+  padding:20px; box-shadow:var(--shadow-sm); border-left:4px solid var(--primary);
+}
+.notice-item .tag {
+  display:inline-block; padding:2px 10px; border-radius:10px;
+  font-size:12px; font-weight:500; margin-right:8px;
+}
+.tag-notice { background:#FFF7E6; color:#FA8C16; }
+.tag-exam { background:#FFF1F0; color:#FF4D4F; }
+.tag-praise { background:#F0FFF4; color:#52C41A; }
+
+.form-group { margin-bottom:16px; }
+.form-group label { display:block; font-size:14px; font-weight:500; margin-bottom:6px; color:var(--text-secondary); }
+.form-group input, .form-group textarea, .form-group select {
+  width:100%; padding:10px 16px; border:2px solid var(--border);
+  border-radius:var(--radius-sm); font-size:15px; font-family:inherit;
+  transition:var(--transition); background:var(--bg);
+}
+.form-group input:focus, .form-group textarea:focus {
+  outline:none; border-color:var(--primary); background:white;
+}
+.form-group textarea { min-height:100px; resize:vertical; }
+
+/* ===== Page: Feedback ===== */
+.chart-container {
+  background:var(--bg-card); border-radius:var(--radius-lg);
+  padding:24px; box-shadow:var(--shadow); text-align:center;
+}
+.chart-container canvas { max-width:100%; }
+.mistake-list { display:flex; flex-direction:column; gap:12px; }
+.mistake-item {
+  background:var(--bg-card); border-radius:var(--radius);
+  padding:20px; box-shadow:var(--shadow-sm);
+}
+.mistake-item .question { font-size:16px; font-weight:600; margin-bottom:8px; }
+.mistake-item .reason { font-size:14px; color:var(--danger); margin-bottom:4px; }
+.mistake-item .solution { font-size:14px; color:var(--success); }
+
+/* ===== Page: Evaluate ===== */
+.medal-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr));
+  gap:16px;
+}
+.medal-card {
+  background:var(--bg-card); border-radius:var(--radius);
+  padding:20px; box-shadow:var(--shadow-sm); text-align:center;
+}
+.medal-card .medal-icon { font-size:40px; margin-bottom:8px; }
+.medal-card .medal-name { font-size:14px; font-weight:600; }
+.medal-card .medal-date { font-size:12px; color:var(--text-muted); }
+.medal-card.locked { opacity:0.4; filter:grayscale(1); }
+
+.store-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr));
+  gap:16px;
+}
+.store-item {
+  background:var(--bg-card); border-radius:var(--radius);
+  padding:20px; box-shadow:var(--shadow-sm); text-align:center;
+}
+.store-item .price {
+  display:inline-block; padding:4px 14px; border-radius:12px;
+  background:#FFF7E6; color:#FA8C16; font-size:14px; font-weight:600; margin-top:8px;
+}
+
+/* ===== Page: About ===== */
+.about-section {
+  background:var(--bg-card); border-radius:var(--radius-lg);
+  padding:32px; box-shadow:var(--shadow); margin-bottom:20px;
+}
+.blog-list { display:flex; flex-direction:column; gap:16px; }
+.blog-item {
+  background:var(--bg-card); border-radius:var(--radius);
+  padding:20px; box-shadow:var(--shadow-sm); transition:var(--transition); cursor:pointer;
+}
+.blog-item:hover { box-shadow:var(--shadow); }
+.blog-item h4 { font-size:17px; font-weight:600; margin-bottom:4px; }
+.blog-item .date { font-size:13px; color:var(--text-muted); }
+
+/* ===== Radar Chart ===== */
+.radar-section {
+  display:grid; grid-template-columns:1fr 1fr; gap:24px;
+}
+
+/* ===== Footer ===== */
+.footer {
+  background:var(--text); color:white; padding:48px 20px 24px; margin-top:48px;
+}
+.footer-grid {
+  max-width:1200px; margin:0 auto;
+  display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:40px;
+}
+.footer-brand h3 { font-size:20px; margin-bottom:8px; }
+.footer-brand p { color:var(--text-light); font-size:14px; }
+.footer-col h4 { font-size:14px; color:var(--text-light); margin-bottom:16px; text-transform:uppercase; }
+.footer-col a { display:block; color:#CCD5DE; font-size:14px; margin-bottom:10px; transition:var(--transition); }
+.footer-col a:hover { color:white; }
+.footer-bottom {
+  max-width:1200px; margin:32px auto 0; padding-top:24px;
+  border-top:1px solid rgba(255,255,255,0.1);
+  text-align:center; color:var(--text-light); font-size:13px;
+}
+
+/* ===== Floating Button ===== */
+.float-btn {
+  position:fixed; bottom:24px; right:24px;
+  background:var(--primary); color:white;
+  padding:14px 24px; border-radius:24px; font-size:15px; font-weight:600;
+  box-shadow:0 6px 24px rgba(74,144,217,0.35);
+  z-index:90; transition:var(--transition);
+  display:flex; align-items:center; gap:8px;
+}
+.float-btn:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(74,144,217,0.45); }
+
+/* ===== Modal ===== */
+.modal-overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
+  z-index:200; align-items:center; justify-content:center;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background:white; border-radius:var(--radius-xl); padding:32px;
+  max-width:500px; width:90%; max-height:80vh; overflow-y:auto;
+  box-shadow:var(--shadow-lg);
+}
+.modal h3 { margin-bottom:16px; }
+.modal-close {
+  float:right; font-size:24px; cursor:pointer; color:var(--text-muted);
+}
+.modal video { width:100%; border-radius:var(--radius); }
+
+/* ===== Bubble Mascot ===== */
+.bubble {
+  position:fixed; bottom:100px; right:24px;
+  background:white; border-radius:16px 16px 4px 16px;
+  padding:12px 18px; box-shadow:var(--shadow-lg); z-index:89;
+  font-size:14px; max-width:240px; animation:bounceIn 0.5s ease;
+}
+.bubble::after {
+  content:''; position:absolute; bottom:-8px; right:20px;
+  width:16px; height:16px; background:white;
+  transform:rotate(45deg); box-shadow:4px 4px 8px rgba(0,0,0,0.05);
+}
+@keyframes bounceIn {
+  0% { transform:scale(0); opacity:0; }
+  60% { transform:scale(1.1); }
+  100% { transform:scale(1); opacity:1; }
+}
+
+/* ===== Toast ===== */
+.toast {
+  position:fixed; top:80px; left:50%; transform:translateX(-50%);
+  background:var(--text); color:white; padding:12px 24px;
+  border-radius:24px; font-size:14px; z-index:300;
+  animation:slideDown 0.3s ease, fadeOut 0.3s ease 2s forwards;
+}
+@keyframes slideDown { from{transform:translateX(-50%) translateY(-20px);opacity:0} to{transform:translateX(-50%) translateY(0);opacity:1} }
+@keyframes fadeOut { to{opacity:0} }
+
+/* ===== Responsive ===== */
+@media (max-width:768px) {
+  .nav-desktop { display:none; }
+  .mode-switch { display:none; }
+  .menu-toggle { display:block; }
+  .task-grid { grid-template-columns:1fr; }
+  .quick-grid { grid-template-columns:repeat(2,1fr); }
+  .radar-section { grid-template-columns:1fr; }
+  .footer-grid { grid-template-columns:1fr 1fr; gap:24px; }
+  .hero { padding:40px 16px; }
+  .stats-row { gap:20px; }
+  .card-grid { grid-template-columns:1fr; }
+  .course-grid { grid-template-columns:1fr; }
+  .level-grid { grid-template-columns:1fr; }
+  .medal-grid { grid-template-columns:repeat(3,1fr); }
+  .store-grid { grid-template-columns:1fr 1fr; }
+}
+@media (max-width:480px) {
+  .quick-grid { grid-template-columns:1fr 1fr; }
+  .medal-grid { grid-template-columns:repeat(2,1fr); }
+  .store-grid { grid-template-columns:1fr; }
+  .hero-cta { flex-direction:column; align-items:center; }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo" onclick="navigate('home')">
+      <div class="logo-icon">🧮</div>
+      <span>青花微课</span>
+    </div>
+    <nav class="nav-desktop" id="navDesktop">
+      <a href="#" data-page="home" class="active">首页</a>
+      <a href="#" data-page="classroom">同步课堂</a>
+      <a href="#" data-page="thinking">思维拓展</a>
+      <a href="#" data-page="parent">家校互通</a>
+      <a href="#" data-page="feedback">学习反馈</a>
+      <a href="#" data-page="evaluate">多元评价</a>
+      <a href="#" data-page="about">关于我</a>
+    </nav>
+    <div class="mode-switch" id="modeSwitch">
+      <button class="mode-btn active" data-mode="student" onclick="switchMode('student')">学生模式</button>
+      <button class="mode-btn" data-mode="parent" onclick="switchMode('parent')">家长模式</button>
+    </div>
+    <button class="menu-toggle" onclick="toggleMobileNav()">☰</button>
+  </div>
+</header>
+
+<!-- Mobile Nav -->
+<nav class="mobile-nav" id="mobileNav">
+  <a href="#" data-page="home" class="active" onclick="navigate('home');toggleMobileNav()">首页</a>
+  <a href="#" data-page="classroom" onclick="navigate('classroom');toggleMobileNav()">同步课堂</a>
+  <a href="#" data-page="thinking" onclick="navigate('thinking');toggleMobileNav()">思维拓展</a>
+  <a href="#" data-page="parent" onclick="navigate('parent');toggleMobileNav()">家校互通</a>
+  <a href="#" data-page="feedback" onclick="navigate('feedback');toggleMobileNav()">学习反馈</a>
+  <a href="#" data-page="evaluate" onclick="navigate('evaluate');toggleMobileNav()">多元评价</a>
+  <a href="#" data-page="about" onclick="navigate('about');toggleMobileNav()">关于我</a>
+  <div style="margin-top:16px;display:flex;gap:8px;">
+    <button class="mode-btn active" onclick="switchMode('student')">学生模式</button>
+    <button class="mode-btn" onclick="switchMode('parent')">家长模式</button>
+  </div>
+</nav>
+
+<!-- ===== HOME PAGE ===== -->
+<section class="page active" id="page-home">
+
+<div class="hero">
+  <div class="container">
+    <div class="hero-badge">
+      <span class="mascot">🧮</span>
+      <span id="welcomeMsg">欢迎回来，小明同学！</span>
+    </div>
+    <h1 id="heroTitle">今天小π带来了「有趣的分数」</h1>
+    <p class="subtitle">每天进步一点点，数学其实很好玩！</p>
+    <div class="hero-cta">
+      <button class="btn btn-primary" onclick="navigate('classroom')">📖 开始今天的学习</button>
+      <button class="btn btn-outline" onclick="navigate('feedback')">📊 查看学习报告</button>
+    </div>
+    <div class="stats-row">
+      <div class="stat-item"><span>⭐</span><span id="totalPoints">128 积分</span></div>
+      <div class="stat-item"><span>🏅</span><span id="totalMedals">15 枚勋章</span></div>
+      <div class="stat-item"><span>🔥</span><span id="streakDays">连续 7 天</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="container section">
+  <h2 class="section-title">📋 今日任务清单</h2>
+  <div class="task-grid">
+    <div class="video-card">
+      <div class="video-thumb" onclick="openVideo('分数的基本概念')">
+        <div class="play-btn">▶</div>
+      </div>
+      <h3>分数的基本概念</h3>
+      <p class="meta">时长 8分钟 · 三年级</p>
+    </div>
+    <div class="exercise-card">
+      <h3>随堂练习</h3>
+      <div id="exerciseList">
+        <div class="exercise-item" onclick="toggleExercise(this)">
+          <div class="checkbox">✓</div>
+          <span class="ex-text">1/2 + 1/4 = ?</span>
+        </div>
+        <div class="exercise-item" onclick="toggleExercise(this)">
+          <div class="checkbox">✓</div>
+          <span class="ex-text">比较 1/3 和 1/5 的大小</span>
+        </div>
+        <div class="exercise-item" onclick="toggleExercise(this)">
+          <div class="checkbox">✓</div>
+          <span class="ex-text">画出 2/5 的图形表示</span>
+        </div>
+      </div>
+      <div class="reward-row">
+        <span>完成全部可得</span><span style="font-size:18px;">⭐⭐⭐</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container section">
+  <h2 class="section-title">快捷入口</h2>
+  <div class="quick-grid">
+    <div class="quick-card" onclick="navigate('classroom')">
+      <div class="icon" style="background:#EBF5FF;">📚</div>
+      <h4>同步课堂</h4>
+      <p>微课视频 + 随堂练习</p>
+    </div>
+    <div class="quick-card" onclick="navigate('thinking')">
+      <div class="icon" style="background:#FFF7E6;">🧠</div>
+      <h4>思维拓展</h4>
+      <p>闯关挑战 + 趣味数学</p>
+    </div>
+    <div class="quick-card" onclick="navigate('parent')">
+      <div class="icon" style="background:#F0FFF4;">🏠</div>
+      <h4>家校互通</h4>
+      <p>通知公告 + 悄悄话</p>
+    </div>
+    <div class="quick-card" onclick="navigate('feedback')">
+      <div class="icon" style="background:#FFF0F5;">📊</div>
+      <h4>学习反馈</h4>
+      <p>错题本 + 雷达图</p>
+    </div>
+    <div class="quick-card" onclick="navigate('evaluate')">
+      <div class="icon" style="background:#F3E8FF;">🏆</div>
+      <h4>多元评价</h4>
+      <p>勋章墙 + 积分商城</p>
+    </div>
+    <div class="quick-card" onclick="navigate('about')">
+      <div class="icon" style="background:#FFF2E8;">👤</div>
+      <h4>关于我</h4>
+      <p>教学理念 + 荣誉</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ===== CLASSROOM PAGE ===== -->
+<section class="page" id="page-classroom">
+<div class="container section">
+  <h2 class="section-title">📚 同步课堂</h2>
+  <div class="course-grid" id="courseGrid"></div>
+</div>
+<div class="container section">
+  <h3 style="margin-bottom:20px;">📖 电子课本索引</h3>
+  <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
+    <div style="display:flex;flex-wrap:wrap;gap:16px;" id="textbookIndex"></div>
+  </div>
+</div>
+</section>
+
+<!-- ===== THINKING PAGE ===== -->
+<section class="page" id="page-thinking">
+<div class="container section">
+  <h2 class="section-title">🧠 数学思维拓展</h2>
+  <div class="level-grid" id="levelGrid"></div>
+</div>
+<div class="container section">
+  <h3 style="margin-bottom:20px;">🌈 生活中的数学</h3>
+  <div class="card-grid" id="lifeMathGrid"></div>
+</div>
+</section>
+
+<!-- ===== PARENT PAGE ===== -->
+<section class="page" id="page-parent">
+<div class="container section">
+  <h2 class="section-title">🏠 家校互通</h2>
+  <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;" id="noticeFilter">
+    <button class="btn btn-primary" style="padding:8px 18px;font-size:14px;" onclick="filterNotices('all')">全部</button>
+    <button class="btn btn-outline" style="padding:8px 18px;font-size:14px;" onclick="filterNotices('作业通知')">作业通知</button>
+    <button class="btn btn-outline" style="padding:8px 18px;font-size:14px;" onclick="filterNotices('考试提醒')">考试提醒</button>
+    <button class="btn btn-outline" style="padding:8px 18px;font-size:14px;" onclick="filterNotices('表扬信')">表扬信</button>
+  </div>
+  <div class="notice-list" id="noticeList"></div>
+</div>
+<div class="container section">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;" class="radar-section">
+    <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
+      <h3 style="margin-bottom:16px;">💬 悄悄话</h3>
+      <form id="whisperForm" onsubmit="submitWhisper(event)">
+        <div class="form-group"><label>孩子姓名</label><input type="text" id="whisperName" required></div>
+        <div class="form-group"><label>家长留言</label><textarea id="whisperMsg" required></textarea></div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">发送给老师</button>
+      </form>
+    </div>
+    <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
+      <h3 style="margin-bottom:16px;">📸 班级风采</h3>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="classPhotos"></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ===== FEEDBACK PAGE ===== -->
+<section class="page" id="page-feedback">
+<div class="container section">
+  <h2 class="section-title">📊 学习反馈</h2>
+  <div class="radar-section">
+    <div class="chart-container">
+      <h3 style="margin-bottom:16px;">三维学习雷达图</h3>
+      <canvas id="radar3D" width="360" height="360"></canvas>
+    </div>
+    <div>
+      <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);margin-bottom:20px;">
+        <h3 style="margin-bottom:12px;">⚡ 避雷针建议</h3>
+        <p style="font-size:16px;color:var(--text);" id="lightningTip">今天建议复习：<strong>分数的通分与约分</strong></p>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="container section">
+  <h3 style="margin-bottom:20px;">📝 错题本</h3>
+  <div class="mistake-list" id="mistakeList"></div>
+</div>
+</section>
+
+<!-- ===== EVALUATE PAGE ===== -->
+<section class="page" id="page-evaluate">
+<div class="container section">
+  <h2 class="section-title">🏆 多元评价</h2>
+  <div class="radar-section">
+    <div class="chart-container">
+      <h3 style="margin-bottom:16px;">五维雷达图</h3>
+      <canvas id="radar5D" width="380" height="380"></canvas>
+    </div>
+    <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
+      <h3 style="margin-bottom:16px;">🎉 电子喜报</h3>
+      <div style="text-align:center;padding:20px;background:linear-gradient(135deg,#FFF7E6,#FFF0F5);border-radius:var(--radius);">
+        <p style="font-size:20px;font-weight:700;color:var(--star);margin-bottom:8px;">🌟 优秀学员喜报</p>
+        <div style="width:60px;height:60px;background:var(--primary);border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:28px;color:white;">🧮</div>
+        <p style="font-size:18px;font-weight:600;">小明同学</p>
+        <p style="font-size:14px;color:var(--text-secondary);margin:8px 0;">计算 | 理解 | 审题全面发展</p>
+        <p style="font-size:13px;color:var(--text-muted);font-style:italic;">"继续保持认真审题的好习惯，你是最棒的！"</p>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="container section">
+  <h3 style="margin-bottom:20px;">🏅 勋章墙</h3>
+  <div class="medal-grid" id="medalWall"></div>
+</div>
+<div class="container section">
+  <h3 style="margin-bottom:20px;">🎁 积分商城</h3>
+  <div class="store-grid" id="pointStore"></div>
+</div>
+</section>
+
+<!-- ===== ABOUT PAGE ===== -->
+<section class="page" id="page-about">
+<div class="container section">
+  <h2 class="section-title">👤 关于我</h2>
+  <div class="about-section">
+    <h3 style="font-size:22px;margin-bottom:12px;">教学理念</h3>
+    <p style="color:var(--text-secondary);line-height:1.8;">
+      我相信每个孩子都有学好数学的潜力。数学不是冰冷的公式，而是理解世界的语言。
+      在我的课堂上，我注重培养孩子们的<strong>数学思维</strong>和<strong>学习兴趣</strong>，
+      让每个孩子都能在轻松愉快的氛围中掌握数学知识，建立自信。
+    </p>
+  </div>
+  <div class="about-section">
+    <h3 style="font-size:22px;margin-bottom:12px;">工作经历与荣誉</h3>
+    <ul style="color:var(--text-secondary);line-height:2;padding-left:20px;">
+      <li>教龄 12 年，一直从事小学数学教学工作</li>
+      <li>市级骨干教师、优秀班主任</li>
+      <li>多次获得市级优质课比赛一等奖</li>
+      <li>开发的"青花微课"系列微课资源覆盖三年级至六年级全部知识点</li>
+    </ul>
+  </div>
+  <div class="about-section">
+    <h3 style="font-size:22px;margin-bottom:16px;">📝 教学反思</h3>
+    <div class="blog-list" id="blogList"></div>
+  </div>
+</div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <h3>🧮 青花微课</h3>
+      <p>让每个孩子爱上数学</p>
+    </div>
+    <div class="footer-col">
+      <h4>学习</h4>
+      <a href="#" onclick="navigate('classroom')">同步课堂</a>
+      <a href="#" onclick="navigate('thinking')">思维拓展</a>
+      <a href="#" onclick="navigate('feedback')">错题本</a>
+    </div>
+    <div class="footer-col">
+      <h4>家校</h4>
+      <a href="#" onclick="navigate('parent')">家校互通</a>
+      <a href="#" onclick="navigate('feedback')">学习报告</a>
+      <a href="#" onclick="navigate('parent')">班级风采</a>
+    </div>
+    <div class="footer-col">
+      <h4>评价</h4>
+      <a href="#" onclick="navigate('evaluate')">多元评价</a>
+      <a href="#" onclick="navigate('evaluate')">勋章墙</a>
+      <a href="#" onclick="navigate('evaluate')">积分商城</a>
+    </div>
+  </div>
+  <div class="footer-bottom">© 2026 青花微课 - 小学数学教师个人教学网站</div>
+</footer>
+
+<!-- Floating -->
+<button class="float-btn" id="floatReportBtn" onclick="navigate('feedback')">
+  📋 今日学习报告
+</button>
+<div class="bubble" id="mascotBubble" style="display:none;">
+  <span id="bubbleText">加油！完成今日任务可以获得3颗星哦 ⭐</span>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <span class="modal-close" onclick="closeModalDirect()">✕</span>
+    <div id="modalContent"></div>
+  </div>
+</div>
+<div id="toastContainer"></div>
+
+<script>
+// ===== DATA STORE =====
+const STORAGE_KEY = 'qinghua_weike_data';
+
+function loadData() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  return raw ? JSON.parse(raw) : getDefaultData();
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+  updateHomeStats();
+}
+
+function getDefaultData() {
+  return {
+    mode: 'student',
+    points: 128,
+    streak: 7,
+    exercises: [false, false, false],
+    medals: [
+      { name: '计算小达人', icon: '🥉', type: 'bronze', unlocked: true, date: '2026-06-15' },
+      { name: '思考小诸葛', icon: '🥈', type: 'silver', unlocked: true, date: '2026-06-20' },
+      { name: '表达小讲师', icon: '🥇', type: 'gold', unlocked: true, date: '2026-07-01' },
+      { name: '书写小标兵', icon: '🥉', type: 'bronze', unlocked: true, date: '2026-05-10' },
+      { name: '应用小能手', icon: '🥈', type: 'silver', unlocked: true, date: '2026-07-03' },
+      { name: '数学绘本家', icon: '🔒', type: 'locked', unlocked: false, date: '', condition: '阅读5本数学绘本' },
+      { name: '满分之星', icon: '🔒', type: 'locked', unlocked: false, date: '', condition: '连续3次练习满分' },
+      { name: '思维王者', icon: '🔒', type: 'locked', unlocked: false, date: '', condition: '通过头脑风暴关卡' },
+    ],
+    courses: [
+      { title: '分数的基本概念', grade: '三年级', thumb: '#4A90D9', duration: '8分钟' },
+      { title: '分数的大小比较', grade: '三年级', thumb: '#7AB8F5', duration: '10分钟' },
+      { title: '同分母分数加减', grade: '三年级', thumb: '#52C41A', duration: '12分钟' },
+      { title: '小数的初步认识', grade: '三年级', thumb: '#FAAD14', duration: '9分钟' },
+      { title: '两位数乘两位数', grade: '三年级', thumb: '#FF7A45', duration: '15分钟' },
+      { title: '面积的计算', grade: '三年级', thumb: '#9254DE', duration: '11分钟' },
+    ],
+    thinkingLevels: [
+      { name: '基础推理', stars: '⭐', difficulty: 1, desc: '适合初学者的逻辑推理', unlocked: true },
+      { name: '进阶挑战', stars: '⭐⭐', difficulty: 2, desc: '需要一定的数学基础', unlocked: true },
+      { name: '头脑风暴', stars: '⭐⭐⭐', difficulty: 3, desc: '挑战你的思维极限', unlocked: false },
+    ],
+    lifeMath: [
+      { title: '超市里的分数', desc: '和爸爸妈妈去超市，找出3个用到分数的商品标签', done: false },
+      { title: '家里的对称轴', desc: '在家中找到5个对称的物品并拍照记录', done: false },
+    ],
+    notices: [
+      { type: '作业通知', title: '本周数学作业安排', date: '2026-07-06', content: '请完成课本第45-47页练习题，下周一检查。' },
+      { type: '考试提醒', title: '期末考试通知', date: '2026-07-03', content: '期末考试定于7月15日，请同学们认真复习。' },
+      { type: '表扬信', title: '表扬：小明同学', date: '2026-07-01', content: '小明同学在本周数学思维拓展活动中表现优异，特此表扬！' },
+      { type: '作业通知', title: '暑假数学阅读推荐', date: '2026-06-28', content: '推荐阅读《数学帮帮忙》系列绘本，开学后分享读后感。' },
+    ],
+    mistakes: [
+      { question: '1/2 + 1/3 = ?', wrongAnswer: '2/5', reason: '分母不同时不能直接相加分子', solution: '先通分：1/2=3/6, 1/3=2/6, 和为5/6' },
+      { question: '3/4 - 1/2 = ?', wrongAnswer: '2/2=1', reason: '未将1/2转换为同分母', solution: '1/2=2/4, 3/4-2/4=1/4' },
+    ],
+    store: [
+      { name: '免作业卡', price: 30, icon: '📝' },
+      { name: '选座位卡', price: 50, icon: '💺' },
+      { name: '当一天课代表', price: 100, icon: '👑' },
+    ],
+    blogs: [
+      { title: '如何帮助孩子建立数学自信', date: '2026-06-25', summary: '自信心是学好数学的关键。分享几个在课堂和家庭中培养孩子数学自信的实用方法。' },
+      { title: '三年级分数教学的几点思考', date: '2026-05-18', summary: '分数是小学数学的第一个抽象概念难点，如何让学生真正理解分数的意义？' },
+      { title: '让数学变得有趣：游戏化教学实践', date: '2026-04-10', summary: '通过闯关、积分、勋章等游戏化手段，孩子们的学习积极性明显提高。' },
+    ],
+    classPhotos: ['🎨', '🏃', '📖', '🎭', '🔬', '🎵'],
+    userName: '小明同学',
+  };
+}
+
+let appData = loadData();
+
+// ===== SAVE =====
+function persist() { saveData(); }
+
+// ===== NAVIGATION =====
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('page-' + page);
+  if (target) target.classList.add('active');
+  document.querySelectorAll('#navDesktop a, #mobileNav a').forEach(a => {
+    a.classList.toggle('active', a.dataset.page === page);
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  renderPageContent(page);
+}
+
+document.querySelectorAll('#navDesktop a, #mobileNav a').forEach(a => {
+  a.addEventListener('click', function(e) {
+    e.preventDefault();
+    navigate(this.dataset.page);
+  });
+});
+
+function toggleMobileNav() {
+  document.getElementById('mobileNav').classList.toggle('open');
+}
+
+// ===== MODE SWITCH =====
+function switchMode(mode) {
+  appData.mode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  saveData();
+  if (mode === 'parent') {
+    document.getElementById('floatReportBtn').style.display = 'flex';
+  } else {
+    document.getElementById('floatReportBtn').style.display = 'none';
+  }
+  showToast(mode === 'student' ? '已切换到学生模式' : '已切换到家长模式');
+}
+
+// ===== EXERCISE TOGGLE =====
+function toggleExercise(el) {
+  el.classList.toggle('done');
+  const idx = Array.from(el.parentElement.children).indexOf(el);
+  if (idx >= 0 && idx < appData.exercises.length) {
+    appData.exercises[idx] = el.classList.contains('done');
+    saveData();
+    if (el.classList.contains('done')) {
+      showToast('太棒了！⭐ +10分');
+    }
+  }
+}
+
+// ===== PAGE RENDERING =====
+function renderPageContent(page) {
+  switch(page) {
+    case 'home': updateHomeStats(); break;
+    case 'classroom': renderClassroom(); break;
+    case 'thinking': renderThinking(); break;
+    case 'parent': renderParent(); break;
+    case 'feedback': renderFeedback(); break;
+    case 'evaluate': renderEvaluate(); break;
+    case 'about': renderAbout(); break;
+  }
+}
+
+function updateHomeStats() {
+  const p = document.getElementById('totalPoints');
+  const m = document.getElementById('totalMedals');
+  const s = document.getElementById('streakDays');
+  if (p) p.textContent = appData.points + ' 积分';
+  if (m) m.textContent = appData.medals.filter(x => x.unlocked).length + ' 枚勋章';
+  if (s) s.textContent = '连续 ' + appData.streak + ' 天';
+  updateWelcome();
+}
+
+function updateWelcome() {
+  const topics = ['有趣的分数', '神奇的对称轴', '生活中的小数', '巧算乘法', '面积大冒险', '时间的奥秘'];
+  const t = topics[Math.floor(Math.random() * topics.length)];
+  const msg = document.getElementById('welcomeMsg');
+  if (msg) msg.textContent = '欢迎回来，' + appData.userName + '！';
+  const title = document.getElementById('heroTitle');
+  if (title) title.textContent = '今天小π带来了「' + t + '」';
+}
+
+// ===== CLASSROOM =====
+function renderClassroom() {
+  const grid = document.getElementById('courseGrid');
+  if (!grid) return;
+  grid.innerHTML = appData.courses.map((c, i) => `
+    <div class="course-card" onclick="openVideo('${c.title}')">
+      <div class="course-thumb" style="background:linear-gradient(135deg,${c.thumb},${c.thumb}88);">
+        <div style="width:56px;height:56px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:${c.thumb};">▶</div>
+      </div>
+      <div class="course-info">
+        <h3>${c.title}</h3>
+        <span class="grade-badge">${c.grade}</span>
+        <span style="font-size:13px;color:var(--text-muted);margin-left:8px;">${c.duration}</span>
+      </div>
+    </div>
+  `).join('');
+
+  const tbIdx = document.getElementById('textbookIndex');
+  if (tbIdx) {
+    const grades = ['三年级上', '三年级下', '四年级上', '四年级下'];
+    tbIdx.innerHTML = grades.map(g => `
+      <div style="padding:10px 16px;background:var(--bg);border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer;" onclick="showToast('今天需要辅导：${g} 第42页')">
+        ${g} 📖
+      </div>
+    `).join('');
+  }
+}
+
+// ===== THINKING =====
+function renderThinking() {
+  const grid = document.getElementById('levelGrid');
+  if (!grid) return;
+  grid.innerHTML = appData.thinkingLevels.map(l => `
+    <div class="level-card${l.unlocked ? '' : ' locked'}">
+      <div class="stars">${l.stars}</div>
+      <h3>${l.name}</h3>
+      <p style="color:var(--text-muted);font-size:14px;">${l.desc}</p>
+      <button class="btn ${l.unlocked ? 'btn-primary' : ''}" style="margin-top:16px;opacity:${l.unlocked?1:0.5};" ${l.unlocked?'onclick="showToast(\'关卡挑战开始！加油💪\')"':''}>
+        ${l.unlocked ? '开始闯关' : '🔒 明天解锁'}
+      </button>
+    </div>
+  `).join('');
+
+  const lmGrid = document.getElementById('lifeMathGrid');
+  if (lmGrid) {
+    lmGrid.innerHTML = appData.lifeMath.map(task => `
+      <div class="card">
+        <h4 style="margin-bottom:8px;">${task.title}</h4>
+        <p style="font-size:14px;color:var(--text-muted);margin-bottom:12px;">${task.desc}</p>
+        <button class="btn btn-outline" style="padding:8px 20px;font-size:14px;" onclick="this.textContent='✅ 已打卡';this.style.background='var(--success)';this.style.color='white';this.style.border='none';showToast('打卡成功！⭐ +15')">📸 去打卡</button>
+      </div>
+    `).join('');
+  }
+}
+
+// ===== PARENT =====
+let noticeFilter = 'all';
+function filterNotices(type) {
+  noticeFilter = type;
+  renderParent();
+}
+function renderParent() {
+  const list = document.getElementById('noticeList');
+  if (!list) return;
+  const filtered = noticeFilter === 'all' ? appData.notices : appData.notices.filter(n => n.type === noticeFilter);
+  list.innerHTML = filtered.map(n => `
+    <div class="notice-item">
+      <span class="tag ${n.type==='作业通知'?'tag-notice':n.type==='考试提醒'?'tag-exam':'tag-praise'}">${n.type}</span>
+      <span style="font-size:13px;color:var(--text-muted);">${n.date}</span>
+      <h4 style="margin:8px 0;">${n.title}</h4>
+      <p style="font-size:14px;color:var(--text-secondary);">${n.content}</p>
+    </div>
+  `).join('');
+
+  const photos = document.getElementById('classPhotos');
+  if (photos) {
+    photos.innerHTML = appData.classPhotos.map(p => `
+      <div style="aspect-ratio:1;background:var(--bg);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:32px;">${p}</div>
+    `).join('');
+  }
+}
+
+function submitWhisper(e) {
+  e.preventDefault();
+  const name = document.getElementById('whisperName').value;
+  const msg = document.getElementById('whisperMsg').value;
+  showToast('悄悄话已发送给老师！📧');
+  document.getElementById('whisperForm').reset();
+}
+
+// ===== FEEDBACK =====
+function renderFeedback() {
+  const list = document.getElementById('mistakeList');
+  if (!list) return;
+  list.innerHTML = appData.mistakes.map(m => `
+    <div class="mistake-item">
+      <div class="question">❌ ${m.question} = ${m.wrongAnswer}</div>
+      <div class="reason">⚠️ 错误原因：${m.reason}</div>
+      <div class="solution">✅ 正确解法：${m.solution}</div>
+    </div>
+  `).join('');
+
+  draw3DRadar();
+}
+
+function draw3DRadar() {
+  const canvas = document.getElementById('radar3D');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const cx = 180, cy = 180, r = 140;
+  const labels = ['计算准确率', '理解能力', '审题习惯'];
+  const values = [0.85, 0.72, 0.68];
+  const angles = labels.map((_, i) => -Math.PI/2 + (2*Math.PI*i)/3);
+  ctx.clearRect(0, 0, 360, 360);
+
+  // Grid
+  for (let level = 0.2; level <= 1; level += 0.2) {
+    ctx.beginPath();
+    angles.forEach((a, i) => {
+      const x = cx + r*level*Math.cos(a), y = cy + r*level*Math.sin(a);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.strokeStyle = '#E8ECF1';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Axes
+  angles.forEach(a => {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + r*Math.cos(a), cy + r*Math.sin(a));
+    ctx.strokeStyle = '#E8ECF1';
+    ctx.stroke();
+  });
+
+  // Data
+  ctx.beginPath();
+  angles.forEach((a, i) => {
+    const x = cx + r*values[i]*Math.cos(a), y = cy + r*values[i]*Math.sin(a);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(74,144,217,0.15)';
+  ctx.fill();
+  ctx.strokeStyle = '#4A90D9';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Points
+  angles.forEach((a, i) => {
+    const x = cx + r*values[i]*Math.cos(a), y = cy + r*values[i]*Math.sin(a);
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, 2*Math.PI);
+    ctx.fillStyle = '#4A90D9'; ctx.fill();
+  });
+
+  // Labels
+  angles.forEach((a, i) => {
+    const x = cx + (r+30)*Math.cos(a), y = cy + (r+30)*Math.sin(a);
+    ctx.fillStyle = '#2C3E50';
+    ctx.font = '14px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText((values[i]*100).toFixed(0) + '%', x, y - 8);
+    ctx.fillText(labels[i], x, y + 12);
+  });
+}
+
+// ===== EVALUATE =====
+function renderEvaluate() {
+  const wall = document.getElementById('medalWall');
+  if (!wall) return;
+  wall.innerHTML = appData.medals.map(m => `
+    <div class="medal-card${m.unlocked ? '' : ' locked'}">
+      <div class="medal-icon">${m.icon}</div>
+      <div class="medal-name">${m.name}</div>
+      <div class="medal-date">${m.unlocked ? m.date : m.condition}</div>
+    </div>
+  `).join('');
+
+  const store = document.getElementById('pointStore');
+  if (!store) return;
+  store.innerHTML = appData.store.map(item => `
+    <div class="store-item" onclick="redeemItem('${item.name}',${item.price})">
+      <div style="font-size:36px;">${item.icon}</div>
+      <div style="font-weight:600;margin:8px 0;">${item.name}</div>
+      <div class="price">${item.price} 积分</div>
+    </div>
+  `).join('');
+
+  draw5DRadar();
+}
+
+function draw5DRadar() {
+  const canvas = document.getElementById('radar5D');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const cx = 190, cy = 190, r = 150;
+  const labels = ['计算\n小达人', '思考\n小诸葛', '表达\n小讲师', '书写\n小标兵', '应用\n小能手'];
+  const values = [0.9, 0.75, 0.7, 0.85, 0.8];
+  const angles = labels.map((_, i) => -Math.PI/2 + (2*Math.PI*i)/5);
+  ctx.clearRect(0, 0, 380, 380);
+
+  for (let level = 0.25; level <= 1; level += 0.25) {
+    ctx.beginPath();
+    angles.forEach((a, i) => {
+      const x = cx + r*level*Math.cos(a), y = cy + r*level*Math.sin(a);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.strokeStyle = '#E8ECF1';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  angles.forEach(a => {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + r*Math.cos(a), cy + r*Math.sin(a));
+    ctx.strokeStyle = '#E8ECF1';
+    ctx.stroke();
+  });
+
+  ctx.beginPath();
+  angles.forEach((a, i) => {
+    const x = cx + r*values[i]*Math.cos(a), y = cy + r*values[i]*Math.sin(a);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(74,144,217,0.12)';
+  ctx.fill();
+  ctx.strokeStyle = '#4A90D9';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  angles.forEach((a, i) => {
+    const x = cx + r*values[i]*Math.cos(a), y = cy + r*values[i]*Math.sin(a);
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, 2*Math.PI);
+    ctx.fillStyle = '#4A90D9'; ctx.fill();
+  });
+
+  angles.forEach((a, i) => {
+    const x = cx + (r+35)*Math.cos(a), y = cy + (r+35)*Math.sin(a);
+    ctx.fillStyle = '#2C3E50';
+    ctx.font = '12px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    const lines = labels[i].split('\n');
+    lines.forEach((line, j) => ctx.fillText(line, x, y + j*16));
+  });
+}
+
+function redeemItem(name, price) {
+  if (appData.points >= price) {
+    appData.points -= price;
+    saveData();
+    showToast('兑换成功！你获得了：' + name + ' 🎉');
+  } else {
+    showToast('积分不足，继续加油哦！💪');
+  }
+}
+
+// ===== ABOUT =====
+function renderAbout() {
+  const list = document.getElementById('blogList');
+  if (!list) return;
+  list.innerHTML = appData.blogs.map(b => `
+    <div class="blog-item" onclick="showToast('打开文章：${b.title}')">
+      <h4>${b.title}</h4>
+      <span class="date">${b.date}</span>
+      <p style="font-size:14px;color:var(--text-secondary);margin-top:8px;">${b.summary}</p>
+    </div>
+  `).join('');
+}
+
+// ===== MODAL =====
+function openVideo(title) {
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('modalContent').innerHTML = `
+    <h3>▶ ${title}</h3>
+    <div style="background:linear-gradient(135deg,#4A90D9,#7AB8F5);height:240px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:16px 0;">
+      <div style="width:64px;height:64px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;color:#4A90D9;">▶</div>
+    </div>
+    <p style="color:var(--text-muted);text-align:center;">微课播放区域（连接后端视频服务后可播放）</p>
+  `;
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal')) {
+    document.getElementById('modal').classList.remove('open');
+  }
+}
+function closeModalDirect() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+// ===== TOAST =====
+function showToast(msg) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 2500);
+}
+
+// ===== MASCOT BUBBLE =====
+const tips = [
+  '加油！完成今日任务可以获得3颗星哦 ⭐',
+  '做错题不要怕，错题本会帮你进步 📝',
+  '每天学习一点点，你就是数学小天才！🧮',
+  '记得先去同步课堂看微课视频哦 📚',
+  '积分可以兑换超棒的奖励呢 🎁',
+];
+let tipIndex = 0;
+setInterval(() => {
+  const bubble = document.getElementById('mascotBubble');
+  const text = document.getElementById('bubbleText');
+  if (bubble && text) {
+    bubble.style.display = 'block';
+    text.textContent = tips[tipIndex % tips.length];
+    tipIndex++;
+    setTimeout(() => { bubble.style.display = 'none'; }, 4000);
+  }
+}, 15000);
+setTimeout(() => {
+  document.getElementById('mascotBubble').style.display = 'block';
+  setTimeout(() => { document.getElementById('mascotBubble').style.display = 'none'; }, 4000);
+}, 2000);
+
+// ===== INIT =====
+function init() {
+  if (appData.mode === 'parent') {
+    document.getElementById('floatReportBtn').style.display = 'flex';
+    document.querySelectorAll('.mode-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === 'parent');
+    });
+  }
+  document.querySelectorAll('#exerciseList .exercise-item').forEach((el, i) => {
+    if (appData.exercises[i]) el.classList.add('done');
+  });
+  updateHomeStats();
+  draw3DRadar();
+}
+init();
+</script>
+</body>
+</html>
