@@ -372,6 +372,42 @@ img { max-width:100%; display:block; }
   text-align:center; color:var(--text-light); font-size:13px;
 }
 
+/* ===== Data Backup Panel ===== */
+.data-panel {
+  background:white; border-radius:var(--radius-xl); padding:28px 32px;
+  box-shadow:0 2px 16px rgba(0,0,0,0.06);
+  margin-top:20px;
+}
+.data-panel h4 {
+  font-size:16px; font-weight:700; color:var(--text-dark);
+  margin-bottom:8px; display:flex; align-items:center; gap:8px;
+}
+.data-panel p { font-size:13px; color:var(--text-muted); margin-bottom:16px; }
+.data-row {
+  display:flex; gap:12px; flex-wrap:wrap; align-items:center;
+}
+.btn-backup {
+  padding:10px 20px; border-radius:10px; font-size:14px; font-weight:600;
+  border:none; cursor:pointer; display:flex; align-items:center; gap:6px;
+  transition:all 0.2s; min-width:44px; min-height:44px;
+}
+.btn-backup.export { background:#4A90D9; color:white; }
+.btn-backup.export:hover { background:#3A7BC8; }
+.btn-backup.import { background:#F0F4FA; color:#4A90D9; border:1.5px solid #4A90D9; position:relative; overflow:hidden; }
+.btn-backup.import:hover { background:#E6F0FA; }
+.btn-backup.import input[type=file] {
+  position:absolute; inset:0; opacity:0; cursor:pointer;
+}
+.btn-backup.reset { background:#FFF5F5; color:#E24B4A; border:1.5px solid #E24B4A; }
+.btn-backup.reset:hover { background:#FFEBEB; }
+.toast-msg {
+  position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
+  background:#2C3E50; color:white; padding:12px 24px; border-radius:12px;
+  font-size:14px; z-index:999; opacity:0; transition:opacity 0.3s;
+  pointer-events:none;
+}
+.toast-msg.show { opacity:1; }
+
 /* ===== Floating Button ===== */
 .float-btn {
   position:fixed; bottom:24px; right:24px;
@@ -752,6 +788,22 @@ img { max-width:100%; display:block; }
     </div>
   </div>
   <div class="footer-bottom">© 2026 青花微课 - 小学数学教师个人教学网站</div>
+  <div class="data-panel">
+    <h4>💾 数据管理</h4>
+    <p>导出备份文件保存到本地，更换设备或清除浏览器后可通过导入恢复全部数据。</p>
+    <div class="data-row">
+      <button class="btn-backup export" onclick="exportAllData()" title="下载所有数据为 JSON 文件">
+        导出全部数据
+      </button>
+      <label class="btn-backup import" title="从 JSON 文件恢复数据">
+        导入恢复数据
+        <input type="file" accept=".json" onchange="importAllData(event)">
+      </label>
+      <button class="btn-backup reset" onclick="resetAllData()" title="清除所有数据恢复初始状态">
+        重置为初始状态
+      </button>
+    </div>
+  </div>
 </footer>
 
 <!-- Floating -->
@@ -847,6 +899,76 @@ let appData = loadData();
 
 // ===== SAVE =====
 function persist() { saveData(); }
+
+// ===== DATA BACKUP =====
+function showToast(msg) {
+  const t = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = 'toast-msg'; el.textContent = msg;
+  t.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 2500);
+}
+
+function exportAllData() {
+  const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  if (!data || Object.keys(data).length === 0) {
+    showToast('暂无数据可导出');
+    return;
+  }
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const d = new Date();
+  const ts = d.getFullYear() + ('0'+(d.getMonth()+1)).slice(-2) + ('0'+d.getDate()).slice(-2) + '_' + ('0'+d.getHours()).slice(-2) + ('0'+d.getMinutes()).slice(-2);
+  a.download = 'qinghua_weike_backup_' + ts + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('数据已导出，文件已保存到下载目录');
+}
+
+function importAllData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.mode && !data.points && !data.exercises) {
+        showToast('文件格式不正确，请选择青花微课备份文件');
+        return;
+      }
+      if (!confirm('导入数据将覆盖当前所有数据（积分、勋章、错题本等），确定继续吗？')) return;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      appData = data;
+      renderAllPages();
+      showToast('数据已成功恢复！页面已刷新');
+    } catch(err) {
+      showToast('文件解析失败：' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function resetAllData() {
+  if (!confirm('这将清除所有数据（积分、勋章、错题本等）并恢复为初始状态，此操作不可撤销！\n\n确定继续吗？')) return;
+  if (!confirm('最终确认：所有学习进度将丢失，你确定要重置吗？')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  appData = getDefaultData();
+  renderAllPages();
+  showToast('数据已重置为初始状态');
+}
+
+function getExportSize() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return '0 KB';
+  const kb = (new Blob([raw]).size / 1024).toFixed(1);
+  return kb + ' KB';
+}
 
 // ===== NAVIGATION =====
 function navigate(page) {
