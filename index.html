@@ -372,6 +372,88 @@ img { max-width:100%; display:block; }
   text-align:center; color:var(--text-light); font-size:13px;
 }
 
+/* ===== Auth Lock ===== */
+.btn-lock {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; transition: var(--transition);
+  border: 1.5px solid var(--border); background: white;
+  cursor: pointer; position: relative;
+}
+.btn-lock.locked { color: #999; }
+.btn-lock.unlocked { color: #52C41A; border-color: #B7EB8F; background: #F6FFED; }
+.btn-lock .auth-badge {
+  position: absolute; top: -4px; right: -4px;
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid white;
+}
+.btn-lock.locked .auth-badge { background: #FF4D4F; }
+.btn-lock.unlocked .auth-badge { background: #52C41A; }
+
+/* ===== Auth Modal ===== */
+.auth-modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 300; align-items: center; justify-content: center;
+}
+.auth-modal-overlay.open { display: flex; }
+.auth-modal {
+  background: white; border-radius: var(--radius-xl); padding: 32px;
+  width: 380px; max-width: 90vw; text-align: center;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.15);
+}
+.auth-modal h3 { font-size: 20px; margin-bottom: 6px; color: var(--text); }
+.auth-modal .auth-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+.auth-modal .pin-input {
+  width: 100%; padding: 12px 16px; border-radius: 12px;
+  border: 1.5px solid var(--border); font-size: 24px; text-align: center;
+  letter-spacing: 8px; font-family: monospace; outline: none;
+  transition: border-color 0.2s;
+}
+.auth-modal .pin-input:focus { border-color: var(--primary); }
+.auth-modal .auth-actions {
+  display: flex; gap: 10px; margin-top: 16px;
+}
+.auth-modal .auth-btn {
+  flex: 1; padding: 10px 20px; border-radius: 10px; font-size: 14px;
+  font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.auth-modal .auth-btn.primary { background: var(--primary); color: white; border: none; }
+.auth-modal .auth-btn.primary:hover { background: var(--primary-dark); }
+.auth-modal .auth-btn.secondary { background: #F0F4FA; color: var(--text-secondary); border: none; }
+.auth-modal .auth-btn.secondary:hover { background: #E2E8F0; }
+.auth-modal .auth-error {
+  color: var(--danger); font-size: 13px; margin-top: 8px; min-height: 20px;
+}
+.auth-modal .change-pin-link {
+  display: block; margin-top: 16px; font-size: 13px; color: var(--primary);
+  cursor: pointer; text-decoration: underline;
+}
+.auth-modal .change-pin-section {
+  display: none; margin-top: 16px; text-align: left;
+}
+.auth-modal .change-pin-section.show { display: block; }
+.auth-modal .change-pin-section label {
+  font-size: 13px; color: var(--text-secondary); display: block; margin-bottom: 4px;
+}
+.auth-modal .change-pin-section input {
+  width: 100%; padding: 10px 12px; border-radius: 8px;
+  border: 1.5px solid var(--border); font-size: 16px; margin-bottom: 10px;
+  font-family: monospace; letter-spacing: 4px; outline: none;
+}
+.auth-modal .change-pin-section input:focus { border-color: var(--primary); }
+
+/* ===== Data Panel Locked ===== */
+.data-panel-locked {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 24px; text-align: center; color: var(--text-muted);
+}
+.data-panel-locked .lock-icon { font-size: 36px; margin-bottom: 8px; }
+.data-panel-locked span { font-size: 14px; }
+.data-panel-locked .unlock-link {
+  margin-top: 8px; color: var(--primary); font-size: 14px;
+  font-weight: 600; cursor: pointer; text-decoration: underline;
+}
+
 /* ===== Data Backup Panel ===== */
 .data-panel {
   background:white; border-radius:var(--radius-xl); padding:28px 32px;
@@ -511,6 +593,7 @@ img { max-width:100%; display:block; }
       <button class="mode-btn active" data-mode="student" onclick="switchMode('student')">学生模式</button>
       <button class="mode-btn" data-mode="parent" onclick="switchMode('parent')">家长模式</button>
     </div>
+    <button class="btn-lock locked" id="lockBtn" onclick="openAuthModal()" title="教师认证">🔒</button>
     <button class="menu-toggle" onclick="toggleMobileNav()">☰</button>
   </div>
 </header>
@@ -788,20 +871,30 @@ img { max-width:100%; display:block; }
     </div>
   </div>
   <div class="footer-bottom">© 2026 青花微课 - 小学数学教师个人教学网站</div>
-  <div class="data-panel">
-    <h4>💾 数据管理</h4>
-    <p>导出备份文件保存到本地，更换设备或清除浏览器后可通过导入恢复全部数据。</p>
-    <div class="data-row">
-      <button class="btn-backup export" onclick="exportAllData()" title="下载所有数据为 JSON 文件">
-        导出全部数据
-      </button>
-      <label class="btn-backup import" title="从 JSON 文件恢复数据">
-        导入恢复数据
-        <input type="file" accept=".json" onchange="importAllData(event)">
-      </label>
-      <button class="btn-backup reset" onclick="resetAllData()" title="清除所有数据恢复初始状态">
-        重置为初始状态
-      </button>
+  <div class="data-panel" id="dataPanel">
+    <div class="data-panel-locked" id="dataPanelLocked">
+      <div class="lock-icon">🔒</div>
+      <span>数据管理需要教师认证</span>
+      <span class="unlock-link" onclick="openAuthModal()">点击解锁</span>
+    </div>
+    <div id="dataPanelContent" style="display:none;">
+      <h4>💾 数据管理</h4>
+      <p>导出备份文件保存到本地，更换设备或清除浏览器后可通过导入恢复全部数据。</p>
+      <div class="data-row">
+        <button class="btn-backup export" onclick="exportAllData()" title="下载所有数据为 JSON 文件">
+          导出全部数据
+        </button>
+        <label class="btn-backup import" title="从 JSON 文件恢复数据">
+          导入恢复数据
+          <input type="file" accept=".json" onchange="importAllData(event)">
+        </label>
+        <button class="btn-backup reset" onclick="resetAllData()" title="清除所有数据恢复初始状态">
+          重置为初始状态
+        </button>
+      </div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px;color:var(--text-muted);">
+        <span onclick="showChangePinUI()" style="color:var(--primary);cursor:pointer;text-decoration:underline;">🔑 修改教师密码</span>
+      </div>
     </div>
   </div>
 </footer>
@@ -823,17 +916,217 @@ img { max-width:100%; display:block; }
 </div>
 <div id="toastContainer"></div>
 
-<script>
-// ===== DATA STORE =====
-const STORAGE_KEY = 'qinghua_weike_data';
+<!-- Auth Modal -->
+<div class="auth-modal-overlay" id="authModal">
+  <div class="auth-modal" onclick="event.stopPropagation()">
+    <h3 id="authTitle">🔑 教师认证</h3>
+    <p class="auth-sub" id="authSub">请输入教师密码以解锁数据管理功能</p>
+    <input type="password" class="pin-input" id="pinInput" maxlength="16" placeholder="****" onkeydown="if(event.key==='Enter')verifyPin()">
+    <div class="auth-error" id="authError"></div>
+    <div class="auth-actions">
+      <button class="auth-btn primary" onclick="verifyPin()">确认</button>
+      <button class="auth-btn secondary" onclick="closeAuthModal()">取消</button>
+    </div>
+    <span class="change-pin-link" id="changePinToggle" onclick="toggleChangePin()">🔑 修改密码</span>
+    <div class="change-pin-section" id="changePinSection">
+      <label>当前密码</label>
+      <input type="password" id="oldPinInput" maxlength="16" placeholder="输入当前密码">
+      <label>新密码（4-16位）</label>
+      <input type="password" id="newPinInput" maxlength="16" placeholder="输入新密码">
+      <label>确认新密码</label>
+      <input type="password" id="confirmPinInput" maxlength="16" placeholder="再次输入新密码">
+      <div class="auth-actions">
+        <button class="auth-btn primary" onclick="doChangePin()">保存新密码</button>
+        <button class="auth-btn secondary" onclick="toggleChangePin()">返回</button>
+      </div>
+      <div class="auth-error" id="changePinError"></div>
+    </div>
+  </div>
+</div>
 
+<script>
+// ===== SECURITY: Encryption helpers =====
+const ENC_KEY = "QHWK_2026_SECURE_SALT";
+
+function encryptData(plain) {
+  const str = JSON.stringify(plain);
+  let result = "";
+  for (let i = 0; i < str.length; i++) {
+    result += String.fromCharCode(str.charCodeAt(i) ^ ENC_KEY.charCodeAt(i % ENC_KEY.length));
+  }
+  return btoa(result);
+}
+
+function decryptData(cipher) {
+  try {
+    const raw = atob(cipher);
+    let result = "";
+    for (let i = 0; i < raw.length; i++) {
+      result += String.fromCharCode(raw.charCodeAt(i) ^ ENC_KEY.charCodeAt(i % ENC_KEY.length));
+    }
+    return JSON.parse(result);
+  } catch (e) { return null; }
+}
+
+// ===== SECURITY: PIN Auth =====
+const PIN_HASH_KEY = "qinghua_weike_pin_hash";
+const DATA_KEY = "qinghua_weike_data";
+const SESSION_KEY = "qinghua_weike_auth";
+const DEFAULT_PIN = "qhwk2026";
+
+async function hashPin(pin) {
+  const enc = new TextEncoder().encode(pin + "::QHWK_SALT");
+  const hash = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function getStoredPinHash() {
+  return localStorage.getItem(PIN_HASH_KEY);
+}
+
+function isAuthenticated() {
+  return sessionStorage.getItem(SESSION_KEY) === "true";
+}
+
+function updateAuthUI() {
+  const btn = document.getElementById("lockBtn");
+  const locked = document.getElementById("dataPanelLocked");
+  const content = document.getElementById("dataPanelContent");
+  if (isAuthenticated()) {
+    btn.classList.remove("locked");
+    btn.classList.add("unlocked");
+    btn.textContent = "🔓";
+    btn.title = "已认证 - 点击锁定";
+    btn.onclick = lockAuth;
+    if (locked) locked.style.display = "none";
+    if (content) content.style.display = "block";
+  } else {
+    btn.classList.remove("unlocked");
+    btn.classList.add("locked");
+    btn.textContent = "🔒";
+    btn.title = "教师认证";
+    btn.onclick = openAuthModal;
+    if (locked) locked.style.display = "flex";
+    if (content) content.style.display = "none";
+  }
+}
+
+function openAuthModal() {
+  document.getElementById("authTitle").textContent = "🔑 教师认证";
+  document.getElementById("authSub").textContent = "请输入教师密码以解锁数据管理功能";
+  document.getElementById("authError").textContent = "";
+  document.getElementById("pinInput").value = "";
+  document.getElementById("changePinToggle").style.display = "inline-block";
+  document.getElementById("changePinSection").classList.remove("show");
+  document.getElementById("authModal").classList.add("open");
+  setTimeout(() => document.getElementById("pinInput").focus(), 200);
+}
+
+function closeAuthModal() {
+  document.getElementById("authModal").classList.remove("open");
+  document.getElementById("pinInput").value = "";
+  document.getElementById("authError").textContent = "";
+  document.getElementById("changePinSection").classList.remove("show");
+}
+
+async function verifyPin() {
+  const pin = document.getElementById("pinInput").value.trim();
+  if (!pin) { document.getElementById("authError").textContent = "请输入密码"; return; }
+  const stored = getStoredPinHash();
+  const h = await hashPin(pin);
+  if (h === stored) {
+    sessionStorage.setItem(SESSION_KEY, "true");
+    closeAuthModal();
+    updateAuthUI();
+    showToast("✅ 认证成功，数据管理已解锁");
+  } else {
+    document.getElementById("authError").textContent = "密码错误，请重试";
+    document.getElementById("pinInput").value = "";
+  }
+}
+
+function lockAuth() {
+  sessionStorage.removeItem(SESSION_KEY);
+  updateAuthUI();
+  showToast("🔒 已锁定，数据管理功能已保护");
+}
+
+async function doChangePin() {
+  const oldPin = document.getElementById("oldPinInput").value.trim();
+  const newPin = document.getElementById("newPinInput").value.trim();
+  const confirm = document.getElementById("confirmPinInput").value.trim();
+  const errEl = document.getElementById("changePinError");
+  
+  if (!oldPin) { errEl.textContent = "请输入当前密码"; return; }
+  const stored = getStoredPinHash();
+  const oldHash = await hashPin(oldPin);
+  if (oldHash !== stored) { errEl.textContent = "当前密码错误"; return; }
+  if (newPin.length < 4) { errEl.textContent = "新密码至少4位"; return; }
+  if (newPin !== confirm) { errEl.textContent = "两次输入的新密码不一致"; return; }
+  
+  const newHash = await hashPin(newPin);
+  localStorage.setItem(PIN_HASH_KEY, newHash);
+  document.getElementById("oldPinInput").value = "";
+  document.getElementById("newPinInput").value = "";
+  document.getElementById("confirmPinInput").value = "";
+  errEl.textContent = "";
+  toggleChangePin();
+  closeAuthModal();
+  showToast("✅ 密码修改成功");
+}
+
+function toggleChangePin() {
+  const sec = document.getElementById("changePinSection");
+  const toggle = document.getElementById("changePinToggle");
+  if (sec.classList.contains("show")) {
+    sec.classList.remove("show");
+    toggle.style.display = "inline-block";
+    document.getElementById("authTitle").textContent = "🔑 教师认证";
+    document.getElementById("authSub").textContent = "请输入教师密码以解锁数据管理功能";
+    document.getElementById("changePinError").textContent = "";
+  } else {
+    sec.classList.add("show");
+    toggle.style.display = "none";
+    document.getElementById("authTitle").textContent = "🔑 修改密码";
+    document.getElementById("authSub").textContent = "";
+    document.getElementById("changePinError").textContent = "";
+    document.getElementById("oldPinInput").value = "";
+    document.getElementById("newPinInput").value = "";
+    document.getElementById("confirmPinInput").value = "";
+  }
+}
+
+function showChangePinUI() {
+  openAuthModal();
+  // After modal opens, switch to change pin mode
+  setTimeout(() => { if (isAuthenticated()) toggleChangePin(); }, 100);
+}
+
+// Click outside to close
+document.addEventListener("DOMContentLoaded", function() {
+  document.getElementById("authModal").addEventListener("click", function(e) {
+    if (e.target === this) closeAuthModal();
+  });
+});
+
+// ===== DATA STORE =====
 function loadData() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  return raw ? JSON.parse(raw) : getDefaultData();
+  const raw = localStorage.getItem(DATA_KEY);
+  if (!raw) return getDefaultData();
+  
+  // Try encrypted first, then fallback to plain JSON
+  const decrypted = decryptData(raw);
+  if (decrypted) return decrypted;
+  
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    return getDefaultData();
+  }
 }
 
 function saveData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+  localStorage.setItem(DATA_KEY, encryptData(appData));
   updateHomeStats();
 }
 
@@ -911,12 +1204,12 @@ function showToast(msg) {
 }
 
 function exportAllData() {
-  const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-  if (!data || Object.keys(data).length === 0) {
+  if (!isAuthenticated()) { showToast('请先解锁数据管理功能'); openAuthModal(); return; }
+  if (!appData || Object.keys(appData).length === 0) {
     showToast('暂无数据可导出');
     return;
   }
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -931,6 +1224,7 @@ function exportAllData() {
 }
 
 function importAllData(event) {
+  if (!isAuthenticated()) { showToast('请先解锁数据管理功能'); openAuthModal(); return; }
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -942,8 +1236,8 @@ function importAllData(event) {
         return;
       }
       if (!confirm('导入数据将覆盖当前所有数据（积分、勋章、错题本等），确定继续吗？')) return;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       appData = data;
+      saveData();
       renderAllPages();
       showToast('数据已成功恢复！页面已刷新');
     } catch(err) {
@@ -955,19 +1249,14 @@ function importAllData(event) {
 }
 
 function resetAllData() {
+  if (!isAuthenticated()) { showToast('请先解锁数据管理功能'); openAuthModal(); return; }
   if (!confirm('这将清除所有数据（积分、勋章、错题本等）并恢复为初始状态，此操作不可撤销！\n\n确定继续吗？')) return;
   if (!confirm('最终确认：所有学习进度将丢失，你确定要重置吗？')) return;
-  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(DATA_KEY);
   appData = getDefaultData();
+  saveData();
   renderAllPages();
   showToast('数据已重置为初始状态');
-}
-
-function getExportSize() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return '0 KB';
-  const kb = (new Blob([raw]).size / 1024).toFixed(1);
-  return kb + ' KB';
 }
 
 // ===== NAVIGATION =====
@@ -1383,7 +1672,15 @@ setTimeout(() => {
 }, 2000);
 
 // ===== INIT =====
-function init() {
+async function init() {
+  // Init PIN if first run
+  if (!getStoredPinHash()) {
+    const h = await hashPin(DEFAULT_PIN);
+    localStorage.setItem(PIN_HASH_KEY, h);
+  }
+  // Update auth UI
+  updateAuthUI();
+  
   if (appData.mode === 'parent') {
     document.getElementById('floatReportBtn').style.display = 'flex';
     document.querySelectorAll('.mode-btn').forEach(b => {
