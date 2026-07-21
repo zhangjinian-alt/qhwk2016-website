@@ -494,7 +494,7 @@ img { max-width:100%; display:block; }
 .toast-msg {
   position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
   background:#2C3E50; color:white; padding:12px 24px; border-radius:12px;
-  font-size:14px; z-index:999; opacity:0; transition:opacity 0.3s;
+  font-size:14px; z-index:10001; opacity:0; transition:opacity 0.3s;
   pointer-events:none;
 }
 .toast-msg.show { opacity:1; }
@@ -549,7 +549,7 @@ img { max-width:100%; display:block; }
 .toast {
   position:fixed; top:80px; left:50%; transform:translateX(-50%);
   background:var(--text); color:white; padding:12px 24px;
-  border-radius:24px; font-size:14px; z-index:300;
+  border-radius:24px; font-size:14px; z-index:10001;
   animation:slideDown 0.3s ease, fadeOut 0.3s ease 2s forwards;
 }
 @keyframes slideDown { from{transform:translateX(-50%) translateY(-20px);opacity:0} to{transform:translateX(-50%) translateY(0);opacity:1} }
