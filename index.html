@@ -606,6 +606,7 @@ img { max-width:100%; display:block; }
       <button class="mode-btn" data-mode="parent" onclick="switchMode('parent')">家长模式</button>
     </div>
     <button class="btn-lock locked" id="lockBtn" onclick="openAuthModal()" title="教师认证">🔒</button>
+    <button class="btn-lock" id="cloudSyncBtn" onclick="openCloudLoginModal()" title="云端同步" style="font-size:18px;color:#999;">☁️</button>
     <button class="menu-toggle" onclick="toggleMobileNav()">☰</button>
   </div>
 </header>
@@ -961,7 +962,134 @@ img { max-width:100%; display:block; }
   </div>
 </div>
 
+<!-- Cloud Login Modal -->
+<div id="cloudLoginModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:32px;width:320px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 8px;font-size:20px;text-align:center;color:#333;">☁️ 云端同步登录</h3>
+    <p style="color:#888;font-size:13px;margin:0 0 20px;text-align:center;line-height:1.5;">登录后数据自动同步云端，换设备不丢失</p>
+    <input type="text" id="cloudUsername" placeholder="用户名" autocomplete="username" style="width:100%;padding:12px;margin-bottom:12px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+    <input type="password" id="cloudPassword" placeholder="密码" autocomplete="current-password" style="width:100%;padding:12px;margin-bottom:16px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+    <button id="cloudLoginBtn" onclick="doCloudLogin()" style="width:100%;padding:12px;background:#4A90D9;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600;">登录</button>
+    <button onclick="closeCloudLoginModal()" style="width:100%;padding:10px;margin-top:8px;background:none;border:none;color:#999;font-size:14px;cursor:pointer;">取消</button>
+  </div>
+</div>
+
 <script>
+// ===== CLOUD API: 云端同步 =====
+const API_BASE = "https://api.qhwk2016.com/api";
+const CLOUD_TOKEN_KEY = "qhwk_cloud_token";
+
+// Token 管理
+function getCloudToken() { return localStorage.getItem(CLOUD_TOKEN_KEY); }
+function setCloudToken(token) { localStorage.setItem(CLOUD_TOKEN_KEY, token); }
+function clearCloudToken() { localStorage.removeItem(CLOUD_TOKEN_KEY); }
+function isCloudLoggedIn() { return !!getCloudToken(); }
+
+// 本地记录的云端数据版本号（用于乐观锁）
+let cloudDataVersion = 0;
+
+// 封装带认证的 fetch
+async function fetchWithAuth(url, options = {}) {
+  const token = getCloudToken();
+  if (!token) throw new Error("未登录云端");
+  const headers = { "Content-Type": "application/json", "Authorization": "Bearer " + token, ...(options.headers || {}) };
+  const resp = await fetch(API_BASE + url, { ...options, headers });
+  if (resp.status === 401) { clearCloudToken(); throw new Error("登录已过期"); }
+  return resp;
+}
+
+// 从云端加载数据
+async function loadFromCloud() {
+  try {
+    const resp = await fetchWithAuth("/data");
+    if (!resp.ok) return null;
+    const result = await resp.json();
+    cloudDataVersion = result.version;
+    return JSON.parse(result.data_json);
+  } catch (e) { console.log("云端加载失败:", e.message); return null; }
+}
+
+// 同步数据到云端
+async function syncToCloud() {
+  if (!isCloudLoggedIn()) return false;
+  try {
+    const resp = await fetchWithAuth("/data", {
+      method: "PUT",
+      body: JSON.stringify({ data_json: JSON.stringify(appData), version: cloudDataVersion })
+    });
+    if (resp.status === 409) {
+      // 版本冲突：云端有更新的数据，用云端覆盖本地
+      const result = await resp.json();
+      const detail = result.detail;
+      appData = JSON.parse(detail.server_data);
+      cloudDataVersion = detail.server_version;
+      localStorage.setItem(DATA_KEY, encryptData(appData));
+      updateHomeStats();
+      draw3DRadar();
+      showToast("检测到云端有更新数据，已同步到本地");
+      return false;
+    }
+    if (resp.ok) { const r = await resp.json(); cloudDataVersion = r.version; return true; }
+    return false;
+  } catch (e) { console.log("云端同步失败:", e.message); return false; }
+}
+
+// 登录
+async function cloudLogin(username, password) {
+  const resp = await fetch(API_BASE + "/auth/login", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password })
+  });
+  if (resp.ok) { const r = await resp.json(); setCloudToken(r.access_token); return true; }
+  return false;
+}
+
+// 登出
+function cloudLogout() {
+  clearCloudToken(); cloudDataVersion = 0; updateCloudSyncUI();
+  showToast("已退出云端登录");
+}
+
+// 更新云同步按钮
+function updateCloudSyncUI() {
+  const btn = document.getElementById("cloudSyncBtn");
+  if (!btn) return;
+  if (isCloudLoggedIn()) { btn.style.color = "#52C41A"; btn.title = "云端已连接 - 点击退出"; }
+  else { btn.style.color = "#999"; btn.title = "云端同步 - 点击登录"; }
+}
+
+// 打开/关闭登录弹窗
+function openCloudLoginModal() {
+  if (isCloudLoggedIn()) { if (confirm("已连接云端，是否退出登录？")) cloudLogout(); return; }
+  document.getElementById("cloudLoginModal").style.display = "flex";
+}
+function closeCloudLoginModal() { document.getElementById("cloudLoginModal").style.display = "none"; }
+
+// 执行登录
+async function doCloudLogin() {
+  const username = document.getElementById("cloudUsername").value.trim();
+  const password = document.getElementById("cloudPassword").value;
+  if (!username || !password) { showToast("请输入用户名和密码"); return; }
+  const btn = document.getElementById("cloudLoginBtn");
+  btn.textContent = "登录中..."; btn.disabled = true;
+  const ok = await cloudLogin(username, password);
+  btn.textContent = "登录"; btn.disabled = false;
+  if (ok) {
+    closeCloudLoginModal(); updateCloudSyncUI();
+    showToast("云端登录成功！正在同步数据...");
+    const cloudData = await loadFromCloud();
+    if (cloudData && Object.keys(cloudData).length > 0) {
+      appData = cloudData; localStorage.setItem(DATA_KEY, encryptData(appData));
+      updateHomeStats(); draw3DRadar();
+      showToast("云端数据已同步到本地");
+    } else {
+      // 云端无数据，把本地数据上传
+      syncToCloud();
+      showToast("本地数据已上传到云端");
+    }
+  } else { showToast("登录失败，请检查用户名和密码"); }
+}
+
 // ===== SECURITY: Encryption helpers =====
 const ENC_KEY = "QHWK_2026_SECURE_SALT";
 
@@ -1145,6 +1273,8 @@ function loadData() {
 function saveData() {
   localStorage.setItem(DATA_KEY, encryptData(appData));
   updateHomeStats();
+  // 如果已登录云端，异步同步（不阻塞 UI）
+  if (isCloudLoggedIn()) { syncToCloud().catch(() => {}); }
 }
 
 function getDefaultData() {
@@ -1697,7 +1827,17 @@ async function init() {
   }
   // Update auth UI
   updateAuthUI();
-  
+  updateCloudSyncUI();
+
+  // 如果已登录云端，启动时从云端拉取最新数据
+  if (isCloudLoggedIn()) {
+    const cloudData = await loadFromCloud();
+    if (cloudData && Object.keys(cloudData).length > 0) {
+      appData = cloudData;
+      localStorage.setItem(DATA_KEY, encryptData(appData));
+    }
+  }
+
   if (appData.mode === 'parent') {
     document.getElementById('floatReportBtn').style.display = 'flex';
     document.querySelectorAll('.mode-btn').forEach(b => {
