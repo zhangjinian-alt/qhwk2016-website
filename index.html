@@ -965,12 +965,33 @@ img { max-width:100%; display:block; }
 <!-- Cloud Login Modal -->
 <div id="cloudLoginModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:16px;padding:32px;width:320px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
-    <h3 style="margin:0 0 8px;font-size:20px;text-align:center;color:#333;">☁️ 云端同步登录</h3>
-    <p style="color:#888;font-size:13px;margin:0 0 20px;text-align:center;line-height:1.5;">登录后数据自动同步云端，换设备不丢失</p>
-    <input type="text" id="cloudUsername" placeholder="用户名" autocomplete="username" style="width:100%;padding:12px;margin-bottom:12px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
-    <input type="password" id="cloudPassword" placeholder="密码" autocomplete="current-password" style="width:100%;padding:12px;margin-bottom:16px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
-    <button id="cloudLoginBtn" onclick="doCloudLogin()" style="width:100%;padding:12px;background:#4A90D9;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600;">登录</button>
-    <button onclick="closeCloudLoginModal()" style="width:100%;padding:10px;margin-top:8px;background:none;border:none;color:#999;font-size:14px;cursor:pointer;">取消</button>
+    <!-- 登录视图 -->
+    <div id="cloudLoginView">
+      <h3 style="margin:0 0 8px;font-size:20px;text-align:center;color:#333;">☁️ 云端同步登录</h3>
+      <p style="color:#888;font-size:13px;margin:0 0 20px;text-align:center;line-height:1.5;">登录后数据自动同步云端，换设备不丢失</p>
+      <input type="text" id="cloudUsername" placeholder="用户名" autocomplete="username" style="width:100%;padding:12px;margin-bottom:12px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+      <input type="password" id="cloudPassword" placeholder="密码" autocomplete="current-password" style="width:100%;padding:12px;margin-bottom:16px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+      <button id="cloudLoginBtn" onclick="doCloudLogin()" style="width:100%;padding:12px;background:#4A90D9;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600;">登录</button>
+      <div style="text-align:center;margin-top:12px;">
+        <a href="javascript:void(0)" onclick="showCloudRegisterView()" style="color:#4A90D9;font-size:13px;text-decoration:none;">还没有账号？注册一个</a>
+      </div>
+      <button onclick="closeCloudLoginModal()" style="width:100%;padding:10px;margin-top:8px;background:none;border:none;color:#999;font-size:14px;cursor:pointer;">取消</button>
+    </div>
+
+    <!-- 注册视图 -->
+    <div id="cloudRegisterView" style="display:none;">
+      <h3 style="margin:0 0 8px;font-size:20px;text-align:center;color:#333;">☁️ 注册云端账号</h3>
+      <p style="color:#888;font-size:13px;margin:0 0 20px;text-align:center;line-height:1.5;">教师内部使用，注册需邀请码</p>
+      <input type="text" id="cloudRegUsername" placeholder="用户名（英文/数字）" autocomplete="username" style="width:100%;padding:12px;margin-bottom:10px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+      <input type="password" id="cloudRegPassword" placeholder="密码（至少8位）" autocomplete="new-password" style="width:100%;padding:12px;margin-bottom:10px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+      <input type="password" id="cloudRegPassword2" placeholder="再次输入密码" autocomplete="new-password" style="width:100%;padding:12px;margin-bottom:10px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+      <input type="text" id="cloudRegInvite" placeholder="邀请码" style="width:100%;padding:12px;margin-bottom:16px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+      <button id="cloudRegisterBtn" onclick="doCloudRegister()" style="width:100%;padding:12px;background:#52C41A;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600;">注册</button>
+      <div style="text-align:center;margin-top:12px;">
+        <a href="javascript:void(0)" onclick="showCloudLoginView()" style="color:#888;font-size:13px;text-decoration:none;">已有账号？返回登录</a>
+      </div>
+      <button onclick="closeCloudLoginModal()" style="width:100%;padding:10px;margin-top:8px;background:none;border:none;color:#999;font-size:14px;cursor:pointer;">取消</button>
+    </div>
   </div>
 </div>
 
@@ -1063,7 +1084,10 @@ function openCloudLoginModal() {
   if (isCloudLoggedIn()) { if (confirm("已连接云端，是否退出登录？")) cloudLogout(); return; }
   document.getElementById("cloudLoginModal").style.display = "flex";
 }
-function closeCloudLoginModal() { document.getElementById("cloudLoginModal").style.display = "none"; }
+function closeCloudLoginModal() {
+  document.getElementById("cloudLoginModal").style.display = "none";
+  showCloudLoginView(); // 下次打开默认显示登录
+}
 
 // 执行登录
 async function doCloudLogin() {
@@ -1088,6 +1112,54 @@ async function doCloudLogin() {
       showToast("本地数据已上传到云端");
     }
   } else { showToast("登录失败，请检查用户名和密码"); }
+}
+
+// 注册
+async function cloudRegister(username, password, invite_code) {
+  const resp = await fetch(API_BASE + "/auth/register", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password, invite_code })
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.detail || "注册失败");
+  }
+  return await resp.json();
+}
+
+async function doCloudRegister() {
+  const username = document.getElementById("cloudRegUsername").value.trim();
+  const password = document.getElementById("cloudRegPassword").value;
+  const password2 = document.getElementById("cloudRegPassword2").value;
+  const inviteCode = document.getElementById("cloudRegInvite").value.trim();
+  if (!username || !password) { showToast("请输入用户名和密码"); return; }
+  if (password.length < 8) { showToast("密码至少8位"); return; }
+  if (password !== password2) { showToast("两次输入的密码不一致"); return; }
+  if (!inviteCode) { showToast("请输入邀请码"); return; }
+  const btn = document.getElementById("cloudRegisterBtn");
+  btn.textContent = "注册中..."; btn.disabled = true;
+  try {
+    const r = await cloudRegister(username, password, inviteCode);
+    setCloudToken(r.access_token);
+    closeCloudLoginModal(); updateCloudSyncUI();
+    showToast("注册成功！正在同步本地数据...");
+    await syncToCloud();
+    showToast("本地数据已上传到云端");
+  } catch (e) {
+    showToast("注册失败：" + e.message);
+  } finally {
+    btn.textContent = "注册"; btn.disabled = false;
+  }
+}
+
+// 切换登录/注册视图
+function showCloudRegisterView() {
+  document.getElementById("cloudLoginView").style.display = "none";
+  document.getElementById("cloudRegisterView").style.display = "block";
+}
+function showCloudLoginView() {
+  document.getElementById("cloudRegisterView").style.display = "none";
+  document.getElementById("cloudLoginView").style.display = "block";
 }
 
 // ===== SECURITY: Encryption helpers =====
