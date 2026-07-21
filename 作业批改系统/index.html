@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI作业批改 - 拍一张照片，作业批改即刻完成</title>
+<meta name="description" content="AI精准识别手写数学题，秒级批改 + 错因分析 + 自动错题本。让家长省心、让学生进步、让老师高效。">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="AI作业批改 - 拍一张照片，作业批改即刻完成">
+<meta property="og:description" content="AI精准识别手写数学题，秒级批改 + 错因分析 + 自动错题本。让家长省心、让学生进步、让老师高效。">
+<meta property="og:locale" content="zh_CN">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "AI作业批改",
+  "applicationCategory": "EducationApplication",
+  "operatingSystem": "Web, iOS, Android",
+  "description": "AI精准识别手写数学题，秒级批改 + 错因分析 + 自动错题本。",
+  "offers": {"@type": "Offer", "price": "0", "priceCurrency": "CNY"}
+}
+</script>
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --purple:#5046E5;--purple-light:#EFEFFC;--purple-dark:#7C3AED;
+  --green:#10B981;--green-light:#ECFDF5;--green-dark:#059669;
+  --amber:#F59E0B;--amber-light:#FEF3C7;--amber-dark:#D97706;
+  --dark:#0F1419;--gray-900:#1A1D28;--gray-700:#4B5563;--gray-600:#6B7280;
+  --gray-500:#9CA3AF;--gray-300:#E5E7EB;--gray-100:#F9FAFB;--gray-50:#F8FAFC;
+  --white:#FFFFFF;--radius-sm:12px;--radius-md:20px;--radius-lg:24px;
+  --radius-pill:100px;--shadow-card:0 8px 32px rgba(80,70,229,0.06);
+  --shadow-purple:0 4px 12px rgba(80,70,229,0.3);--shadow-purple-lg:0 16px 40px rgba(80,70,229,0.2);
+  --header-h:64px;
+}
+html{scroll-behavior:smooth;font-size:16px}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--gray-900);background:var(--white);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{text-decoration:none;color:inherit}
+img{max-width:100%;display:block}
+.container{max-width:1200px;margin:0 auto;padding:0 24px}
+
+/* Scroll Progress Bar */
+.scroll-progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--purple),var(--green),var(--amber));z-index:200;transition:width 0.1s ease-out}
+
+/* Header - Glassmorphism + Smart Show/Hide */
+.header{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(229,231,235,0.6);transition:transform 0.3s ease,box-shadow 0.3s ease}
+.header.hidden{transform:translateY(-100%)}
+.header.scrolled{box-shadow:0 4px 20px rgba(0,0,0,0.06)}
+.header-inner{display:flex;align-items:center;justify-content:space-between;height:var(--header-h)}
+.logo{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:700;color:var(--gray-900)}
+.logo-icon{width:36px;height:36px;background:var(--purple);border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(80,70,229,0.3)}
+.logo-icon svg{width:20px;height:20px}
+.nav-links{display:flex;gap:40px;list-style:none}
+.nav-links a{font-size:15px;font-weight:500;color:var(--gray-600);transition:color 0.2s;position:relative}
+.nav-links a::after{content:'';position:absolute;bottom:-4px;left:0;width:0;height:2px;background:var(--purple);transition:width 0.3s}
+.nav-links a:hover{color:var(--purple)}
+.nav-links a:hover::after{width:100%}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;font-weight:600;cursor:pointer;border:none;transition:all 0.2s}
+.btn-primary{background:var(--purple);color:var(--white);padding:10px 24px;border-radius:var(--radius-pill);font-size:15px;box-shadow:var(--shadow-purple)}
+.btn-primary:hover{background:var(--purple-dark);transform:translateY(-1px);box-shadow:0 6px 20px rgba(80,70,229,0.4)}
+.btn-large{padding:14px 32px;font-size:16px}
+.mobile-menu-btn{display:none;background:none;border:none;cursor:pointer;padding:8px}
+.mobile-menu-btn span{display:block;width:24px;height:2px;background:var(--gray-900);margin:5px 0;transition:0.3s}
+
+/* Scroll Animation System */
+.reveal{opacity:0;transform:translateY(30px);transition:opacity 0.6s ease,transform 0.6s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-delay-1{transition-delay:0.1s}
+.reveal-delay-2{transition-delay:0.2s}
+.reveal-delay-3{transition-delay:0.3s}
+
+/* Hero */
+.hero{position:relative;overflow:hidden;background:var(--white);padding:60px 0 80px}
+.hero::before{content:'';position:absolute;top:-150px;left:-120px;width:600px;height:600px;background:radial-gradient(circle,rgba(255,228,240,0.6) 0%,transparent 70%);border-radius:50%;pointer-events:none}
+.hero::after{content:'';position:absolute;top:40px;right:-100px;width:520px;height:520px;background:radial-gradient(circle,rgba(224,235,255,0.55) 0%,transparent 70%);border-radius:50%;pointer-events:none}
+.hero-glow-yellow{position:absolute;bottom:0;left:40%;width:440px;height:440px;background:radial-gradient(circle,rgba(255,247,220,0.45) 0%,transparent 70%);border-radius:50%;pointer-events:none}
+.hero-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;gap:24px}
+.badge{display:inline-flex;align-items:center;gap:8px;background:var(--purple-light);padding:7px 16px;border-radius:var(--radius-pill)}
+.badge-dot{width:7px;height:7px;background:var(--purple);border-radius:50%;animation:pulse 2s infinite}
+.badge-text{font-size:14px;font-weight:500;color:var(--purple)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+
+/* Gradient Title */
+.hero h1{font-size:clamp(32px,5vw,48px);font-weight:700;line-height:1.3;max-width:880px;background:linear-gradient(135deg,var(--gray-900) 0%,var(--purple) 50%,var(--purple-dark) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hero-sub{font-size:clamp(15px,2vw,17px);color:var(--gray-600);max-width:880px;line-height:1.7}
+.hero-cta{display:flex;gap:20px;align-items:center;flex-wrap:wrap;justify-content:center}
+.btn-secondary{background:none;color:var(--gray-600);font-size:16px;font-weight:500;padding:14px 0;transition:color 0.2s,gap 0.2s}
+.btn-secondary:hover{color:var(--purple);gap:26px}
+.trust-signal{font-size:14px;color:var(--gray-500)}
+
+/* Phone Mockup - Floating Animation */
+.hero-visual{margin-top:20px;width:280px;height:480px;position:relative;animation:floatPhone 4s ease-in-out infinite}
+@keyframes floatPhone{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+.phone-mockup{width:100%;height:100%;background:linear-gradient(135deg,#1a1d28 0%,#2d3142 100%);border-radius:36px;border:8px solid #1a1d28;box-shadow:0 24px 48px rgba(80,70,229,0.12),0 0 0 1px var(--gray-300);overflow:hidden;position:relative}
+.phone-screen{width:100%;height:100%;background:linear-gradient(180deg,#F8FAFC 0%,#FFFFFF 100%);display:flex;flex-direction:column;padding:24px 16px;gap:12px}
+.phone-statusbar{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:600;color:var(--gray-900)}
+.phone-app-header{text-align:center;padding:8px 0}
+.phone-app-header h3{font-size:16px;font-weight:700;color:var(--gray-900)}
+.phone-app-header p{font-size:11px;color:var(--gray-500)}
+.phone-card{background:var(--white);border:1px solid var(--gray-300);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.phone-card-row{display:flex;justify-content:space-between;align-items:center}
+.phone-card-title{font-size:12px;font-weight:600;color:var(--gray-900)}
+.phone-card-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px}
+.phone-card-badge.green{background:var(--green-light);color:var(--green-dark)}
+.phone-card-badge.red{background:#FEF2F2;color:#DC2626}
+.phone-card-badge.amber{background:var(--amber-light);color:var(--amber-dark)}
+.phone-progress{height:6px;background:var(--gray-100);border-radius:3px;overflow:hidden}
+.phone-progress-fill{height:100%;border-radius:3px}
+.phone-card-text{font-size:10px;color:var(--gray-600)}
+
+/* Section common */
+.section{padding:80px 0}
+.section-gray{background:var(--gray-50)}
+.section-header{text-align:center;margin-bottom:48px}
+.section-header h2{font-size:clamp(28px,4vw,36px);font-weight:700;color:var(--gray-900);margin-bottom:12px}
+.section-header p{font-size:17px;color:var(--gray-600)}
+
+/* How It Works - with connector lines */
+.steps-wrapper{position:relative}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;position:relative}
+.steps::before{content:'';position:absolute;top:40px;left:16%;right:16%;height:2px;background:linear-gradient(90deg,var(--purple) 0%,var(--green) 50%,var(--amber) 100%);opacity:0.2;z-index:0}
+.step-card{background:var(--white);border-radius:var(--radius-lg);padding:32px;box-shadow:var(--shadow-card);transition:transform 0.3s ease,box-shadow 0.3s ease;position:relative;z-index:1}
+.step-card:hover{transform:translateY(-8px);box-shadow:0 16px 40px rgba(80,70,229,0.12)}
+.step-icon{width:56px;height:56px;border-radius:28px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:var(--white);margin-bottom:20px;transition:transform 0.3s ease}
+.step-card:hover .step-icon{transform:scale(1.1) rotate(5deg)}
+.step-icon.purple{background:var(--purple)}
+.step-icon.green{background:var(--green)}
+.step-icon.amber{background:var(--amber)}
+.step-card h3{font-size:22px;font-weight:600;color:var(--gray-900);margin-bottom:8px}
+.step-card p{font-size:15px;color:var(--gray-600);line-height:1.7}
+
+/* Core Features */
+.feature-block{display:flex;align-items:center;gap:48px;margin-bottom:64px}
+.feature-block:last-child{margin-bottom:0}
+.feature-block.reverse{flex-direction:row-reverse}
+.feature-text{flex:1}
+.feature-badge{display:inline-flex;align-items:center;padding:6px 14px;border-radius:var(--radius-pill);font-size:13px;font-weight:600;margin-bottom:16px}
+.feature-badge.purple{background:var(--purple-light);color:var(--purple)}
+.feature-badge.green{background:var(--green-light);color:var(--green-dark)}
+.feature-badge.amber{background:var(--amber-light);color:var(--amber-dark)}
+.feature-text h3{font-size:clamp(22px,3vw,28px);font-weight:700;color:var(--gray-900);margin-bottom:20px}
+.feature-list{list-style:none;display:flex;flex-direction:column;gap:12px}
+.feature-list li{font-size:15px;color:var(--gray-700);line-height:1.6;display:flex;align-items:flex-start;gap:6px}
+.feature-list li strong{display:block;font-weight:600;color:var(--gray-900);margin-bottom:2px}
+.feature-list .check{color:var(--green);font-weight:700;margin-right:6px;flex-shrink:0}
+.feature-visual{width:380px;flex-shrink:0}
+.feature-card{border-radius:var(--radius-lg);padding:40px;text-align:center;color:var(--white);position:relative;overflow:hidden;transition:transform 0.3s ease}
+.feature-card:hover{transform:scale(1.03)}
+.feature-card.purple{background:linear-gradient(135deg,var(--purple) 0%,#7C3AED 100%);box-shadow:var(--shadow-purple-lg)}
+.feature-card.green{background:linear-gradient(135deg,var(--green) 0%,var(--green-dark) 100%);box-shadow:0 16px 40px rgba(16,185,129,0.2)}
+.feature-card.amber{background:linear-gradient(135deg,var(--amber) 0%,var(--amber-dark) 100%);box-shadow:0 16px 40px rgba(245,158,11,0.2)}
+.feature-card .big-number{font-size:56px;font-weight:700;line-height:1;margin-bottom:8px}
+.feature-card .label{font-size:15px;opacity:0.8;margin-bottom:24px}
+.feature-card .progress-bar{width:100%;max-width:280px;height:8px;background:rgba(255,255,255,0.25);border-radius:4px;margin:0 auto 12px;overflow:hidden}
+.feature-card .progress-fill{height:100%;background:var(--white);border-radius:4px;transition:width 1.5s ease}
+.feature-card .note{font-size:13px;opacity:0.6}
+
+/* Social Proof */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-bottom:48px}
+.stat-card{background:var(--white);border-radius:var(--radius-md);padding:32px 16px;text-align:center;box-shadow:var(--shadow-card);transition:transform 0.3s ease,box-shadow 0.3s ease}
+.stat-card:hover{transform:translateY(-6px);box-shadow:0 12px 32px rgba(80,70,229,0.1)}
+.stat-num{font-size:clamp(32px,4vw,40px);font-weight:700;line-height:1;margin-bottom:8px}
+.stat-num.purple{color:var(--purple)}
+.stat-num.green{color:var(--green)}
+.stat-num.amber{color:var(--amber)}
+.stat-desc{font-size:14px;color:var(--gray-600)}
+.testimonials{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
+.testimonial-card{background:var(--white);border-radius:var(--radius-md);padding:28px;box-shadow:var(--shadow-card);display:flex;gap:16px;align-items:flex-start}
+.testimonial-avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;color:var(--white);flex-shrink:0}
+.testimonial-avatar.purple{background:linear-gradient(135deg,var(--purple),var(--purple-dark))}
+.testimonial-avatar.green{background:linear-gradient(135deg,var(--green),var(--green-dark))}
+.testimonial-content{flex:1}
+.testimonial-quote{font-size:16px;color:var(--gray-700);line-height:1.7;margin-bottom:12px}
+.testimonial-person{font-size:14px;font-weight:600;color:var(--gray-900)}
+
+/* FAQ - Smooth Toggle */
+.faq-list{max-width:800px;margin:0 auto}
+.faq-item{border-bottom:1px solid var(--gray-300);padding:0;cursor:pointer;overflow:hidden}
+.faq-item summary{font-size:16px;font-weight:600;color:var(--gray-900);cursor:pointer;display:flex;justify-content:space-between;align-items:center;list-style:none;padding:20px 0;transition:color 0.2s}
+.faq-item summary:hover{color:var(--purple)}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-icon{width:24px;height:24px;flex-shrink:0;position:relative;transition:transform 0.3s ease}
+.faq-icon::before,.faq-icon::after{content:'';position:absolute;background:var(--gray-500);border-radius:2px;transition:background 0.2s}
+.faq-icon::before{width:14px;height:2px;top:11px;left:5px}
+.faq-icon::after{width:2px;height:14px;top:5px;left:11px}
+.faq-item[open] .faq-icon{transform:rotate(180deg)}
+.faq-item[open] .faq-icon::after{opacity:0}
+.faq-item[open] .faq-icon::before{background:var(--purple)}
+.faq-answer{font-size:15px;color:var(--gray-600);line-height:1.7;padding:0 0 20px;max-height:0;overflow:hidden;transition:max-height 0.3s ease,padding 0.3s ease}
+.faq-item[open] .faq-answer{max-height:200px;padding:0 0 20px}
+
+/* Footer */
+.footer{background:var(--dark);padding:56px 0 32px;color:var(--gray-500)}
+.footer-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:40px}
+.footer-brand{display:flex;flex-direction:column;gap:12px}
+.footer-brand-name{font-size:20px;font-weight:700;color:var(--white)}
+.footer-brand-tagline{font-size:14px}
+.footer-links{display:flex;gap:24px;justify-content:center;margin-bottom:32px}
+.footer-links a{font-size:14px;color:var(--gray-500);transition:color 0.2s}
+.footer-links a:hover{color:var(--white)}
+.footer-divider{height:1px;background:var(--gray-700);margin-bottom:24px}
+.footer-bottom{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.footer-cta-btn{background:var(--purple);color:var(--white);padding:10px 28px;border-radius:var(--radius-pill);font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all 0.2s}
+.footer-cta-btn:hover{background:var(--purple-dark);transform:translateY(-1px);box-shadow:0 6px 20px rgba(80,70,229,0.4)}
+
+/* Back to Top Button */
+.back-to-top{position:fixed;bottom:32px;right:32px;width:48px;height:48px;background:var(--purple);color:var(--white);border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(80,70,229,0.3);opacity:0;visibility:hidden;transform:translateY(20px);transition:all 0.3s ease;z-index:90}
+.back-to-top.visible{opacity:1;visibility:visible;transform:translateY(0)}
+.back-to-top:hover{background:var(--purple-dark);transform:translateY(-4px);box-shadow:0 8px 24px rgba(80,70,229,0.4)}
+.back-to-top svg{width:22px;height:22px}
+
+/* Responsive */
+@media(max-width:768px){
+  .nav-links{display:none}
+  .mobile-menu-btn{display:block}
+  .nav-links.open{display:flex;flex-direction:column;position:absolute;top:64px;left:0;right:0;background:var(--white);padding:24px;gap:16px;border-bottom:1px solid var(--gray-300);box-shadow:0 8px 16px rgba(0,0,0,0.08)}
+  .hero{padding:40px 0 60px}
+  .hero h1{font-size:28px}
+  .hero-sub{font-size:15px}
+  .hero-visual{width:240px;height:420px}
+  .section{padding:56px 0}
+  .steps::before{display:none}
+  .steps{grid-template-columns:1fr;gap:16px}
+  .step-card{padding:24px}
+  .feature-block,.feature-block.reverse{flex-direction:column;gap:32px}
+  .feature-visual{width:100%;max-width:380px}
+  .stats-row{grid-template-columns:repeat(2,1fr);gap:16px}
+  .stat-card{padding:24px 12px}
+  .testimonials{grid-template-columns:1fr}
+  .footer-top{flex-direction:column;gap:24px;text-align:center}
+  .footer-links{flex-wrap:wrap;gap:16px}
+  .footer-bottom{flex-direction:column;gap:8px;text-align:center}
+  .back-to-top{bottom:20px;right:20px;width:42px;height:42px}
+}
+@media(max-width:480px){
+  .stats-row{grid-template-columns:1fr}
+  .hero h1{font-size:24px}
+  .badge-text{font-size:12px}
+  .hero-cta{flex-direction:column;width:100%}
+  .btn-primary,.btn-secondary{width:100%;text-align:center}
+  .btn-secondary{padding:14px}
+  .testimonial-card{flex-direction:column;gap:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  .reveal{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<!-- Header -->
+<header class="header" id="header">
+  <div class="container">
+    <div class="header-inner">
+      <a href="#" class="logo">
+        <span class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 11l18-8-8 18-2-7-8-3z"/>
+          </svg>
+        </span>
+        AI作业批改
+      </a>
+      <nav>
+        <ul class="nav-links" id="navLinks">
+          <li><a href="#features">功能</a></li>
+          <li><a href="#how">使用流程</a></li>
+          <li><a href="#proof">用户评价</a></li>
+          <li><a href="#faq">常见问题</a></li>
+        </ul>
+      </nav>
+      <button class="btn btn-primary" onclick="window.scrollTo({top:0,behavior:'smooth'})">免费体验</button>
+      <button class="mobile-menu-btn" onclick="document.getElementById('navLinks').classList.toggle('open')">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-glow-yellow"></div>
+  <div class="container">
+    <div class="hero-content">
+      <div class="badge reveal">
+        <span class="badge-dot"></span>
+        <span class="badge-text">AI驱动的智能批改系统</span>
+      </div>
+      <h1 class="reveal reveal-delay-1">拍一张照片<br>作业批改即刻完成</h1>
+      <p class="hero-sub reveal reveal-delay-2">AI精准识别手写数学题，秒级批改 + 错因分析 + 自动错题本<br>让家长省心、让学生进步、让老师高效</p>
+      <div class="hero-cta reveal reveal-delay-3">
+        <button class="btn btn-primary btn-large">免费体验</button>
+        <a href="#how" class="btn btn-secondary">观看演示 →</a>
+      </div>
+      <p class="trust-signal reveal reveal-delay-3">已服务 10万+ 家庭 · 500+ 所学校 · 批改 500万+ 份作业</p>
+      <div class="hero-visual reveal reveal-delay-3">
+        <div class="phone-mockup">
+          <div class="phone-screen">
+            <div class="phone-statusbar">
+              <span>9:41</span>
+              <span>●●●</span>
+            </div>
+            <div class="phone-app-header">
+              <h3>今日作业批改</h3>
+              <p>2026年7月16日</p>
+            </div>
+            <div class="phone-card">
+              <div class="phone-card-row">
+                <span class="phone-card-title">口算练习</span>
+                <span class="phone-card-badge green">28/30</span>
+              </div>
+              <div class="phone-progress"><div class="phone-progress-fill" style="width:93%;background:var(--green)"></div></div>
+              <span class="phone-card-text">正确率 93%</span>
+            </div>
+            <div class="phone-card">
+              <div class="phone-card-row">
+                <span class="phone-card-title">竖式计算</span>
+                <span class="phone-card-badge amber">7/10</span>
+              </div>
+              <div class="phone-progress"><div class="phone-progress-fill" style="width:70%;background:var(--amber)"></div></div>
+              <span class="phone-card-text">薄弱点：两位数乘法</span>
+            </div>
+            <div class="phone-card">
+              <div class="phone-card-row">
+                <span class="phone-card-title">应用题</span>
+                <span class="phone-card-badge green">4/5</span>
+              </div>
+              <div class="phone-progress"><div class="phone-progress-fill" style="width:80%;background:var(--green)"></div></div>
+              <span class="phone-card-text">已掌握归档</span>
+            </div>
+            <div class="phone-card" style="background:var(--purple-light);border-color:var(--purple-light)">
+              <span class="phone-card-text" style="color:var(--purple);font-weight:600">AI建议：复习两位数乘法，已生成3道变式题</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How It Works -->
+<section class="section section-gray" id="how">
+  <div class="container">
+    <div class="section-header reveal">
+      <h2>三步完成作业批改</h2>
+      <p>从拍照到错题归档，全程AI自动化处理</p>
+    </div>
+    <div class="steps-wrapper">
+      <div class="steps">
+        <div class="step-card reveal">
+          <div class="step-icon purple">1</div>
+          <h3>拍照上传</h3>
+          <p>对准作业拍照，智能适应倾斜、字迹浅等状况，一键上传即可开始处理</p>
+        </div>
+        <div class="step-card reveal reveal-delay-1">
+          <div class="step-icon green">2</div>
+          <h3>AI智能批改</h3>
+          <p>高精度OCR识别手写体，AI模型秒级判定对错，支持小学数学各种题型</p>
+        </div>
+        <div class="step-card reveal reveal-delay-2">
+          <div class="step-icon amber">3</div>
+          <h3>错因分析 + 错题归档</h3>
+          <p>精准识别"知识点没掌握"还是"粗心"，自动生成错题本并推荐同类变式题巩固</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Core Features -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-header reveal">
+      <h2>三端协同，各取所需</h2>
+      <p>家长、学生、老师，每个角色都有专属功能</p>
+    </div>
+
+    <!-- Parent Block -->
+    <div class="feature-block reveal">
+      <div class="feature-text">
+        <span class="feature-badge purple">家长端</span>
+        <h3>从「焦虑陪读」到「科学监督」</h3>
+        <ul class="feature-list">
+          <li><span class="check">✓</span><span><strong>一键拍照批改</strong>拍下作业立马出结果</span></li>
+          <li><span class="check">✓</span><span><strong>错因分析与建议</strong>指出错因并推送同类练习</span></li>
+          <li><span class="check">✓</span><span><strong>自动生成错题本</strong>系统自动归档，支持导出打印</span></li>
+          <li><span class="check">✓</span><span><strong>学情报告推送</strong>定期接收正确率与薄弱点趋势</span></li>
+        </ul>
+      </div>
+      <div class="feature-visual">
+        <div class="feature-card purple">
+          <div class="big-number">85%</div>
+          <div class="label">今日正确率</div>
+          <div class="progress-bar"><div class="progress-fill" data-width="85%" style="width:0"></div></div>
+          <div class="note">薄弱点：两位数乘法</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Student Block -->
+    <div class="feature-block reverse reveal">
+      <div class="feature-text">
+        <span class="feature-badge green">学生端</span>
+        <h3>从「被动刷题」到「主动攻克」</h3>
+        <ul class="feature-list">
+          <li><span class="check">✓</span><span><strong>即时反馈与解析</strong>批改后立刻看到答案和解题步骤</span></li>
+          <li><span class="check">✓</span><span><strong>AI错题本举一反三</strong>智能推荐同类变式题，确保真正掌握</span></li>
+          <li><span class="check">✓</span><span><strong>个性化学习路径</strong>只练薄弱点，告别无效刷题</span></li>
+          <li><span class="check">✓</span><span><strong>AI答疑与互动</strong>追问式引导思考，支持视频讲解</span></li>
+        </ul>
+      </div>
+      <div class="feature-visual">
+        <div class="feature-card green">
+          <div class="big-number">12道</div>
+          <div class="label">已掌握错题</div>
+          <div class="progress-bar"><div class="progress-fill" data-width="75%" style="width:0"></div></div>
+          <div class="note">举一反三推荐：3道变式题待练</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Teacher Block -->
+    <div class="feature-block reveal">
+      <div class="feature-text">
+        <span class="feature-badge amber">教师端</span>
+        <h3>从「重复劳动」到「精准教学」</h3>
+        <ul class="feature-list">
+          <li><span class="check">✓</span><span><strong>高效批量批改</strong>一次上传全班作业，AI自动完成批改</span></li>
+          <li><span class="check">✓</span><span><strong>详细学情分析</strong>自动生成班级报告，看到高频错题</span></li>
+          <li><span class="check">✓</span><span><strong>分层布置作业</strong>针对不同学生推送差异化作业</span></li>
+          <li><span class="check">✓</span><span><strong>教学数据看板</strong>汇总提交率、正确率、知识点掌握度</span></li>
+        </ul>
+      </div>
+      <div class="feature-visual">
+        <div class="feature-card amber">
+          <div class="big-number">93%</div>
+          <div class="label">班级提交率</div>
+          <div class="progress-bar"><div class="progress-fill" data-width="93%" style="width:0"></div></div>
+          <div class="note">高频错题：分数加减法</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Social Proof -->
+<section class="section section-gray" id="proof">
+  <div class="container">
+    <div class="section-header reveal">
+      <h2>数据与口碑</h2>
+      <p>已有数百所学校和家庭选择AI作业批改</p>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card reveal">
+        <div class="stat-num purple" data-target="500" data-suffix="万+">0</div>
+        <div class="stat-desc">已批改作业</div>
+      </div>
+      <div class="stat-card reveal reveal-delay-1">
+        <div class="stat-num green" data-target="99.2" data-suffix="%" data-decimal="1">0</div>
+        <div class="stat-desc">手写识别准确率</div>
+      </div>
+      <div class="stat-card reveal reveal-delay-2">
+        <div class="stat-num amber" data-target="10" data-suffix="万+">0</div>
+        <div class="stat-desc">服务家庭</div>
+      </div>
+      <div class="stat-card reveal reveal-delay-3">
+        <div class="stat-num purple" data-target="500" data-suffix="+">0</div>
+        <div class="stat-desc">覆盖学校</div>
+      </div>
+    </div>
+    <div class="testimonials">
+      <div class="testimonial-card reveal">
+        <div class="testimonial-avatar purple">张</div>
+        <div class="testimonial-content">
+          <p class="testimonial-quote">以前检查作业要花半小时，现在一分钟就能看到结果，还能知道孩子哪里薄弱。</p>
+          <p class="testimonial-person">— 张女士，二年级家长</p>
+        </div>
+      </div>
+      <div class="testimonial-card reveal reveal-delay-1">
+        <div class="testimonial-avatar green">王</div>
+        <div class="testimonial-content">
+          <p class="testimonial-quote">AI批改不仅快，还能帮我分析全班的高频错题，备课更有针对性。</p>
+          <p class="testimonial-person">— 王老师，五年级数学教师</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section" id="faq">
+  <div class="container">
+    <div class="section-header reveal">
+      <h2>常见问题</h2>
+      <p>关于AI作业批改，你可能想知道这些</p>
+    </div>
+    <div class="faq-list">
+      <details class="faq-item" open>
+        <summary>Q：识别准确率如何？<span class="faq-icon"></span></summary>
+        <p class="faq-answer">A：基于高精度OCR和AI批改模型，手写数学识别准确率达99.2%以上，并持续通过数据迭代优化。</p>
+      </details>
+      <details class="faq-item">
+        <summary>Q：支持哪些题型？<span class="faq-icon"></span></summary>
+        <p class="faq-answer">A：支持小学数学各类题型，包括口算、竖式、应用题、填空题、选择题等，覆盖课内主流教材。</p>
+      </details>
+      <details class="faq-item">
+        <summary>Q：数据安全如何保障？<span class="faq-icon"></span></summary>
+        <p class="faq-answer">A：采用严格加密与最小化采集原则，通过权威安全审查，确保学生个人信息和学习数据安全。</p>
+      </details>
+      <details class="faq-item">
+        <summary>Q：是否支持多学科？<span class="faq-icon"></span></summary>
+        <p class="faq-answer">A：当前版本聚焦小学数学，后续将逐步扩展至语文、英语等学科，并支持多学科错题本管理。</p>
+      </details>
+      <details class="faq-item">
+        <summary>Q：如何开始使用？<span class="faq-icon"></span></summary>
+        <p class="faq-answer">A：扫码或下载APP，注册账号后点击"拍照批改"，对准作业拍照即可体验。教师可申请班级账号。</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <span class="footer-brand-name">AI作业批改</span>
+        <span class="footer-brand-tagline">为小学数学教育而生</span>
+      </div>
+      <button class="footer-cta-btn">免费体验</button>
+    </div>
+    <div class="footer-links">
+      <a href="#features">产品功能</a>
+      <a href="#how">使用流程</a>
+      <a href="#proof">用户评价</a>
+      <a href="#faq">常见问题</a>
+    </div>
+    <div class="footer-divider"></div>
+    <div class="footer-bottom">
+      <span>Copyright 2026 AI作业批改. All rights reserved.</span>
+      <span>为小学数学教育而生</span>
+      <div style="margin-top:8px;">
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" style="color:#888;">粤ICP备2026098482号-1</a>
+        &nbsp;&nbsp;
+        <img src="../police-icon.png" alt="公安备案" style="width:20px;height:20px;vertical-align:middle;" />
+        <a href="https://beian.mps.gov.cn/" target="_blank" rel="noopener" style="color:#888;">粤公网安备44198202000238号</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- Back to Top Button -->
+<button class="back-to-top" id="backToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="返回顶部">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 15l-6-6-6 6"/>
+  </svg>
+</button>
+
+<script>
+(function(){
+  'use strict';
+
+  var header = document.getElementById('header');
+  var backToTop = document.getElementById('backToTop');
+  var scrollProgress = document.getElementById('scrollProgress');
+  var lastScrollY = 0;
+  var ticking = false;
+
+  function updateScrollUI(){
+    var scrollY = window.scrollY;
+    var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    var progress = docHeight > 0 ? (scrollY / docHeight) * 100 : 0;
+    scrollProgress.style.width = progress + '%';
+
+    if(scrollY > 100){
+      header.classList.add('scrolled');
+    } else {
+      header.classList.remove('scrolled');
+    }
+
+    if(scrollY > lastScrollY && scrollY > 300){
+      header.classList.add('hidden');
+    } else {
+      header.classList.remove('hidden');
+    }
+    lastScrollY = scrollY;
+
+    if(scrollY > 400){
+      backToTop.classList.add('visible');
+    } else {
+      backToTop.classList.remove('visible');
+    }
+
+    ticking = false;
+  }
+
+  window.addEventListener('scroll', function(){
+    if(!ticking){
+      window.requestAnimationFrame(updateScrollUI);
+      ticking = true;
+    }
+  }, {passive: true});
+
+  var revealObserver = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting){
+        entry.target.classList.add('visible');
+        var bars = entry.target.querySelectorAll('.progress-fill[data-width]');
+        bars.forEach(function(bar){
+          bar.style.width = bar.getAttribute('data-width');
+        });
+        var nums = entry.target.querySelectorAll('[data-target]');
+        nums.forEach(function(el){
+          animateNumber(el);
+        });
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, {threshold: 0.15, rootMargin: '0px 0px -50px 0px'});
+
+  document.querySelectorAll('.reveal').forEach(function(el){
+    revealObserver.observe(el);
+  });
+
+  function animateNumber(el){
+    var target = parseFloat(el.getAttribute('data-target'));
+    var suffix = el.getAttribute('data-suffix') || '';
+    var decimal = parseInt(el.getAttribute('data-decimal') || '0');
+    var duration = 1500;
+    var startTime = null;
+
+    function step(timestamp){
+      if(!startTime) startTime = timestamp;
+      var progress = Math.min((timestamp - startTime) / duration, 1);
+      var eased = 1 - Math.pow(1 - progress, 3);
+      var current = target * eased;
+      el.textContent = (decimal > 0 ? current.toFixed(decimal) : Math.floor(current)) + suffix;
+      if(progress < 1){
+        requestAnimationFrame(step);
+      } else {
+        el.textContent = (decimal > 0 ? target.toFixed(decimal) : target) + suffix;
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  document.querySelectorAll('a[href^="#"]').forEach(function(link){
+    link.addEventListener('click', function(e){
+      var href = link.getAttribute('href');
+      if(href.length > 1){
+        e.preventDefault();
+        var target = document.querySelector(href);
+        if(target){
+          var offset = target.offsetTop - 64;
+          window.scrollTo({top: offset, behavior: 'smooth'});
+        }
+      }
+      document.getElementById('navLinks').classList.remove('open');
+    });
+  });
+
+  document.addEventListener('click', function(e){
+    var nav = document.getElementById('navLinks');
+    var btn = document.querySelector('.mobile-menu-btn');
+    if(nav.classList.contains('open') && !nav.contains(e.target) && !btn.contains(e.target)){
+      nav.classList.remove('open');
+    }
+  });
+
+  document.querySelectorAll('.faq-item').forEach(function(item){
+    item.addEventListener('toggle', function(){
+      if(item.open){
+        var answer = item.querySelector('.faq-answer');
+        answer.style.maxHeight = answer.scrollHeight + 'px';
+        setTimeout(function(){ answer.style.maxHeight = '200px'; }, 300);
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
