@@ -380,6 +380,13 @@ img { max-width:100%; display:block; }
   border-top:1px solid rgba(255,255,255,0.1);
   text-align:center; color:var(--text-light); font-size:13px;
 }
+.footer-bottom .beian-line {
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  white-space:nowrap;
+}
+.footer-bottom .beian-line img { width:20px; height:20px; display:block; }
+.footer-bottom a { color:#CCD5DE; text-decoration:none; }
+.footer-bottom a:hover { color:white; }
 
 /* ===== Auth Lock ===== */
 .btn-lock {
@@ -886,8 +893,10 @@ img { max-width:100%; display:block; }
   <div class="footer-bottom">
     © 2026 青花微课 - 小学数学教师个人教学网站<br>
     <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" style="color:#CCD5DE;">粤ICP备2026098482号-1</a><br>
-    <img src="police-icon.png?v=20260721" alt="公安备案" style="width:20px;height:20px;vertical-align:middle;" />
-    <a href="https://beian.mps.gov.cn/" target="_blank" rel="noopener" style="color:#CCD5DE;">粤公网安备44198202000238号</a>
+    <span class="beian-line">
+      <img src="police-icon.png?v=20260721" alt="公安备案" />
+      <a href="https://beian.mps.gov.cn/" target="_blank" rel="noopener">粤公网安备44198202000238号</a>
+    </span>
   </div>
   <div class="data-panel" id="dataPanel">
     <div class="data-panel-locked" id="dataPanelLocked">
