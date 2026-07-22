@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课堂行为检测系统 - 青花微课</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body { background: #f0f2f5; }
+        .navbar-brand { font-weight: 600; }
+        .mode-selector-card { border: none; border-radius: 12px; }
+        .mode-btn { border-radius: 8px; font-size: 14px; }
+        .stats-card { border: none; border-radius: 12px; overflow: hidden; }
+        .stats-card .card-header { border: none; }
+        .stats-body { padding: 16px; }
+        .small-stat-list { font-size: 13px; }
+        .small-stat-list .stat-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 6px 10px; margin-bottom: 4px; border-radius: 6px; background: #f8f9fa;
+        }
+        .small-stat-list .stat-row .stat-label { display: flex; align-items: center; gap: 6px; }
+        .small-stat-list .stat-row .stat-value { font-weight: 600; }
+        .upload-area {
+            border: 2px dashed #ced4da; border-radius: 12px; cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .upload-area:hover { border-color: #0d6efd; background: #f8f9ff; }
+        .demo-banner {
+            background: linear-gradient(135deg, #fff3cd, #ffe4ce);
+            border: 1px solid #ffc107; border-radius: 10px;
+            padding: 12px 16px; margin-bottom: 16px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .demo-banner i { font-size: 20px; color: #e69500; }
+        .demo-banner span { font-size: 14px; color: #856404; }
+        .back-link {
+            position: fixed; bottom: 20px; right: 20px; z-index: 999;
+            background: #fff; border-radius: 50px; padding: 8px 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.12); font-size: 14px;
+            color: #0d6efd; text-decoration: none; transition: transform 0.2s;
+        }
+        .back-link:hover { transform: translateY(-2px); color: #0a58ca; }
+        .equal-height-row { display: flex; flex-wrap: wrap; }
+        .h-100-col { display: flex; flex-direction: column; }
+        .h-100-col > .card { flex: 1; }
+        .info-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px; margin-bottom: 6px; border-radius: 8px; background: #f8f9fa;
+        }
+        .info-item span { font-size: 14px; }
+        .settings-card { padding: 16px; background: #f8f9fa; border-radius: 10px; }
+        .detection-info-box {
+            background: #f8f9fa; border-radius: 8px; padding: 12px;
+            font-size: 13px; color: #495057;
+        }
+        .detection-filter-list .filter-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 8px; margin-bottom: 4px; border-radius: 6px; background: #f8f9fa;
+            font-size: 13px;
+        }
+        .history-list .history-item {
+            padding: 12px; margin-bottom: 8px; border-radius: 8px;
+            background: #f8f9fa; border-left: 3px solid #0d6efd;
+        }
+        .history-item .meta { font-size: 12px; color: #6c757d; }
+        .history-item .summary { font-size: 14px; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-chalkboard-teacher"></i> 课堂行为检测系统
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" id="navHome">
+                            <i class="fas fa-home"></i> 首页
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="navHistory" data-bs-toggle="modal" data-bs-target="#historyModal">
+                            <i class="fas fa-history"></i> 历史记录
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="navSettings" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                            <i class="fas fa-cog"></i> 设置
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <div class="demo-banner">
+            <i class="fas fa-info-circle"></i>
+            <span>演示模式 — 此页面为系统界面展示，AI检测功能需连接后端服务后启用。完整版支持图片/视频/实时摄像头的行为识别与统计。</span>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card shadow-sm mode-selector-card">
+                    <div class="card-body p-2">
+                        <div class="mode-btn-group d-flex flex-wrap gap-2" role="group" aria-label="检测模式">
+                            <button class="btn btn-outline-primary mode-btn active flex-fill" data-mode="image">
+                                <i class="fas fa-image"></i> 单张图片
+                            </button>
+                            <button class="btn btn-outline-primary mode-btn flex-fill" data-mode="batch">
+                                <i class="fas fa-images"></i> 批量图片
+                            </button>
+                            <button class="btn btn-outline-primary mode-btn flex-fill" data-mode="video">
+                                <i class="fas fa-video"></i> 视频文件
+                            </button>
+                            <button class="btn btn-outline-primary mode-btn flex-fill" data-mode="webcam">
+                                <i class="fas fa-camera"></i> 实时摄像头
+                            </button>
+                            <button class="btn btn-outline-primary mode-btn flex-fill" data-mode="dual-webcam">
+                                <i class="fas fa-users"></i> 双摄像头
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row main-dashboard equal-height-row mb-3">
+            <div class="col-lg-3 dashboard-col h-100-col">
+                <div class="card shadow-sm h-100 stats-card">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="fas fa-chart-pie"></i> 学生行为统计</h6>
+                    </div>
+                    <div class="card-body stats-body d-flex flex-column">
+                        <canvas id="studentChart" height="160"></canvas>
+                        <div id="studentStats" class="mt-3 small-stat-list flex-grow-1"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6 dashboard-col h-100-col">
+                <div class="card shadow-sm mb-3 h-100" id="uploadCard">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="fas fa-upload"></i> 上传文件</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="upload-area text-center p-4" id="uploadArea">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-2"></i>
+                            <h6>拖拽文件到此处或点击上传</h6>
+                            <p class="text-muted small mb-3">支持 JPG, PNG, MP4, AVI 等格式</p>
+                            <button class="btn btn-primary" id="selectFileBtn" onclick="alert('演示模式：AI检测功能需部署后端服务后启用。\\n\\n完整版功能包括：\\n- YOLOv8 双模型行为识别\\n- 学生/教师行为实时统计\\n- 检测结果可视化标注\\n- HTML/Excel 报告导出')">
+                                <i class="fas fa-folder-open"></i> 选择文件
+                            </button>
+                        </div>
+                        <div id="fileList" class="mt-3"></div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm h-100" id="resultCard" style="display: none;">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="fas fa-check-circle"></i> 检测结果</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="resultContent"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-3 dashboard-col h-100-col">
+                <div class="card shadow-sm h-100 stats-card">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="fas fa-chart-pie"></i> 教师行为统计</h6>
+                    </div>
+                    <div class="card-body stats-body d-flex flex-column">
+                        <canvas id="teacherChart" height="160"></canvas>
+                        <div id="teacherStats" class="mt-3 small-stat-list flex-grow-1"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="historyModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title"><i class="fas fa-history"></i> 历史记录</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center py-5 text-muted">
+                        <i class="fas fa-database fa-3x mb-3"></i>
+                        <p>演示模式下无历史记录数据</p>
+                        <p class="small">完整版会自动保存每次检测的详细记录</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="settingsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="fas fa-cog"></i> 系统设置</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs" id="settingsTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-params" type="button" role="tab">
+                                <i class="fas fa-sliders-h"></i> 检测参数
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-system" type="button" role="tab">
+                                <i class="fas fa-info-circle"></i> 系统信息
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content pt-3">
+                        <div class="tab-pane fade show active" id="tab-params" role="tabpanel">
+                            <div class="settings-card">
+                                <h6 class="text-primary mb-3"><i class="fas fa-sliders-h"></i> 当前检测参数</h6>
+                                <div class="mb-3">
+                                    <label class="form-label">置信度阈值</label>
+                                    <input type="range" class="form-range" min="0.1" max="0.9" step="0.05" value="0.25" oninput="document.getElementById('confidenceValue').innerText=this.value">
+                                    <div class="d-flex justify-content-between small text-muted">
+                                        <span>0.1</span>
+                                        <strong id="confidenceValue" class="text-dark">0.25</strong>
+                                        <span>0.9</span>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">IOU阈值</label>
+                                    <input type="range" class="form-range" min="0.1" max="0.9" step="0.05" value="0.45" oninput="document.getElementById('iouValue').innerText=this.value">
+                                    <div class="d-flex justify-content-between small text-muted">
+                                        <span>0.1</span>
+                                        <strong id="iouValue" class="text-dark">0.45</strong>
+                                        <span>0.9</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">视频跳帧</label>
+                                    <input type="number" class="form-control" value="2" min="0" max="10" readonly>
+                                    <small class="text-muted">跳过N帧处理一次（提高速度）</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="tab-system" role="tabpanel">
+                            <div class="settings-card">
+                                <h6 class="text-secondary mb-3"><i class="fas fa-info-circle"></i> 系统信息</h6>
+                                <div class="info-item">
+                                    <i class="fas fa-robot text-primary"></i>
+                                    <span>YOLOv8 双模型（学生行为 + 教师行为）</span>
+                                </div>
+                                <div class="info-item">
+                                    <i class="fas fa-microchip text-success"></i>
+                                    <span>完整版支持 GPU 加速</span>
+                                </div>
+                                <div class="info-item">
+                                    <i class="fas fa-tachometer-alt text-warning"></i>
+                                    <span>实时检测帧率：取决于硬件配置</span>
+                                </div>
+                                <div class="info-item">
+                                    <i class="fas fa-database text-info"></i>
+                                    <span>当前模式：演示展示</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <a href="/" class="back-link">
+        <i class="fas fa-arrow-left"></i> 返回青花微课
+    </a>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.querySelectorAll('.mode-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.mode-btn').forEach(function(b) { b.classList.remove('active'); });
+            this.classList.add('active');
+        });
+    });
+
+    var studentChart = new Chart(document.getElementById('studentChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['专注听讲', '举手发言', '低头写字', '转头讨论', '趴桌/走神'],
+            datasets: [{
+                data: [42, 8, 25, 15, 10],
+                backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#0dcaf0', '#dc3545'],
+                borderWidth: 2, borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 8 } } }
+        }
+    });
+
+    var teacherChart = new Chart(document.getElementById('teacherChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['板书讲解', '巡视指导', '多媒体演示', '提问互动', '站立观察'],
+            datasets: [{
+                data: [30, 25, 15, 20, 10],
+                backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#0dcaf0', '#6c757d'],
+                borderWidth: 2, borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 8 } } }
+        }
+    });
+
+    var studentBehaviors = [
+        { label: '专注听讲', value: '42次', color: '#0d6efd', icon: 'fa-book-reader' },
+        { label: '举手发言', value: '8次', color: '#198754', icon: 'fa-hand-paper' },
+        { label: '低头写字', value: '25次', color: '#ffc107', icon: 'fa-pen' },
+        { label: '转头讨论', value: '15次', color: '#0dcaf0', icon: 'fa-comments' },
+        { label: '趴桌/走神', value: '10次', color: '#dc3545', icon: 'fa-bed' }
+    ];
+    var studentStatsEl = document.getElementById('studentStats');
+    studentStatsEl.innerHTML = studentBehaviors.map(function(s) {
+        return '<div class="stat-row"><span class="stat-label"><i class="fas ' + s.icon + '" style="color:' + s.color + '"></i>' + s.label + '</span><span class="stat-value" style="color:' + s.color + '">' + s.value + '</span></div>';
+    }).join('');
+
+    var teacherBehaviors = [
+        { label: '板书讲解', value: '30次', color: '#0d6efd', icon: 'fa-chalkboard' },
+        { label: '巡视指导', value: '25次', color: '#198754', icon: 'fa-walking' },
+        { label: '多媒体演示', value: '15次', color: '#ffc107', icon: 'fa-desktop' },
+        { label: '提问互动', value: '20次', color: '#0dcaf0', icon: 'fa-question' },
+        { label: '站立观察', value: '10次', color: '#6c757d', icon: 'fa-eye' }
+    ];
+    var teacherStatsEl = document.getElementById('teacherStats');
+    teacherStatsEl.innerHTML = teacherBehaviors.map(function(s) {
+        return '<div class="stat-row"><span class="stat-label"><i class="fas ' + s.icon + '" style="color:' + s.color + '"></i>' + s.label + '</span><span class="stat-value" style="color:' + s.color + '">' + s.value + '</span></div>';
+    }).join('');
+    </script>
+</body>
+</html>

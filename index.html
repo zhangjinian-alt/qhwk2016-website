@@ -61,13 +61,22 @@ img { max-width:100%; display:block; }
 }
 .logo {
   display:flex; align-items:center; gap:10px;
-  font-size:20px; font-weight:700; color:var(--primary);
   flex-shrink:0;
 }
 .logo-icon {
   width:36px; height:36px; background:var(--primary);
   border-radius:10px; display:flex; align-items:center; justify-content:center;
   font-size:20px; color:white;
+}
+.logo-text {
+  display:flex; flex-direction:column; line-height:1.2;
+}
+.logo-title {
+  font-size:20px; font-weight:700; color:var(--primary);
+}
+.logo-domain {
+  font-size:12px; font-weight:400; color:var(--text-secondary);
+  letter-spacing:0.5px;
 }
 .nav-desktop {
   display:flex; gap:4px; overflow-x:auto; flex:1; justify-content:center;
@@ -371,6 +380,13 @@ img { max-width:100%; display:block; }
   border-top:1px solid rgba(255,255,255,0.1);
   text-align:center; color:var(--text-light); font-size:13px;
 }
+.footer-bottom .beian-line {
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  white-space:nowrap;
+}
+.footer-bottom .beian-line img { width:20px; height:20px; display:block; }
+.footer-bottom a { color:#CCD5DE; text-decoration:none; }
+.footer-bottom a:hover { color:white; }
 
 /* ===== Auth Lock ===== */
 .btn-lock {
@@ -485,7 +501,7 @@ img { max-width:100%; display:block; }
 .toast-msg {
   position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
   background:#2C3E50; color:white; padding:12px 24px; border-radius:12px;
-  font-size:14px; z-index:999; opacity:0; transition:opacity 0.3s;
+  font-size:14px; z-index:10001; opacity:0; transition:opacity 0.3s;
   pointer-events:none;
 }
 .toast-msg.show { opacity:1; }
@@ -536,16 +552,6 @@ img { max-width:100%; display:block; }
   100% { transform:scale(1); opacity:1; }
 }
 
-/* ===== Toast ===== */
-.toast {
-  position:fixed; top:80px; left:50%; transform:translateX(-50%);
-  background:var(--text); color:white; padding:12px 24px;
-  border-radius:24px; font-size:14px; z-index:300;
-  animation:slideDown 0.3s ease, fadeOut 0.3s ease 2s forwards;
-}
-@keyframes slideDown { from{transform:translateX(-50%) translateY(-20px);opacity:0} to{transform:translateX(-50%) translateY(0);opacity:1} }
-@keyframes fadeOut { to{opacity:0} }
-
 /* ===== Responsive ===== */
 @media (max-width:768px) {
   .nav-desktop { display:none; }
@@ -578,7 +584,10 @@ img { max-width:100%; display:block; }
   <div class="header-inner">
     <div class="logo" onclick="navigate('home')">
       <div class="logo-icon">🧮</div>
-      <span>青花微课</span>
+      <div class="logo-text">
+        <span class="logo-title">青花微课</span>
+        <span class="logo-domain">qhwk2016.com</span>
+      </div>
     </div>
     <nav class="nav-desktop" id="navDesktop">
       <a href="#" data-page="home" class="active">首页</a>
@@ -594,6 +603,7 @@ img { max-width:100%; display:block; }
       <button class="mode-btn" data-mode="parent" onclick="switchMode('parent')">家长模式</button>
     </div>
     <button class="btn-lock locked" id="lockBtn" onclick="openAuthModal()" title="教师认证">🔒</button>
+    <button class="btn-lock" id="cloudSyncBtn" onclick="openCloudLoginModal()" title="云端同步" style="font-size:18px;color:#999;">☁️</button>
     <button class="menu-toggle" onclick="toggleMobileNav()">☰</button>
   </div>
 </header>
@@ -636,9 +646,9 @@ img { max-width:100%; display:block; }
   </div>
 </div>
 
-<div class="container section">
-  <h2 class="section-title">📋 今日任务清单</h2>
-  <div class="task-grid">
+<div class="container section" id="homeTaskSection">
+  <h2 class="section-title" id="homeTaskTitle">📋 今日任务清单</h2>
+  <div class="task-grid" id="homeTaskGrid">
     <div class="video-card">
       <div class="video-thumb" onclick="openVideo('分数的基本概念')">
         <div class="play-btn">▶</div>
@@ -669,8 +679,8 @@ img { max-width:100%; display:block; }
   </div>
 </div>
 
-<div class="container section">
-  <h2 class="section-title">快捷入口</h2>
+<div class="container section" id="homeQuickSection">
+  <h2 class="section-title" id="homeQuickTitle">快捷入口</h2>
   <div class="quick-grid">
     <div class="quick-card" onclick="navigate('classroom')">
       <div class="icon" style="background:#EBF5FF;">📚</div>
@@ -746,8 +756,8 @@ img { max-width:100%; display:block; }
 </div>
 <div class="container section">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;" class="radar-section">
-    <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
-      <h3 style="margin-bottom:16px;">💬 悄悄话</h3>
+    <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);" id="whisperSection">
+      <h3 style="margin-bottom:16px;" id="whisperTitle">💬 悄悄话</h3>
       <form id="whisperForm" onsubmit="submitWhisper(event)">
         <div class="form-group"><label>孩子姓名</label><input type="text" id="whisperName" required></div>
         <div class="form-group"><label>家长留言</label><textarea id="whisperMsg" required></textarea></div>
@@ -814,6 +824,35 @@ img { max-width:100%; display:block; }
   <h3 style="margin-bottom:20px;">🎁 积分商城</h3>
   <div class="store-grid" id="pointStore"></div>
 </div>
+<div class="container section">
+  <h3 style="margin-bottom:20px;">🧰 教师工具箱</h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
+    <a href="五维评价/class-dashboard.html" style="text-decoration:none;color:inherit;">
+      <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);transition:transform 0.2s,box-shadow 0.2s;cursor:pointer;border-top:4px solid var(--primary);" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='var(--shadow-hover)'" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow)'">
+        <div style="font-size:32px;margin-bottom:12px;">📊</div>
+        <h4 style="font-size:18px;margin-bottom:8px;">班级评价看板</h4>
+        <p style="font-size:14px;color:var(--text-secondary);line-height:1.5;">五维评分数据看板，班级周评价统计、学生详情、CSV导入导出</p>
+        <p style="font-size:12px;color:var(--primary);margin-top:12px;font-weight:600;">点击进入 →</p>
+      </div>
+    </a>
+    <a href="https://api.qhwk2016.com/quality/" target="_blank" style="text-decoration:none;color:inherit;">
+      <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);transition:transform 0.2s,box-shadow 0.2s;cursor:pointer;border-top:4px solid var(--accent);" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='var(--shadow-hover)'" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow)'">
+        <div style="font-size:32px;margin-bottom:12px;">📈</div>
+        <h4 style="font-size:18px;margin-bottom:8px;">质量分析平台</h4>
+        <p style="font-size:14px;color:var(--text-secondary);line-height:1.5;">教学质量可视化，年级总览、班级排名、一分四率数据分析</p>
+        <p style="font-size:12px;color:var(--accent);margin-top:12px;font-weight:600;">需密码登录 →</p>
+      </div>
+    </a>
+    <a href="课堂行为/index.html" style="text-decoration:none;color:inherit;">
+      <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);transition:transform 0.2s,box-shadow 0.2s;cursor:pointer;border-top:4px solid var(--secondary);" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='var(--shadow-hover)'" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow)'">
+        <div style="font-size:32px;margin-bottom:12px;">🎥</div>
+        <h4 style="font-size:18px;margin-bottom:8px;">课堂行为监测</h4>
+        <p style="font-size:14px;color:var(--text-secondary);line-height:1.5;">AI课堂行为检测系统，学生/教师行为识别与统计分析</p>
+        <p style="font-size:12px;color:var(--secondary);margin-top:12px;font-weight:600;">演示模式 →</p>
+      </div>
+    </a>
+  </div>
+</div>
 </section>
 
 <!-- ===== ABOUT PAGE ===== -->
@@ -872,10 +911,11 @@ img { max-width:100%; display:block; }
   </div>
   <div class="footer-bottom">
     © 2026 青花微课 - 小学数学教师个人教学网站<br>
-    <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" style="color:#CCD5DE;">粤ICP备2026098482号-1</a>
-    &nbsp;&nbsp;
-    <img src="police-icon.png" alt="公安备案" style="width:20px;height:20px;vertical-align:middle;" />
-    <a href="https://beian.mps.gov.cn/" target="_blank" rel="noopener" style="color:#CCD5DE;">粤公网安备44198202000238号</a>
+    <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" style="color:#CCD5DE;">粤ICP备2026098482号-1</a><br>
+    <span class="beian-line">
+      <img src="police-icon.png?v=20260721" alt="公安备案" />
+      <a href="https://beian.mps.gov.cn/" target="_blank" rel="noopener">粤公网安备44198202000238号</a>
+    </span>
   </div>
   <div class="data-panel" id="dataPanel">
     <div class="data-panel-locked" id="dataPanelLocked">
@@ -950,7 +990,302 @@ img { max-width:100%; display:block; }
   </div>
 </div>
 
+<!-- Cloud Login Modal -->
+<div id="cloudLoginModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:32px;width:320px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <!-- 登录视图 -->
+    <div id="cloudLoginView">
+      <h3 style="margin:0 0 8px;font-size:20px;text-align:center;color:#333;">☁️ 云端同步登录</h3>
+      <p style="color:#888;font-size:13px;margin:0 0 20px;text-align:center;line-height:1.5;">登录后数据自动同步云端，换设备不丢失</p>
+      <input type="text" id="cloudUsername" placeholder="用户名" autocomplete="username" style="width:100%;padding:12px;margin-bottom:12px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+      <input type="password" id="cloudPassword" placeholder="密码" autocomplete="current-password" style="width:100%;padding:12px;margin-bottom:16px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+      <button id="cloudLoginBtn" onclick="doCloudLogin()" style="width:100%;padding:12px;background:#4A90D9;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600;">登录</button>
+      <div style="text-align:center;margin-top:12px;">
+        <a href="javascript:void(0)" onclick="showCloudRegisterView()" style="color:#4A90D9;font-size:13px;text-decoration:none;">还没有账号？注册一个</a>
+      </div>
+      <button onclick="closeCloudLoginModal()" style="width:100%;padding:10px;margin-top:8px;background:none;border:none;color:#999;font-size:14px;cursor:pointer;">取消</button>
+    </div>
+
+    <!-- 注册视图 -->
+    <div id="cloudRegisterView" style="display:none;">
+      <h3 style="margin:0 0 8px;font-size:20px;text-align:center;color:#333;">☁️ 注册云端账号</h3>
+      <p style="color:#888;font-size:13px;margin:0 0 20px;text-align:center;line-height:1.5;">教师内部使用，注册需邀请码</p>
+      <input type="text" id="cloudRegUsername" placeholder="用户名（英文/数字）" autocomplete="username" style="width:100%;padding:12px;margin-bottom:10px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+      <input type="password" id="cloudRegPassword" placeholder="密码（至少8位）" autocomplete="new-password" style="width:100%;padding:12px;margin-bottom:10px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+      <input type="password" id="cloudRegPassword2" placeholder="再次输入密码" autocomplete="new-password" style="width:100%;padding:12px;margin-bottom:10px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+      <input type="text" id="cloudRegInvite" placeholder="邀请码" style="width:100%;padding:12px;margin-bottom:16px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+      <button id="cloudRegisterBtn" onclick="doCloudRegister()" style="width:100%;padding:12px;background:#52C41A;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600;">注册</button>
+      <div style="text-align:center;margin-top:12px;">
+        <a href="javascript:void(0)" onclick="showCloudLoginView()" style="color:#888;font-size:13px;text-decoration:none;">已有账号？返回登录</a>
+      </div>
+      <button onclick="closeCloudLoginModal()" style="width:100%;padding:10px;margin-top:8px;background:none;border:none;color:#999;font-size:14px;cursor:pointer;">取消</button>
+    </div>
+  </div>
+</div>
+
 <script>
+// ===== CLOUD API: 云端同步 =====
+const API_BASE = "https://api.qhwk2016.com/api";
+const CLOUD_TOKEN_KEY = "qhwk_cloud_token";
+
+// Token 管理
+function getCloudToken() { return localStorage.getItem(CLOUD_TOKEN_KEY); }
+function setCloudToken(token) { localStorage.setItem(CLOUD_TOKEN_KEY, token); }
+function clearCloudToken() { localStorage.removeItem(CLOUD_TOKEN_KEY); }
+function isCloudLoggedIn() { return !!getCloudToken(); }
+
+// 本地记录的云端数据版本号（用于乐观锁）
+let cloudDataVersion = 0;
+
+// 封装带认证的 fetch
+async function fetchWithAuth(url, options = {}) {
+  const token = getCloudToken();
+  if (!token) throw new Error("未登录云端");
+  const headers = { "Content-Type": "application/json", "Authorization": "Bearer " + token, ...(options.headers || {}) };
+  const resp = await fetch(API_BASE + url, { ...options, headers });
+  if (resp.status === 401) { clearCloudToken(); throw new Error("登录已过期"); }
+  return resp;
+}
+
+// 从云端加载数据
+async function loadFromCloud() {
+  try {
+    const resp = await fetchWithAuth("/data");
+    if (!resp.ok) return null;
+    const result = await resp.json();
+    cloudDataVersion = result.version;
+    return JSON.parse(result.data_json);
+  } catch (e) { console.log("云端加载失败:", e.message); return null; }
+}
+
+// 同步数据到云端
+async function syncToCloud() {
+  if (!isCloudLoggedIn()) return false;
+  try {
+    const resp = await fetchWithAuth("/data", {
+      method: "PUT",
+      body: JSON.stringify({ data_json: JSON.stringify(appData), version: cloudDataVersion })
+    });
+    if (resp.status === 409) {
+      // 版本冲突：云端有更新的数据，用云端覆盖本地
+      const result = await resp.json();
+      const detail = result.detail;
+      appData = JSON.parse(detail.server_data);
+      cloudDataVersion = detail.server_version;
+      localStorage.setItem(DATA_KEY, encryptData(appData));
+      updateHomeStats();
+      draw3DRadar();
+      showToast("检测到云端有更新数据，已同步到本地");
+      return true;
+    }
+    if (resp.ok) { const r = await resp.json(); cloudDataVersion = r.version; return true; }
+    return false;
+  } catch (e) { console.log("云端同步失败:", e.message); return false; }
+}
+
+// 登录
+async function cloudLogin(username, password) {
+  const resp = await fetch(API_BASE + "/auth/login", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password })
+  });
+  if (resp.ok) { const r = await resp.json(); setCloudToken(r.access_token); return true; }
+  return false;
+}
+
+// 登出
+function cloudLogout() {
+  clearCloudToken(); cloudDataVersion = 0; setSyncStatus("disconnected");
+  if (periodicSyncInterval) { clearInterval(periodicSyncInterval); periodicSyncInterval = null; }
+  showToast("已退出云端登录");
+}
+
+// 更新云同步按钮
+function updateCloudSyncUI() {
+  if (isCloudLoggedIn()) { setSyncStatus("synced"); }
+  else { setSyncStatus("disconnected"); }
+}
+
+// 打开/关闭登录弹窗
+function openCloudLoginModal() {
+  if (isCloudLoggedIn()) {
+    var status = document.getElementById("cloudSyncBtn").dataset.syncStatus;
+    if (status === "error") { doSync(); return; }
+    if (confirm("已连接云端，是否退出登录？")) cloudLogout();
+    return;
+  }
+  document.getElementById("cloudLoginModal").style.display = "flex";
+}
+function closeCloudLoginModal() {
+  document.getElementById("cloudLoginModal").style.display = "none";
+  showCloudLoginView(); // 下次打开默认显示登录
+}
+
+// 执行登录
+async function doCloudLogin() {
+  const username = document.getElementById("cloudUsername").value.trim();
+  const password = document.getElementById("cloudPassword").value;
+  if (!username || !password) { showToast("请输入用户名和密码"); return; }
+  const btn = document.getElementById("cloudLoginBtn");
+  btn.textContent = "登录中..."; btn.disabled = true;
+  const ok = await cloudLogin(username, password);
+  btn.textContent = "登录"; btn.disabled = false;
+  if (ok) {
+    closeCloudLoginModal(); setSyncStatus("syncing");
+    showToast("云端登录成功！正在同步数据...");
+    const cloudData = await loadFromCloud();
+    if (cloudData && Object.keys(cloudData).length > 0) {
+      appData = cloudData; localStorage.setItem(DATA_KEY, encryptData(appData));
+      updateHomeStats(); draw3DRadar();
+      setSyncStatus("synced");
+      showToast("云端数据已同步到本地");
+    } else {
+      await syncToCloud();
+      setSyncStatus("synced");
+      showToast("本地数据已上传到云端");
+    }
+    startPeriodicSync();
+  } else { setSyncStatus("disconnected"); showToast("登录失败，请检查用户名和密码"); }
+}
+
+// 注册
+async function cloudRegister(username, password, invite_code) {
+  const resp = await fetch(API_BASE + "/auth/register", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password, invite_code })
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.detail || "注册失败");
+  }
+  return await resp.json();
+}
+
+async function doCloudRegister() {
+  const username = document.getElementById("cloudRegUsername").value.trim();
+  const password = document.getElementById("cloudRegPassword").value;
+  const password2 = document.getElementById("cloudRegPassword2").value;
+  const inviteCode = document.getElementById("cloudRegInvite").value.trim();
+  if (!username || !password) { showToast("请输入用户名和密码"); return; }
+  if (password.length < 8) { showToast("密码至少8位"); return; }
+  if (password !== password2) { showToast("两次输入的密码不一致"); return; }
+  if (!inviteCode) { showToast("请输入邀请码"); return; }
+  const btn = document.getElementById("cloudRegisterBtn");
+  btn.textContent = "注册中..."; btn.disabled = true;
+  try {
+    const r = await cloudRegister(username, password, inviteCode);
+    setCloudToken(r.access_token);
+    closeCloudLoginModal(); setSyncStatus("syncing");
+    showToast("注册成功！正在同步本地数据...");
+    await syncToCloud();
+    setSyncStatus("synced");
+    startPeriodicSync();
+    showToast("本地数据已上传到云端");
+  } catch (e) {
+    showToast("注册失败：" + e.message);
+  } finally {
+    btn.textContent = "注册"; btn.disabled = false;
+  }
+}
+
+// 切换登录/注册视图
+function showCloudRegisterView() {
+  document.getElementById("cloudLoginView").style.display = "none";
+  document.getElementById("cloudRegisterView").style.display = "block";
+}
+function showCloudLoginView() {
+  document.getElementById("cloudRegisterView").style.display = "none";
+  document.getElementById("cloudLoginView").style.display = "block";
+}
+
+// ===== AUTO-SYNC SYSTEM =====
+let syncTimer = null;
+let periodicSyncInterval = null;
+let isSyncing = false;
+let pendingSync = false;
+
+function setSyncStatus(status) {
+  var btn = document.getElementById("cloudSyncBtn");
+  if (!btn) return;
+  var colors = {
+    disconnected: "#999",
+    syncing: "#4A90D9",
+    synced: "#52C41A",
+    error: "#FAAD14"
+  };
+  btn.style.color = colors[status] || "#999";
+  var labels = {
+    disconnected: "云端同步 - 点击登录",
+    syncing: "正在同步...",
+    synced: "云端已连接 - 点击退出",
+    error: "同步失败 - 点击重试"
+  };
+  btn.title = labels[status] || "";
+  btn.dataset.syncStatus = status;
+}
+
+function debouncedSync() {
+  if (!isCloudLoggedIn()) return;
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(function() { doSync(); }, 3000);
+}
+
+async function doSync() {
+  if (!isCloudLoggedIn()) return;
+  if (isSyncing) { pendingSync = true; return; }
+  isSyncing = true;
+  setSyncStatus("syncing");
+  try {
+    var ok = await syncToCloud();
+    if (ok) { setSyncStatus("synced"); }
+    else { setSyncStatus("error"); }
+  } catch (e) {
+    setSyncStatus("error");
+  } finally {
+    isSyncing = false;
+    if (pendingSync) { pendingSync = false; debouncedSync(); }
+  }
+}
+
+function syncOnUnload() {
+  if (!isCloudLoggedIn() || isSyncing) return;
+  var token = getCloudToken();
+  if (!token) return;
+  var body = JSON.stringify({ data_json: JSON.stringify(appData), version: cloudDataVersion });
+  try {
+    fetch(API_BASE + "/data", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      body: body,
+      keepalive: true
+    });
+  } catch (e) {}
+}
+
+function startPeriodicSync() {
+  if (periodicSyncInterval) clearInterval(periodicSyncInterval);
+  periodicSyncInterval = setInterval(function() {
+    if (isCloudLoggedIn()) doSync();
+  }, 60000);
+}
+
+async function validateCloudToken() {
+  if (!isCloudLoggedIn()) return false;
+  try {
+    var resp = await fetchWithAuth("/auth/status");
+    if (resp.status === 401) { clearCloudToken(); setSyncStatus("disconnected"); return false; }
+    return true;
+  } catch (e) { return true; }
+}
+
+window.addEventListener("beforeunload", syncOnUnload);
+window.addEventListener("online", function() {
+  if (isCloudLoggedIn()) doSync();
+});
+window.addEventListener("offline", function() {
+  if (isCloudLoggedIn()) setSyncStatus("error");
+});
+
 // ===== SECURITY: Encryption helpers =====
 const ENC_KEY = "QHWK_2026_SECURE_SALT";
 
@@ -1044,7 +1379,9 @@ async function verifyPin() {
     sessionStorage.setItem(SESSION_KEY, "true");
     closeAuthModal();
     updateAuthUI();
-    showToast("✅ 认证成功，数据管理已解锁");
+    updateRoleUI();
+    renderAllPages();
+    showToast("✅ 教师认证成功，已切换到管理模式");
   } else {
     document.getElementById("authError").textContent = "密码错误，请重试";
     document.getElementById("pinInput").value = "";
@@ -1054,7 +1391,9 @@ async function verifyPin() {
 function lockAuth() {
   sessionStorage.removeItem(SESSION_KEY);
   updateAuthUI();
-  showToast("🔒 已锁定，数据管理功能已保护");
+  updateRoleUI();
+  renderAllPages();
+  showToast("🔒 已锁定，已切换回" + (appData.mode === 'parent' ? '家长' : '学生') + "模式");
 }
 
 async function doChangePin() {
@@ -1134,6 +1473,7 @@ function loadData() {
 function saveData() {
   localStorage.setItem(DATA_KEY, encryptData(appData));
   updateHomeStats();
+  if (isCloudLoggedIn()) { debouncedSync(); }
 }
 
 function getDefaultData() {
@@ -1185,16 +1525,65 @@ function getDefaultData() {
       { name: '当一天课代表', price: 100, icon: '👑' },
     ],
     blogs: [
-      { title: '如何帮助孩子建立数学自信', date: '2026-06-25', summary: '自信心是学好数学的关键。分享几个在课堂和家庭中培养孩子数学自信的实用方法。' },
-      { title: '三年级分数教学的几点思考', date: '2026-05-18', summary: '分数是小学数学的第一个抽象概念难点，如何让学生真正理解分数的意义？' },
-      { title: '让数学变得有趣：游戏化教学实践', date: '2026-04-10', summary: '通过闯关、积分、勋章等游戏化手段，孩子们的学习积极性明显提高。' },
+      { title: '如何帮助孩子建立数学自信', date: '2026-06-25', summary: '自信心是学好数学的关键。分享几个在课堂和家庭中培养孩子数学自信的实用方法。', content: '自信心是学好数学的关键。在日常教学中，我常看到两种截然不同的孩子：一种遇到难题兴奋，一种遇到难题退缩。差异往往不在智力，而在自信。\n\n第一个方法是\"小步成功法\"：把大问题拆成小步骤，让孩子每一步都能体验到成功的喜悦。比如教分数时，先从切披萨开始，再过渡到数字表达。\n\n第二个方法是\"错题变宝法\"：把错题当作学习资源而非失败标志。我常跟学生说：\"错题是帮你找到知识漏洞的好朋友。\"\n\n第三个方法是\"及时肯定法\"：不吝啬表扬，但表扬要具体。不说\"你真聪明\"，而说\"你用画图法解决这个问题，思路很清晰\"。' },
+      { title: '三年级分数教学的几点思考', date: '2026-05-18', summary: '分数是小学数学的第一个抽象概念难点，如何让学生真正理解分数的意义？', content: '分数是三年级最大的认知跨越。从整数到分数，孩子需要理解\"部分与整体\"的关系，这是思维方式的变化而非简单知识叠加。\n\n教学中我发现三个常见误区：\n1. 过早引入符号运算，忽略概念理解。学生会算1/2+1/3却不理解为什么通分。\n2. 只用圆形模型（披萨），忽略线性和面积模型。实际上数轴上的分数更利于后续学习。\n3. 没有建立分数与除法的联系。分数本质上就是除法的另一种写法。\n\n我的做法是：先用实物操作（折纸、切水果），再画图表示，最后才引入符号。三步走，让孩子从具象到抽象平稳过渡。' },
+      { title: '让数学变得有趣：游戏化教学实践', date: '2026-04-10', summary: '通过闯关、积分、勋章等游戏化手段，孩子们的学习积极性明显提高。', content: '这个网站本身就是游戏化教学的产物。同步课堂的闯关设计、积分商城的兑换机制、勋章墙的收集系统，都借鉴了游戏设计原理。\n\n实践一年来的观察：\n- 作业完成率从75%提升到92%\n- 主动提问的学生增加了3倍\n- 最明显的改变是学困生：积分机制让他们也能获得成就感\n\n关键不是游戏本身，而是游戏背后的\"即时反馈\"和\"适度挑战\"原理。每个孩子都在自己的水平线上被挑战，而不是被统一标准碾压。' },
     ],
     classPhotos: ['🎨', '🏃', '📖', '🎭', '🔬', '🎵'],
     userName: '小明同学',
+    parentStudentName: '',
+    messages: [],
   };
 }
 
 let appData = loadData();
+
+// ===== ROLE & PERMISSIONS =====
+function getCurrentRole() {
+  if (isAuthenticated()) return 'teacher';
+  return appData.mode || 'student';
+}
+
+function hasPermission(action) {
+  const role = getCurrentRole();
+  const permissions = {
+    student: ['view_course', 'do_exercise', 'view_own_report', 'send_message', 'view_notice', 'exchange_store', 'view_evaluate'],
+    parent:  ['view_course_readonly', 'view_child_report', 'view_notice', 'send_message', 'view_child_evaluate'],
+    teacher: ['*']
+  };
+  const perms = permissions[role] || [];
+  return perms.includes('*') || perms.includes(action);
+}
+
+function renderAllPages() {
+  const currentPage = document.querySelector('.page.active');
+  if (currentPage) {
+    const pageId = currentPage.id.replace('page-', '');
+    renderPageContent(pageId);
+  }
+}
+
+function updateRoleUI() {
+  const role = getCurrentRole();
+  const modeSwitch = document.getElementById('modeSwitch');
+  const floatBtn = document.getElementById('floatReportBtn');
+  const mobileModeWrap = document.querySelector('#mobileNav > div[style*="gap"]');
+
+  if (role === 'teacher') {
+    if (modeSwitch) modeSwitch.style.display = 'none';
+    if (mobileModeWrap) mobileModeWrap.style.display = 'none';
+    if (floatBtn) floatBtn.style.display = 'none';
+  } else {
+    if (modeSwitch) modeSwitch.style.display = '';
+    if (mobileModeWrap) mobileModeWrap.style.display = '';
+    if (role === 'parent') {
+      if (floatBtn) floatBtn.style.display = 'flex';
+    } else {
+      if (floatBtn) floatBtn.style.display = 'none';
+    }
+  }
+  updateHomeStats();
+}
 
 // ===== SAVE =====
 function persist() { saveData(); }
@@ -1290,16 +1679,14 @@ function toggleMobileNav() {
 
 // ===== MODE SWITCH =====
 function switchMode(mode) {
+  if (mode !== 'student' && mode !== 'parent') return;
   appData.mode = mode;
   document.querySelectorAll('.mode-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === mode);
   });
   saveData();
-  if (mode === 'parent') {
-    document.getElementById('floatReportBtn').style.display = 'flex';
-  } else {
-    document.getElementById('floatReportBtn').style.display = 'none';
-  }
+  updateRoleUI();
+  renderAllPages();
   showToast(mode === 'student' ? '已切换到学生模式' : '已切换到家长模式');
 }
 
@@ -1330,125 +1717,548 @@ function renderPageContent(page) {
 }
 
 function updateHomeStats() {
+  const role = getCurrentRole();
   const p = document.getElementById('totalPoints');
   const m = document.getElementById('totalMedals');
   const s = document.getElementById('streakDays');
-  if (p) p.textContent = appData.points + ' 积分';
-  if (m) m.textContent = appData.medals.filter(x => x.unlocked).length + ' 枚勋章';
-  if (s) s.textContent = '连续 ' + appData.streak + ' 天';
+  if (role === 'teacher') {
+    if (p) p.textContent = appData.courses.length + ' 门课程';
+    if (m) m.textContent = appData.notices.length + ' 条通知';
+    if (s) s.textContent = appData.thinkingLevels.length + ' 个关卡';
+  } else {
+    if (p) p.textContent = appData.points + ' 积分';
+    if (m) m.textContent = appData.medals.filter(x => x.unlocked).length + ' 枚勋章';
+    if (s) s.textContent = '连续 ' + appData.streak + ' 天';
+  }
   updateWelcome();
+  renderHomeByRole(role);
 }
 
 function updateWelcome() {
-  const topics = ['有趣的分数', '神奇的对称轴', '生活中的小数', '巧算乘法', '面积大冒险', '时间的奥秘'];
-  const t = topics[Math.floor(Math.random() * topics.length)];
+  const role = getCurrentRole();
   const msg = document.getElementById('welcomeMsg');
-  if (msg) msg.textContent = '欢迎回来，' + appData.userName + '！';
   const title = document.getElementById('heroTitle');
-  if (title) title.textContent = '今天小π带来了「' + t + '」';
+  const sub = document.querySelector('#page-home .hero .subtitle');
+  const cta = document.querySelector('.hero-cta');
+  if (role === 'teacher') {
+    if (msg) msg.textContent = '教师管理后台';
+    if (title) title.textContent = '教学管理控制台';
+    if (sub) sub.textContent = '管理课程内容、发布通知、查看学生数据';
+    if (cta) cta.innerHTML = '<button class="btn btn-primary" onclick="navigate(\'classroom\')">📚 管理课程</button><button class="btn btn-outline" onclick="navigate(\'parent\')">📢 发布通知</button>';
+  } else if (role === 'parent') {
+    if (msg) msg.textContent = '家长中心 — 关注 ' + (appData.parentStudentName || '未绑定');
+    if (title) title.textContent = (appData.parentStudentName ? appData.parentStudentName + ' 的学习近况' : '孩子的学习近况');
+    if (sub) sub.textContent = '查看学习进度、班级通知和评价反馈';
+    if (cta) cta.innerHTML = '<button class="btn btn-primary" onclick="navigate(\'feedback\')">📊 查看学习报告</button><button class="btn btn-outline" onclick="navigate(\'parent\')">🏠 家校互通</button><button class="btn btn-outline" onclick="bindChildName()">⚙️ 设置孩子姓名</button>';
+  } else {
+    const topics = ['有趣的分数', '神奇的对称轴', '生活中的小数', '巧算乘法', '面积大冒险', '时间的奥秘'];
+    const t = topics[Math.floor(Math.random() * topics.length)];
+    if (msg) msg.textContent = '欢迎回来，' + appData.userName + '！';
+    if (title) title.textContent = '今天小π带来了「' + t + '」';
+    if (sub) sub.textContent = '每天进步一点点，数学其实很好玩！';
+    if (cta) cta.innerHTML = '<button class="btn btn-primary" onclick="navigate(\'classroom\')">📖 开始今天的学习</button><button class="btn btn-outline" onclick="navigate(\'feedback\')">📊 查看学习报告</button>';
+  }
+}
+
+function renderHomeByRole(role) {
+  const taskTitle = document.getElementById('homeTaskTitle');
+  const taskGrid = document.getElementById('homeTaskGrid');
+  const quickTitle = document.getElementById('homeQuickTitle');
+  const quickGrid = document.querySelector('#homeQuickSection .quick-grid');
+  if (!taskGrid) return;
+
+  if (role === 'teacher') {
+    if (taskTitle) taskTitle.textContent = '⚡ 管理快捷入口';
+    taskGrid.innerHTML = '<div class="video-card" style="cursor:pointer;" onclick="navigate(\'classroom\')">' +
+      '<div class="video-thumb" style="background:linear-gradient(135deg,#4A90D9,#7AB8F5);"><div class="play-btn">📚</div></div>' +
+      '<h3>课程管理</h3><p class="meta">共 ' + appData.courses.length + ' 门课程 · 点击管理</p></div>' +
+      '<div class="exercise-card"><h3>通知与留言</h3>' +
+      '<div style="padding:16px 0;"><p style="font-size:14px;color:var(--text-secondary);margin-bottom:8px;">最新通知：' + (appData.notices[0] ? appData.notices[0].title : '暂无') + '</p>' +
+      '<p style="font-size:14px;color:var(--text-muted);">待处理留言：' + appData.messages.length + ' 条</p></div>' +
+      '<button class="btn btn-primary" style="width:100%;" onclick="navigate(\'parent\')">📢 去发布通知</button></div>';
+    if (quickTitle) quickTitle.textContent = '数据概览';
+    if (quickGrid) quickGrid.innerHTML =
+      '<div class="quick-card" onclick="navigate(\'classroom\')"><div class="icon" style="background:#EBF5FF;">📚</div><h4>同步课堂</h4><p>' + appData.courses.length + ' 门课程</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'thinking\')"><div class="icon" style="background:#FFF7E6;">🧠</div><h4>思维拓展</h4><p>' + appData.thinkingLevels.length + ' 个关卡</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'parent\')"><div class="icon" style="background:#F0FFF4;">🏠</div><h4>家校互通</h4><p>' + appData.notices.length + ' 条通知</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'feedback\')"><div class="icon" style="background:#FFF0F5;">📊</div><h4>学习反馈</h4><p>' + appData.mistakes.length + ' 道错题</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'evaluate\')"><div class="icon" style="background:#F3E8FF;">🏆</div><h4>多元评价</h4><p>' + appData.medals.filter(function(x){return x.unlocked}).length + '/' + appData.medals.length + ' 勋章</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'about\')"><div class="icon" style="background:#FFF2E8;">👤</div><h4>关于我</h4><p>' + appData.blogs.length + ' 篇文章</p></div>';
+  } else if (role === 'parent') {
+    if (taskTitle) taskTitle.textContent = '📊 孩子学习概览';
+    taskGrid.innerHTML = '<div class="video-card" style="cursor:pointer;" onclick="navigate(\'feedback\')">' +
+      '<div class="video-thumb" style="background:linear-gradient(135deg,#52C41A,#7ED957);"><div class="play-btn">📊</div></div>' +
+      '<h3>学习报告</h3><p class="meta">积分 ' + appData.points + ' · 连续 ' + appData.streak + ' 天</p></div>' +
+      '<div class="exercise-card"><h3>近期表现</h3>' +
+      '<div style="padding:16px 0;"><p style="font-size:14px;color:var(--text-secondary);margin-bottom:8px;">已获勋章：' + appData.medals.filter(function(x){return x.unlocked}).length + ' 枚</p>' +
+      '<p style="font-size:14px;color:var(--text-muted);">错题记录：' + appData.mistakes.length + ' 道</p></div>' +
+      '<button class="btn btn-primary" style="width:100%;" onclick="navigate(\'evaluate\')">🏆 查看评价详情</button></div>';
+    if (quickTitle) quickTitle.textContent = '快捷入口';
+    if (quickGrid) quickGrid.innerHTML =
+      '<div class="quick-card" onclick="navigate(\'feedback\')"><div class="icon" style="background:#FFF0F5;">📊</div><h4>学习报告</h4><p>错题本 + 雷达图</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'parent\')"><div class="icon" style="background:#F0FFF4;">🏠</div><h4>家校互通</h4><p>通知 + 留言</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'evaluate\')"><div class="icon" style="background:#F3E8FF;">🏆</div><h4>多元评价</h4><p>勋章 + 评价</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'classroom\')"><div class="icon" style="background:#EBF5FF;">📚</div><h4>课程进度</h4><p>查看已学课程</p></div>';
+  } else {
+    if (taskTitle) taskTitle.textContent = '📋 今日任务清单';
+    taskGrid.innerHTML = '<div class="video-card"><div class="video-thumb" onclick="openVideo(\'分数的基本概念\')"><div class="play-btn">▶</div></div><h3>分数的基本概念</h3><p class="meta">时长 8分钟 · 三年级</p></div>' +
+      '<div class="exercise-card"><h3>随堂练习</h3><div id="exerciseList">' +
+      '<div class="exercise-item" onclick="toggleExercise(this)"><div class="checkbox">✓</div><span class="ex-text">1/2 + 1/4 = ?</span></div>' +
+      '<div class="exercise-item" onclick="toggleExercise(this)"><div class="checkbox">✓</div><span class="ex-text">比较 1/3 和 1/5 的大小</span></div>' +
+      '<div class="exercise-item" onclick="toggleExercise(this)"><div class="checkbox">✓</div><span class="ex-text">画出 2/5 的图形表示</span></div>' +
+      '</div><div class="reward-row"><span>完成全部可得</span><span style="font-size:18px;">⭐⭐⭐</span></div></div>';
+    document.querySelectorAll('#exerciseList .exercise-item').forEach(function(el, i) {
+      if (appData.exercises[i]) el.classList.add('done');
+    });
+    if (quickTitle) quickTitle.textContent = '快捷入口';
+    if (quickGrid) quickGrid.innerHTML =
+      '<div class="quick-card" onclick="navigate(\'classroom\')"><div class="icon" style="background:#EBF5FF;">📚</div><h4>同步课堂</h4><p>微课视频 + 随堂练习</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'thinking\')"><div class="icon" style="background:#FFF7E6;">🧠</div><h4>思维拓展</h4><p>闯关挑战 + 趣味数学</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'parent\')"><div class="icon" style="background:#F0FFF4;">🏠</div><h4>家校互通</h4><p>通知公告 + 悄悄话</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'feedback\')"><div class="icon" style="background:#FFF0F5;">📊</div><h4>学习反馈</h4><p>错题本 + 雷达图</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'evaluate\')"><div class="icon" style="background:#F3E8FF;">🏆</div><h4>多元评价</h4><p>勋章墙 + 积分商城</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'about\')"><div class="icon" style="background:#FFF2E8;">👤</div><h4>关于我</h4><p>教学理念 + 荣誉</p></div>';
+  }
 }
 
 // ===== CLASSROOM =====
+function bindChildName() {
+  openFormModal('设置孩子姓名', [
+    { label: '孩子的姓名', name: 'childName', type: 'text', required: true, placeholder: '输入孩子的姓名', value: appData.parentStudentName || '' }
+  ], function(data) {
+    appData.parentStudentName = data.childName;
+    saveData();
+    updateHomeStats();
+    showToast('已设置：' + data.childName);
+  }, '确认');
+}
 function renderClassroom() {
+  const role = getCurrentRole();
   const grid = document.getElementById('courseGrid');
   if (!grid) return;
-  grid.innerHTML = appData.courses.map((c, i) => `
-    <div class="course-card" onclick="openVideo('${c.title}')">
-      <div class="course-thumb" style="background:linear-gradient(135deg,${c.thumb},${c.thumb}88);">
-        <div style="width:56px;height:56px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:${c.thumb};">▶</div>
-      </div>
-      <div class="course-info">
-        <h3>${c.title}</h3>
-        <span class="grade-badge">${c.grade}</span>
-        <span style="font-size:13px;color:var(--text-muted);margin-left:8px;">${c.duration}</span>
-      </div>
-    </div>
-  `).join('');
+
+  if (role === 'teacher') {
+    grid.innerHTML = appData.courses.map(function(c, i) {
+      return '<div class="course-card" style="position:relative;">' +
+        '<div class="course-thumb" style="background:linear-gradient(135deg,' + c.thumb + ',' + c.thumb + '88);" onclick="openVideo(\'' + c.title + '\')">' +
+        '<div style="width:56px;height:56px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:' + c.thumb + ';">▶</div></div>' +
+        '<div class="course-info"><h3>' + c.title + '</h3><span class="grade-badge">' + c.grade + '</span>' +
+        '<span style="font-size:13px;color:var(--text-muted);margin-left:8px;">' + c.duration + '</span></div>' +
+        '<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px;">' +
+        '<button onclick="event.stopPropagation();editCourse(' + i + ')" style="background:rgba(255,255,255,0.9);border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">✏️</button>' +
+        '<button onclick="event.stopPropagation();deleteCourse(' + i + ')" style="background:rgba(255,255,255,0.9);border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">🗑️</button>' +
+        '</div></div>';
+    }).join('') +
+      '<div class="course-card" style="display:flex;align-items:center;justify-content:center;border:2px dashed var(--border);cursor:pointer;background:var(--bg);" onclick="addCourse()">' +
+      '<div style="text-align:center;color:var(--text-muted);"><div style="font-size:32px;margin-bottom:8px;">➕</div><div style="font-size:14px;font-weight:500;">添加课程</div></div></div>';
+  } else if (role === 'parent') {
+    grid.innerHTML = appData.courses.map(function(c) {
+      return '<div class="course-card" style="opacity:0.85;" onclick="showToast(\'请在学生模式下观看课程\')">' +
+        '<div class="course-thumb" style="background:linear-gradient(135deg,' + c.thumb + ',' + c.thumb + '88);">' +
+        '<div style="width:56px;height:56px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:' + c.thumb + ';">📖</div></div>' +
+        '<div class="course-info"><h3>' + c.title + '</h3><span class="grade-badge">' + c.grade + '</span>' +
+        '<span style="font-size:13px;color:var(--text-muted);margin-left:8px;">' + c.duration + '</span></div></div>';
+    }).join('');
+  } else {
+    grid.innerHTML = appData.courses.map(function(c) {
+      return '<div class="course-card" onclick="openVideo(\'' + c.title + '\')">' +
+        '<div class="course-thumb" style="background:linear-gradient(135deg,' + c.thumb + ',' + c.thumb + '88);">' +
+        '<div style="width:56px;height:56px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:' + c.thumb + ';">▶</div></div>' +
+        '<div class="course-info"><h3>' + c.title + '</h3><span class="grade-badge">' + c.grade + '</span>' +
+        '<span style="font-size:13px;color:var(--text-muted);margin-left:8px;">' + c.duration + '</span></div></div>';
+    }).join('');
+  }
 
   const tbIdx = document.getElementById('textbookIndex');
   if (tbIdx) {
     const grades = ['三年级上', '三年级下', '四年级上', '四年级下'];
-    tbIdx.innerHTML = grades.map(g => `
-      <div style="padding:10px 16px;background:var(--bg);border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer;" onclick="showToast('今天需要辅导：${g} 第42页')">
-        ${g} 📖
-      </div>
-    `).join('');
+    tbIdx.innerHTML = grades.map(function(g) {
+      return '<div style="padding:10px 16px;background:var(--bg);border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer;" onclick="showToast(\'今天需要辅导：' + g + ' 第42页\')">' + g + ' 📖</div>';
+    }).join('');
   }
+}
+
+function addCourse() {
+  openFormModal('添加课程', [
+    { label: '课程标题', name: 'title', type: 'text', required: true, placeholder: '例如：分数的基本概念' },
+    { label: '适用年级', name: 'grade', type: 'select', value: '三年级', options: [
+      {value:'一年级',text:'一年级'},{value:'二年级',text:'二年级'},{value:'三年级',text:'三年级'},
+      {value:'四年级',text:'四年级'},{value:'五年级',text:'五年级'},{value:'六年级',text:'六年级'}
+    ]},
+    { label: '时长', name: 'duration', type: 'text', placeholder: '例如：8分钟', required: true },
+    { label: '缩略图颜色', name: 'thumb', type: 'color', value: '#4A90D9' }
+  ], function(data) {
+    appData.courses.push(data);
+    saveData();
+    renderClassroom();
+    showToast('课程已添加');
+  }, '添加');
+}
+function editCourse(idx) {
+  var c = appData.courses[idx];
+  openFormModal('编辑课程', [
+    { label: '课程标题', name: 'title', type: 'text', value: c.title, required: true },
+    { label: '适用年级', name: 'grade', type: 'select', value: c.grade, options: [
+      {value:'一年级',text:'一年级'},{value:'二年级',text:'二年级'},{value:'三年级',text:'三年级'},
+      {value:'四年级',text:'四年级'},{value:'五年级',text:'五年级'},{value:'六年级',text:'六年级'}
+    ]},
+    { label: '时长', name: 'duration', type: 'text', value: c.duration, required: true },
+    { label: '缩略图颜色', name: 'thumb', type: 'color', value: c.thumb }
+  ], function(data) {
+    appData.courses[idx] = data;
+    saveData();
+    renderClassroom();
+    showToast('课程已更新');
+  }, '保存修改');
+}
+function deleteCourse(idx) {
+  if (!confirm('确定删除课程「' + appData.courses[idx].title + '」吗？')) return;
+  appData.courses.splice(idx, 1);
+  saveData();
+  renderClassroom();
+  showToast('课程已删除');
 }
 
 // ===== THINKING =====
 function renderThinking() {
+  const role = getCurrentRole();
   const grid = document.getElementById('levelGrid');
   if (!grid) return;
-  grid.innerHTML = appData.thinkingLevels.map(l => `
-    <div class="level-card${l.unlocked ? '' : ' locked'}">
-      <div class="stars">${l.stars}</div>
-      <h3>${l.name}</h3>
-      <p style="color:var(--text-muted);font-size:14px;">${l.desc}</p>
-      <button class="btn ${l.unlocked ? 'btn-primary' : ''}" style="margin-top:16px;opacity:${l.unlocked?1:0.5};" ${l.unlocked?'onclick="showToast(\'关卡挑战开始！加油💪\')"':''}>
-        ${l.unlocked ? '开始闯关' : '🔒 明天解锁'}
-      </button>
-    </div>
-  `).join('');
+
+  if (role === 'teacher') {
+    grid.innerHTML = appData.thinkingLevels.map(function(l, i) {
+      return '<div class="level-card' + (l.unlocked ? '' : ' locked') + '" style="position:relative;">' +
+        '<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px;">' +
+        '<button onclick="event.stopPropagation();editThinkingLevel(' + i + ')" style="background:rgba(255,255,255,0.9);border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">✏️</button>' +
+        '</div>' +
+        '<div class="stars">' + l.stars + '</div><h3>' + l.name + '</h3>' +
+        '<p style="color:var(--text-muted);font-size:14px;">' + l.desc + '</p>' +
+        '<button class="btn btn-primary" style="margin-top:16px;" onclick="showToast(\'预览关卡：' + l.name + '\')">👁️ 预览关卡</button></div>';
+    }).join('') +
+      '<div class="level-card" style="display:flex;align-items:center;justify-content:center;border:2px dashed var(--border);cursor:pointer;background:var(--bg);" onclick="addThinkingLevel()">' +
+      '<div style="text-align:center;color:var(--text-muted);"><div style="font-size:32px;margin-bottom:8px;">➕</div><div style="font-size:14px;font-weight:500;">添加关卡</div></div></div>';
+  } else if (role === 'parent') {
+    grid.innerHTML = appData.thinkingLevels.map(function(l) {
+      return '<div class="level-card' + (l.unlocked ? '' : ' locked') + '">' +
+        '<div class="stars">' + l.stars + '</div><h3>' + l.name + '</h3>' +
+        '<p style="color:var(--text-muted);font-size:14px;">' + l.desc + '</p>' +
+        '<div style="margin-top:16px;padding:8px 16px;border-radius:8px;background:' + (l.unlocked ? 'var(--success)' : 'var(--bg)') + ';color:' + (l.unlocked ? 'white' : 'var(--text-muted)') + ';font-size:14px;font-weight:500;text-align:center;">' +
+        (l.unlocked ? '✅ 已解锁' : '🔒 未解锁') + '</div></div>';
+    }).join('');
+  } else {
+    grid.innerHTML = appData.thinkingLevels.map(function(l) {
+      return '<div class="level-card' + (l.unlocked ? '' : ' locked') + '">' +
+        '<div class="stars">' + l.stars + '</div><h3>' + l.name + '</h3>' +
+        '<p style="color:var(--text-muted);font-size:14px;">' + l.desc + '</p>' +
+        '<button class="btn ' + (l.unlocked ? 'btn-primary' : '') + '" style="margin-top:16px;opacity:' + (l.unlocked?1:0.5) + ';" ' + (l.unlocked?'onclick="showToast(\'关卡挑战开始！加油💪\')"':'') + '>' +
+        (l.unlocked ? '开始闯关' : '🔒 明天解锁') + '</button></div>';
+    }).join('');
+  }
 
   const lmGrid = document.getElementById('lifeMathGrid');
   if (lmGrid) {
-    lmGrid.innerHTML = appData.lifeMath.map(task => `
-      <div class="card">
-        <h4 style="margin-bottom:8px;">${task.title}</h4>
-        <p style="font-size:14px;color:var(--text-muted);margin-bottom:12px;">${task.desc}</p>
-        <button class="btn btn-outline" style="padding:8px 20px;font-size:14px;" onclick="this.textContent='✅ 已打卡';this.style.background='var(--success)';this.style.color='white';this.style.border='none';showToast('打卡成功！⭐ +15')">📸 去打卡</button>
-      </div>
-    `).join('');
+    if (role === 'parent') {
+      lmGrid.innerHTML = appData.lifeMath.map(function(task) {
+        return '<div class="card"><h4 style="margin-bottom:8px;">' + task.title + '</h4>' +
+          '<p style="font-size:14px;color:var(--text-muted);margin-bottom:12px;">' + task.desc + '</p>' +
+          '<div style="padding:8px 16px;border-radius:8px;background:' + (task.done ? 'var(--success)' : 'var(--bg)') + ';color:' + (task.done ? 'white' : 'var(--text-muted)') + ';font-size:14px;font-weight:500;text-align:center;">' +
+          (task.done ? '✅ 已完成' : '⏳ 待完成') + '</div></div>';
+      }).join('');
+    } else {
+      lmGrid.innerHTML = appData.lifeMath.map(function(task) {
+        return '<div class="card"><h4 style="margin-bottom:8px;">' + task.title + '</h4>' +
+          '<p style="font-size:14px;color:var(--text-muted);margin-bottom:12px;">' + task.desc + '</p>' +
+          '<button class="btn btn-outline" style="padding:8px 20px;font-size:14px;" onclick="this.textContent=\'✅ 已打卡\';this.style.background=\'var(--success)\';this.style.color=\'white\';this.style.border=\'none\';showToast(\'打卡成功！⭐ +15\')">📸 去打卡</button></div>';
+      }).join('');
+    }
   }
 }
 
 // ===== PARENT =====
 let noticeFilter = 'all';
+
+function editThinkingLevel(idx) {
+  var l = appData.thinkingLevels[idx];
+  openFormModal('编辑关卡', [
+    { label: '关卡名称', name: 'name', type: 'text', value: l.name, required: true },
+    { label: '描述', name: 'desc', type: 'text', value: l.desc, required: true },
+    { label: '星级', name: 'stars', type: 'select', value: l.stars, options: [
+      {value:'⭐',text:'1星'},{value:'⭐⭐',text:'2星'},{value:'⭐⭐⭐',text:'3星'}
+    ]},
+    { label: '难度', name: 'difficulty', type: 'select', value: String(l.difficulty), options: [
+      {value:'1',text:'简单'},{value:'2',text:'中等'},{value:'3',text:'困难'}
+    ]},
+    { label: '是否解锁', name: 'unlocked', type: 'checkbox', value: l.unlocked, placeholder: '学生可以挑战此关卡' }
+  ], function(data) {
+    appData.thinkingLevels[idx] = {
+      name: data.name, desc: data.desc, stars: data.stars,
+      difficulty: parseInt(data.difficulty), unlocked: data.unlocked
+    };
+    saveData();
+    renderThinking();
+    showToast('关卡已更新');
+  }, '保存修改');
+}
+function addThinkingLevel() {
+  openFormModal('添加关卡', [
+    { label: '关卡名称', name: 'name', type: 'text', required: true, placeholder: '例如：数独入门' },
+    { label: '描述', name: 'desc', type: 'text', required: true, placeholder: '关卡描述...' },
+    { label: '星级', name: 'stars', type: 'select', value: '⭐', options: [
+      {value:'⭐',text:'1星'},{value:'⭐⭐',text:'2星'},{value:'⭐⭐⭐',text:'3星'}
+    ]},
+    { label: '难度', name: 'difficulty', type: 'select', value: '1', options: [
+      {value:'1',text:'简单'},{value:'2',text:'中等'},{value:'3',text:'困难'}
+    ]},
+    { label: '是否解锁', name: 'unlocked', type: 'checkbox', value: false, placeholder: '学生可以挑战此关卡' }
+  ], function(data) {
+    appData.thinkingLevels.push({
+      name: data.name, desc: data.desc, stars: data.stars,
+      difficulty: parseInt(data.difficulty), unlocked: data.unlocked
+    });
+    saveData();
+    renderThinking();
+    showToast('关卡已添加');
+  }, '添加');
+}
 function filterNotices(type) {
   noticeFilter = type;
   renderParent();
 }
 function renderParent() {
+  const role = getCurrentRole();
   const list = document.getElementById('noticeList');
   if (!list) return;
-  const filtered = noticeFilter === 'all' ? appData.notices : appData.notices.filter(n => n.type === noticeFilter);
-  list.innerHTML = filtered.map(n => `
-    <div class="notice-item">
-      <span class="tag ${n.type==='作业通知'?'tag-notice':n.type==='考试提醒'?'tag-exam':'tag-praise'}">${n.type}</span>
-      <span style="font-size:13px;color:var(--text-muted);">${n.date}</span>
-      <h4 style="margin:8px 0;">${n.title}</h4>
-      <p style="font-size:14px;color:var(--text-secondary);">${n.content}</p>
-    </div>
-  `).join('');
+  const filtered = noticeFilter === 'all' ? appData.notices : appData.notices.filter(function(n) { return n.type === noticeFilter; });
+
+  if (role === 'teacher') {
+    list.innerHTML = '<div style="margin-bottom:16px;"><button class="btn btn-primary" onclick="publishNotice()">➕ 发布通知</button></div>' +
+      filtered.map(function(n, i) {
+        var tagClass = n.type==='作业通知'?'tag-notice':n.type==='考试提醒'?'tag-exam':'tag-praise';
+        return '<div class="notice-item" style="position:relative;">' +
+          '<span class="tag ' + tagClass + '">' + n.type + '</span>' +
+          '<span style="font-size:13px;color:var(--text-muted);">' + n.date + '</span>' +
+          '<h4 style="margin:8px 0;">' + n.title + '</h4>' +
+          '<p style="font-size:14px;color:var(--text-secondary);">' + n.content + '</p>' +
+          '<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px;">' +
+          '<button onclick="editNotice(' + i + ')" style="background:rgba(255,255,255,0.9);border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">✏️</button>' +
+          '<button onclick="deleteNotice(' + i + ')" style="background:rgba(255,77,79,0.1);border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;color:var(--danger);">🗑️</button>' +
+          '</div></div>';
+      }).join('');
+  } else {
+    list.innerHTML = filtered.map(function(n) {
+      var tagClass = n.type==='作业通知'?'tag-notice':n.type==='考试提醒'?'tag-exam':'tag-praise';
+      return '<div class="notice-item">' +
+        '<span class="tag ' + tagClass + '">' + n.type + '</span>' +
+        '<span style="font-size:13px;color:var(--text-muted);">' + n.date + '</span>' +
+        '<h4 style="margin:8px 0;">' + n.title + '</h4>' +
+        '<p style="font-size:14px;color:var(--text-secondary);">' + n.content + '</p></div>';
+    }).join('');
+  }
+
+  var whisperSection = document.getElementById('whisperSection');
+  var whisperTitle = document.getElementById('whisperTitle');
+  if (whisperSection) {
+    if (role === 'teacher') {
+      if (whisperTitle) whisperTitle.textContent = '📨 家长留言收件箱';
+      var formEl = whisperSection.querySelector('form');
+      if (formEl) formEl.style.display = 'none';
+      var inbox = whisperSection.querySelector('#teacherInbox');
+      if (!inbox) { inbox = document.createElement('div'); inbox.id = 'teacherInbox'; whisperSection.appendChild(inbox); }
+      var msgs = appData.messages || [];
+      var unreadCount = msgs.filter(function(m) { return !m.read; }).length;
+      if (msgs.length === 0) {
+        inbox.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:24px 0;">暂无家长留言</p>';
+      } else {
+        inbox.innerHTML = '<div style="margin-bottom:12px;font-size:13px;color:var(--text-secondary);">' +
+          (unreadCount > 0 ? '<span style="background:var(--primary);color:white;padding:2px 10px;border-radius:12px;font-size:12px;">未读 ' + unreadCount + ' 条</span> ' : '') +
+          '<span style="color:var(--text-muted);">共 ' + msgs.length + ' 条留言</span></div>' +
+          msgs.map(function(m, i) {
+            var borderStyle = m.read ? '' : 'border-left:3px solid var(--primary);';
+            var replyHtml = '';
+            if (m.replies && m.replies.length > 0) {
+              replyHtml = m.replies.map(function(r) {
+                return '<div style="margin-top:8px;padding:8px 12px;background:rgba(74,144,217,0.08);border-radius:6px;font-size:13px;">' +
+                  '<span style="color:var(--primary);font-weight:500;">老师回复：</span>' +
+                  '<span style="color:var(--text-secondary);">' + r.msg + '</span>' +
+                  '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">' + (r.time||'') + '</span></div>';
+              }).join('');
+            }
+            return '<div style="padding:12px;background:var(--bg);border-radius:8px;margin-bottom:8px;' + borderStyle + '">' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+              '<span style="font-weight:500;">' + (m.read ? '' : '<span style="color:var(--primary);">●</span> ') + m.name + '</span>' +
+              '<span style="font-size:12px;color:var(--text-muted);">' + (m.time || '') + '</span></div>' +
+              '<p style="font-size:14px;color:var(--text-secondary);">' + m.msg + '</p>' +
+              replyHtml +
+              '<div style="display:flex;gap:8px;margin-top:8px;">' +
+              '<button onclick="replyMessage(' + i + ')" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;background:white;">回复</button>' +
+              '<button onclick="deleteMessage(' + i + ')" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;background:white;color:var(--danger);">删除</button>' +
+              '</div></div>';
+          }).join('');
+      }
+    } else {
+      if (whisperTitle) whisperTitle.textContent = role === 'parent' ? '💬 给老师留言' : '💬 悄悄话';
+      var formEl2 = whisperSection.querySelector('form');
+      if (formEl2) formEl2.style.display = '';
+      var oldInbox = whisperSection.querySelector('#teacherInbox');
+      if (oldInbox) oldInbox.remove();
+      // 家长/学生查看自己的留言和老师回复
+      var parentInbox = whisperSection.querySelector('#parentInbox');
+      if (parentInbox) parentInbox.remove();
+      var msgs2 = appData.messages || [];
+      var myMsgs = msgs2.filter(function(m) { return true; });
+      if (myMsgs.length > 0) {
+        parentInbox = document.createElement('div');
+        parentInbox.id = 'parentInbox';
+        parentInbox.style.marginTop = '16px';
+        parentInbox.innerHTML = '<h4 style="font-size:14px;margin-bottom:8px;color:var(--text-secondary);">我的留言记录</h4>' +
+          myMsgs.map(function(m) {
+            var replyHtml = '';
+            if (m.replies && m.replies.length > 0) {
+              replyHtml = m.replies.map(function(r) {
+                return '<div style="margin-top:6px;padding:8px 12px;background:rgba(74,144,217,0.08);border-radius:6px;font-size:13px;">' +
+                  '<span style="color:var(--primary);font-weight:500;">老师回复：</span>' +
+                  '<span style="color:var(--text-secondary);">' + r.msg + '</span>' +
+                  '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">' + (r.time||'') + '</span></div>';
+              }).join('');
+            }
+            return '<div style="padding:10px 12px;background:var(--bg);border-radius:8px;margin-bottom:8px;">' +
+              '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
+              '<span style="font-weight:500;font-size:13px;">' + m.name + '</span>' +
+              '<span style="font-size:11px;color:var(--text-muted);">' + (m.time||'') + '</span></div>' +
+              '<p style="font-size:13px;color:var(--text-secondary);">' + m.msg + '</p>' +
+              replyHtml + '</div>';
+          }).join('');
+        whisperSection.appendChild(parentInbox);
+      }
+    }
+  }
 
   const photos = document.getElementById('classPhotos');
   if (photos) {
-    photos.innerHTML = appData.classPhotos.map(p => `
-      <div style="aspect-ratio:1;background:var(--bg);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:32px;">${p}</div>
-    `).join('');
+    photos.innerHTML = appData.classPhotos.map(function(p) {
+      return '<div style="aspect-ratio:1;background:var(--bg);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:32px;">' + p + '</div>';
+    }).join('');
   }
+}
+
+function publishNotice() {
+  var today = new Date().toISOString().slice(0,10);
+  openFormModal('发布通知', [
+    { label: '通知类型', name: 'type', type: 'select', value: '作业通知', options: [
+      {value:'作业通知',text:'作业通知'},{value:'考试提醒',text:'考试提醒'},{value:'表扬信',text:'表扬信'}
+    ]},
+    { label: '标题', name: 'title', type: 'text', required: true, placeholder: '通知标题' },
+    { label: '日期', name: 'date', type: 'text', value: today, required: true },
+    { label: '内容', name: 'content', type: 'textarea', required: true, placeholder: '通知内容...' }
+  ], function(data) {
+    appData.notices.unshift(data);
+    saveData();
+    renderParent();
+    showToast('通知已发布');
+  }, '发布');
+}
+function editNotice(idx) {
+  var n = appData.notices[idx];
+  openFormModal('编辑通知', [
+    { label: '通知类型', name: 'type', type: 'select', value: n.type, options: [
+      {value:'作业通知',text:'作业通知'},{value:'考试提醒',text:'考试提醒'},{value:'表扬信',text:'表扬信'}
+    ]},
+    { label: '标题', name: 'title', type: 'text', value: n.title, required: true },
+    { label: '日期', name: 'date', type: 'text', value: n.date, required: true },
+    { label: '内容', name: 'content', type: 'textarea', value: n.content, required: true }
+  ], function(data) {
+    appData.notices[idx] = data;
+    saveData();
+    renderParent();
+    showToast('通知已更新');
+  }, '保存修改');
+}
+function deleteNotice(idx) {
+  if (!confirm('确定删除这条通知吗？')) return;
+  appData.notices.splice(idx, 1);
+  saveData();
+  renderParent();
+  showToast('通知已删除');
 }
 
 function submitWhisper(e) {
   e.preventDefault();
   const name = document.getElementById('whisperName').value;
   const msg = document.getElementById('whisperMsg').value;
-  showToast('悄悄话已发送给老师！📧');
+  if (!appData.messages) appData.messages = [];
+  appData.messages.push({ name: name, msg: msg, time: new Date().toLocaleString(), read: false, replies: [] });
+  saveData();
+  showToast('留言已发送给老师！📧');
   document.getElementById('whisperForm').reset();
+  renderParent();
+}
+
+function replyMessage(idx) {
+  openFormModal('回复留言', [
+    { label: '回复内容', name: 'reply', type: 'textarea', required: true, placeholder: '输入回复内容...' }
+  ], function(data) {
+    if (!appData.messages[idx].replies) appData.messages[idx].replies = [];
+    appData.messages[idx].replies.push({
+      msg: data.reply, time: new Date().toLocaleString()
+    });
+    appData.messages[idx].read = true;
+    saveData();
+    renderParent();
+    showToast('回复已发送');
+  }, '发送回复');
+}
+
+function deleteMessage(idx) {
+  if (!confirm('确定删除这条留言吗？')) return;
+  appData.messages.splice(idx, 1);
+  saveData();
+  renderParent();
+  showToast('留言已删除');
 }
 
 // ===== FEEDBACK =====
 function renderFeedback() {
+  const role = getCurrentRole();
   const list = document.getElementById('mistakeList');
   if (!list) return;
-  list.innerHTML = appData.mistakes.map(m => `
-    <div class="mistake-item">
-      <div class="question">❌ ${m.question} = ${m.wrongAnswer}</div>
-      <div class="reason">⚠️ 错误原因：${m.reason}</div>
-      <div class="solution">✅ 正确解法：${m.solution}</div>
-    </div>
-  `).join('');
+
+  var title = document.querySelector('#page-feedback > .container > .section-title');
+
+  if (role === 'teacher') {
+    if (title) title.textContent = '📊 全班学习分析';
+    // 动态统计错题原因
+    var reasonCount = {};
+    appData.mistakes.forEach(function(m) {
+      var r = m.reason || '其他';
+      reasonCount[r] = (reasonCount[r] || 0) + 1;
+    });
+    var topReasons = Object.keys(reasonCount).sort(function(a,b) { return reasonCount[b] - reasonCount[a]; }).slice(0, 3);
+    var reasonHtml = topReasons.length > 0 ?
+      topReasons.map(function(r) { return r + ' (' + reasonCount[r] + '次)'; }).join('、') :
+      '暂无错题数据';
+    var exerciseTotal = appData.exercises.length;
+    var exerciseDone = appData.exercises.filter(function(x) { return x; }).length;
+    var accuracy = exerciseTotal > 0 ? Math.round((exerciseDone / exerciseTotal) * 100) : 0;
+
+    list.innerHTML = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:20px;margin-bottom:16px;">' +
+      '<h4 style="margin-bottom:12px;">📈 错题统计</h4>' +
+      '<p style="font-size:14px;color:var(--text-secondary);">共记录错题 ' + appData.mistakes.length + ' 道</p>' +
+      '<p style="font-size:14px;color:var(--text-secondary);margin-top:4px;">高频错误：' + reasonHtml + '</p>' +
+      '<p style="font-size:14px;color:var(--text-secondary);margin-top:4px;">练习完成率：' + exerciseDone + '/' + exerciseTotal + ' (' + accuracy + '%)</p>' +
+      '<p style="font-size:12px;color:var(--text-muted);margin-top:8px;">提示：当前为单用户演示数据，后端上线后将展示全班汇总统计</p></div>' +
+      appData.mistakes.map(function(m) {
+        return '<div class="mistake-item"><div class="question">❌ ' + m.question + ' = ' + m.wrongAnswer + '</div>' +
+          '<div class="reason">⚠️ 错误原因：' + m.reason + '</div>' +
+          '<div class="solution">✅ 正确解法：' + m.solution + '</div></div>';
+      }).join('');
+  } else {
+    if (title) title.textContent = role === 'parent' ? '📊 孩子的学习报告' : '📊 学习反馈';
+    list.innerHTML = appData.mistakes.map(function(m) {
+      return '<div class="mistake-item"><div class="question">❌ ' + m.question + ' = ' + m.wrongAnswer + '</div>' +
+        '<div class="reason">⚠️ 错误原因：' + m.reason + '</div>' +
+        '<div class="solution">✅ 正确解法：' + m.solution + '</div></div>';
+    }).join('');
+  }
 
   draw3DRadar();
 }
@@ -1459,7 +2269,15 @@ function draw3DRadar() {
   const ctx = canvas.getContext('2d');
   const cx = 180, cy = 180, r = 140;
   const labels = ['计算准确率', '理解能力', '审题习惯'];
-  const values = [0.85, 0.72, 0.68];
+  // 动态计算：练习完成率 → 计算准确率，勋章解锁率 → 理解能力，错题数反向 → 审题习惯
+  var exerciseTotal = appData.exercises.length;
+  var exerciseDone = appData.exercises.filter(function(x){return x;}).length;
+  var calcRate = exerciseTotal > 0 ? exerciseDone / exerciseTotal : 0.5;
+  var medalTotal = appData.medals.length;
+  var medalUnlocked = appData.medals.filter(function(x){return x.unlocked;}).length;
+  var understandRate = medalTotal > 0 ? medalUnlocked / medalTotal : 0.5;
+  var mistakeRate = appData.mistakes.length > 0 ? Math.max(0.3, 1 - appData.mistakes.length * 0.08) : 0.9;
+  const values = [calcRate, understandRate, mistakeRate];
   const angles = labels.map((_, i) => -Math.PI/2 + (2*Math.PI*i)/3);
   ctx.clearRect(0, 0, 360, 360);
 
@@ -1518,25 +2336,39 @@ function draw3DRadar() {
 
 // ===== EVALUATE =====
 function renderEvaluate() {
+  const role = getCurrentRole();
   const wall = document.getElementById('medalWall');
   if (!wall) return;
-  wall.innerHTML = appData.medals.map(m => `
-    <div class="medal-card${m.unlocked ? '' : ' locked'}">
-      <div class="medal-icon">${m.icon}</div>
-      <div class="medal-name">${m.name}</div>
-      <div class="medal-date">${m.unlocked ? m.date : m.condition}</div>
-    </div>
-  `).join('');
 
-  const store = document.getElementById('pointStore');
-  if (!store) return;
-  store.innerHTML = appData.store.map(item => `
-    <div class="store-item" onclick="redeemItem('${item.name}',${item.price})">
-      <div style="font-size:36px;">${item.icon}</div>
-      <div style="font-weight:600;margin:8px 0;">${item.name}</div>
-      <div class="price">${item.price} 积分</div>
-    </div>
-  `).join('');
+  var title = document.querySelector('#page-evaluate > .container > .section-title');
+  if (title) {
+    if (role === 'teacher') title.textContent = '🏆 评价管理';
+    else if (role === 'parent') title.textContent = '🏆 孩子的多元评价';
+    else title.textContent = '🏆 多元评价';
+  }
+
+  wall.innerHTML = appData.medals.map(function(m) {
+    return '<div class="medal-card' + (m.unlocked ? '' : ' locked') + '">' +
+      '<div class="medal-icon">' + m.icon + '</div>' +
+      '<div class="medal-name">' + m.name + '</div>' +
+      '<div class="medal-date">' + (m.unlocked ? m.date : m.condition) + '</div></div>';
+  }).join('');
+
+  var storeEl = document.getElementById('pointStore');
+  if (storeEl) {
+    var storeContainer = storeEl.closest('.container.section');
+    if (role === 'student') {
+      if (storeContainer) storeContainer.style.display = '';
+      storeEl.innerHTML = appData.store.map(function(item) {
+        return '<div class="store-item" onclick="redeemItem(\'' + item.name + '\',' + item.price + ')">' +
+          '<div style="font-size:36px;">' + item.icon + '</div>' +
+          '<div style="font-weight:600;margin:8px 0;">' + item.name + '</div>' +
+          '<div class="price">' + item.price + ' 积分</div></div>';
+      }).join('');
+    } else {
+      if (storeContainer) storeContainer.style.display = 'none';
+    }
+  }
 
   draw5DRadar();
 }
@@ -1547,7 +2379,15 @@ function draw5DRadar() {
   const ctx = canvas.getContext('2d');
   const cx = 190, cy = 190, r = 150;
   const labels = ['计算\n小达人', '思考\n小诸葛', '表达\n小讲师', '书写\n小标兵', '应用\n小能手'];
-  const values = [0.9, 0.75, 0.7, 0.85, 0.8];
+  // 动态计算各维度
+  var exerciseTotal = appData.exercises.length;
+  var exerciseDone = appData.exercises.filter(function(x){return x;}).length;
+  var calcRate = exerciseTotal > 0 ? exerciseDone / exerciseTotal : 0.5;  // 计算小达人
+  var medalRate = appData.medals.length > 0 ? appData.medals.filter(function(x){return x.unlocked;}).length / appData.medals.length : 0.5;  // 思考小诸葛
+  var thinkingRate = appData.thinkingLevels.length > 0 ? appData.thinkingLevels.filter(function(x){return x.unlocked;}).length / appData.thinkingLevels.length : 0.5;  // 表达小讲师
+  var streakRate = Math.min(1, appData.streak / 14);  // 书写小标兵（连续学习天数）
+  var pointsRate = Math.min(1, appData.points / 500);  // 应用小能手（积分）
+  const values = [calcRate, medalRate, thinkingRate, streakRate, pointsRate];
   const angles = labels.map((_, i) => -Math.PI/2 + (2*Math.PI*i)/5);
   ctx.clearRect(0, 0, 380, 380);
 
@@ -1611,15 +2451,72 @@ function redeemItem(name, price) {
 
 // ===== ABOUT =====
 function renderAbout() {
+  const role = getCurrentRole();
   const list = document.getElementById('blogList');
   if (!list) return;
-  list.innerHTML = appData.blogs.map(b => `
-    <div class="blog-item" onclick="showToast('打开文章：${b.title}')">
-      <h4>${b.title}</h4>
-      <span class="date">${b.date}</span>
-      <p style="font-size:14px;color:var(--text-secondary);margin-top:8px;">${b.summary}</p>
-    </div>
-  `).join('');
+
+  if (role === 'teacher') {
+    list.innerHTML = appData.blogs.map(function(b, i) {
+      return '<div class="blog-item" style="position:relative;" onclick="toggleBlogContent(' + i + ')">' +
+        '<h4>' + b.title + '</h4><span class="date">' + b.date + '</span>' +
+        '<p style="font-size:14px;color:var(--text-secondary);margin-top:8px;">' + b.summary + '</p>' +
+        '<div id="blogFull_' + i + '" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:14px;color:var(--text-secondary);white-space:pre-wrap;line-height:1.8;">' + (b.content||'') + '</div>' +
+        '<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px;">' +
+        '<button onclick="event.stopPropagation();editBlog(' + i + ')" style="background:rgba(255,255,255,0.9);border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">✏️</button>' +
+        '<button onclick="event.stopPropagation();deleteBlog(' + i + ')" style="background:rgba(255,77,79,0.1);border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;color:var(--danger);">🗑️</button>' +
+        '</div></div>';
+    }).join('') +
+      '<div class="blog-item" style="display:flex;align-items:center;justify-content:center;border:2px dashed var(--border);cursor:pointer;background:var(--bg);" onclick="addBlog()">' +
+      '<div style="text-align:center;color:var(--text-muted);"><div style="font-size:24px;margin-bottom:4px;">➕</div><div style="font-size:14px;font-weight:500;">撰写新文章</div></div></div>';
+  } else {
+    list.innerHTML = appData.blogs.map(function(b, i) {
+      return '<div class="blog-item" style="cursor:pointer;" onclick="toggleBlogContent(' + i + ')">' +
+        '<h4>' + b.title + '</h4><span class="date">' + b.date + '</span>' +
+        '<p style="font-size:14px;color:var(--text-secondary);margin-top:8px;">' + b.summary + '</p>' +
+        '<div id="blogFull_' + i + '" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:14px;color:var(--text-secondary);white-space:pre-wrap;line-height:1.8;">' + (b.content||'') + '</div></div>';
+    }).join('');
+  }
+}
+
+function toggleBlogContent(idx) {
+  var el = document.getElementById('blogFull_' + idx);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function addBlog() {
+  var today = new Date().toISOString().slice(0,10);
+  openFormModal('撰写新文章', [
+    { label: '标题', name: 'title', type: 'text', required: true, placeholder: '文章标题' },
+    { label: '日期', name: 'date', type: 'text', value: today, required: true },
+    { label: '摘要', name: 'summary', type: 'text', required: true, placeholder: '一句话摘要...' },
+    { label: '正文', name: 'content', type: 'textarea', required: true, placeholder: '文章正文...' }
+  ], function(data) {
+    appData.blogs.unshift(data);
+    saveData();
+    renderAbout();
+    showToast('文章已发布');
+  }, '发布');
+}
+function editBlog(idx) {
+  var b = appData.blogs[idx];
+  openFormModal('编辑文章', [
+    { label: '标题', name: 'title', type: 'text', value: b.title, required: true },
+    { label: '日期', name: 'date', type: 'text', value: b.date, required: true },
+    { label: '摘要', name: 'summary', type: 'text', value: b.summary, required: true },
+    { label: '正文', name: 'content', type: 'textarea', value: b.content||'', required: true }
+  ], function(data) {
+    appData.blogs[idx] = data;
+    saveData();
+    renderAbout();
+    showToast('文章已更新');
+  }, '保存修改');
+}
+function deleteBlog(idx) {
+  if (!confirm('确定删除文章「' + appData.blogs[idx].title + '」吗？')) return;
+  appData.blogs.splice(idx, 1);
+  saveData();
+  renderAbout();
+  showToast('文章已删除');
 }
 
 // ===== MODAL =====
@@ -1643,14 +2540,71 @@ function closeModalDirect() {
   document.getElementById('modal').classList.remove('open');
 }
 
-// ===== TOAST =====
-function showToast(msg) {
-  const container = document.getElementById('toastContainer');
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = msg;
-  container.appendChild(toast);
-  setTimeout(() => toast.remove(), 2500);
+// ===== FORM MODAL SYSTEM =====
+function openFormModal(title, fields, onSubmit, submitLabel) {
+  var html = '<h3 style="margin-bottom:20px;">' + title + '</h3>';
+  html += '<form id="formModalForm">';
+  fields.forEach(function(f) {
+    html += '<div style="margin-bottom:16px;">';
+    html += '<label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:500;">' + f.label + '</label>';
+    if (f.type === 'textarea') {
+      html += '<textarea name="' + f.name + '" placeholder="' + (f.placeholder||'') + '" ' + (f.required?'required':'') + ' style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;resize:vertical;min-height:80px;outline:none;font-family:inherit;">' + (f.value||'') + '</textarea>';
+    } else if (f.type === 'select') {
+      html += '<select name="' + f.name + '" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;outline:none;">';
+      f.options.forEach(function(o) {
+        html += '<option value="' + o.value + '"' + (f.value===o.value?' selected':'') + '>' + o.text + '</option>';
+      });
+      html += '</select>';
+    } else if (f.type === 'color') {
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;" data-colorgroup="' + f.name + '">';
+      var colors = ['#4A90D9','#7AB8F5','#52C41A','#FAAD14','#FF7A45','#9254DE','#FF4D4F','#13C2C2','#2F54EB','#FA541C'];
+      colors.forEach(function(c) {
+        html += '<button type="button" data-color="' + c + '" onclick="selectFormColor(this,\'' + f.name + '\')" style="width:32px;height:32px;border-radius:8px;background:' + c + ';border:2px solid ' + (f.value===c?'var(--text)':'transparent') + ';cursor:pointer;padding:0;"></button>';
+      });
+      html += '<input type="hidden" name="' + f.name + '" value="' + (f.value||'#4A90D9') + '">';
+      html += '</div>';
+    } else if (f.type === 'checkbox') {
+      html += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">';
+      html += '<input type="checkbox" name="' + f.name + '" ' + (f.value?'checked':'') + ' style="width:18px;height:18px;">';
+      html += '<span style="font-size:14px;">' + (f.placeholder||'') + '</span>';
+      html += '</label>';
+    } else {
+      html += '<input type="' + (f.type||'text') + '" name="' + f.name + '" value="' + (f.value||'') + '" placeholder="' + (f.placeholder||'') + '" ' + (f.required?'required':'') + ' style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;outline:none;">';
+    }
+    html += '</div>';
+  });
+  html += '<div style="display:flex;gap:10px;margin-top:24px;">';
+  html += '<button type="submit" class="btn btn-primary" style="flex:1;padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;">' + (submitLabel||'\u786e\u5b9a') + '</button>';
+  html += '<button type="button" onclick="closeModalDirect()" class="btn btn-outline" style="flex:1;padding:10px 20px;border-radius:10px;font-size:14px;">\u53d6\u6d88</button>';
+  html += '</div></form>';
+
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modal').classList.add('open');
+
+  var form = document.getElementById('formModalForm');
+  form.onsubmit = function(e) {
+    e.preventDefault();
+    var data = {};
+    form.querySelectorAll('input[name],textarea[name],select[name]').forEach(function(el) {
+      if (el.type === 'checkbox') {
+        data[el.name] = el.checked;
+      } else {
+        data[el.name] = el.value;
+      }
+    });
+    closeModalDirect();
+    if (onSubmit) onSubmit(data);
+  };
+}
+
+function selectFormColor(btn, fieldName) {
+  var group = btn.parentElement;
+  group.querySelectorAll('button').forEach(function(b) {
+    b.style.borderColor = 'transparent';
+  });
+  btn.style.borderColor = 'var(--text)';
+  var hidden = group.querySelector('input[type="hidden"]');
+  if (hidden) hidden.value = btn.dataset.color;
 }
 
 // ===== MASCOT BUBBLE =====
@@ -1686,13 +2640,28 @@ async function init() {
   }
   // Update auth UI
   updateAuthUI();
-  
+
+  // Validate cloud token and auto-sync
+  var tokenValid = await validateCloudToken();
+  if (tokenValid && isCloudLoggedIn()) {
+    setSyncStatus("syncing");
+    const cloudData = await loadFromCloud();
+    if (cloudData && Object.keys(cloudData).length > 0) {
+      appData = cloudData;
+      localStorage.setItem(DATA_KEY, encryptData(appData));
+    }
+    setSyncStatus("synced");
+    startPeriodicSync();
+  } else {
+    setSyncStatus("disconnected");
+  }
+
   if (appData.mode === 'parent') {
-    document.getElementById('floatReportBtn').style.display = 'flex';
     document.querySelectorAll('.mode-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.mode === 'parent');
     });
   }
+  updateRoleUI();
   document.querySelectorAll('#exerciseList .exercise-item').forEach((el, i) => {
     if (appData.exercises[i]) el.classList.add('done');
   });

@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>班级周评价数据看板</title>
+<style>
+/* ========== Reset & Base ========== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#eef2f7;color:#1e293b;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;outline:none}
+input,select,textarea{font-family:inherit;outline:none}
+ul{list-style:none}
+a{text-decoration:none;color:inherit}
+
+/* ========== Variables ========== */
+:root{
+  --blue:#2563eb;--blue-l:#3b82f6;--blue-d:#1d4ed8;--blue-xl:#dbeafe;
+  --cyan:#06b6d4;--cyan-l:#22d3ee;--cyan-d:#0891b2;--cyan-xl:#cffafe;
+  --green:#10b981;--green-l:#34d399;--green-d:#059669;--green-xl:#d1fae5;
+  --amber:#f59e0b;--amber-l:#fbbf24;--amber-xl:#fef3c7;
+  --violet:#8b5cf6;--violet-l:#a78bfa;--violet-xl:#ede9fe;
+  --rose:#f43f5e;--rose-xl:#ffe4e6;
+  --slate-900:#0f172a;--slate-800:#1e293b;--slate-700:#334155;
+  --slate-600:#475569;--slate-500:#64748b;--slate-400:#94a3b8;
+  --slate-300:#cbd5e1;--slate-200:#e2e8f0;--slate-100:#f1f5f9;--slate-50:#f8fafc;
+  --bg:#eef2f7;--card:#fff;--sidebar-bg:#0f172a;
+  --radius:14px;--radius-lg:20px;--radius-sm:8px;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 12px rgba(0,0,0,.06);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.1);
+  --sidebar-w:230px;
+}
+
+/* ========== App Layout ========== */
+.app{display:flex;min-height:100vh}
+
+/* ========== Sidebar ========== */
+.sidebar{
+  width:var(--sidebar-w);background:var(--sidebar-bg);color:#cbd5e1;
+  display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;
+  transition:transform .3s cubic-bezier(.16,1,.3,1);
+}
+.sidebar-header{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sidebar-logo{display:flex;align-items:center;gap:10px}
+.sidebar-logo svg{width:32px;height:32px;flex-shrink:0}
+.sidebar-logo .logo-text{font-size:15px;font-weight:700;color:#fff;line-height:1.3}
+.sidebar-logo .logo-sub{font-size:11px;color:#64748b;margin-top:1px}
+.sidebar-nav{flex:1;padding:16px 12px;overflow-y:auto}
+.nav-section-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#475569;padding:12px 12px 6px}
+.nav-item{
+  display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;
+  color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;
+  margin-bottom:2px;position:relative;
+}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#e2e8f0}
+.nav-item.active{background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;box-shadow:0 4px 12px rgba(37,99,235,.3)}
+.nav-item svg{width:18px;height:18px;flex-shrink:0;opacity:.8}
+.nav-item.active svg{opacity:1}
+.nav-badge{margin-left:auto;font-size:10px;background:rgba(255,255,255,.12);padding:2px 7px;border-radius:10px;font-weight:600}
+.nav-item.active .nav-badge{background:rgba(255,255,255,.25)}
+.sidebar-footer{padding:14px 20px;border-top:1px solid rgba(255,255,255,.08);font-size:11px;color:#475569}
+.sidebar-footer strong{color:#64748b}
+
+/* ========== Main ========== */
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0;padding:0}
+
+/* ========== Header ========== */
+.header{
+  background:var(--card);border-bottom:1px solid var(--slate-200);
+  padding:16px 28px;display:flex;align-items:center;justify-content:space-between;
+  gap:16px;position:sticky;top:0;z-index:50;flex-wrap:wrap;
+}
+.header-left{display:flex;align-items:center;gap:14px}
+.header-left h1{font-size:20px;font-weight:700;color:var(--slate-800)}
+.header-left .week-badge{
+  font-size:12px;font-weight:600;color:var(--blue);background:var(--blue-xl);
+  padding:3px 10px;border-radius:20px;
+}
+.header-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* Date Picker (visual) */
+.date-picker{
+  display:flex;align-items:center;gap:0;border:1px solid var(--slate-200);
+  border-radius:10px;background:var(--slate-50);overflow:hidden;
+}
+.date-picker select{
+  border:none;background:transparent;padding:8px 10px;font-size:12px;color:var(--slate-600);
+  cursor:pointer;appearance:none;padding-right:28px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;
+}
+.date-picker select:not(:last-child){border-right:1px solid var(--slate-200)}
+.date-picker .dp-icon{padding:0 10px;color:var(--slate-400);display:flex;align-items:center}
+.date-picker .dp-icon svg{width:16px;height:16px}
+
+/* View Toggle */
+.view-toggle{
+  display:flex;background:var(--slate-100);border-radius:10px;padding:3px;gap:2px;
+}
+.view-toggle button{
+  padding:7px 14px;font-size:12px;font-weight:600;border-radius:7px;
+  color:var(--slate-500);background:transparent;transition:all .2s;
+  display:flex;align-items:center;gap:5px;
+}
+.view-toggle button svg{width:14px;height:14px}
+.view-toggle button.active{background:#fff;color:var(--blue);box-shadow:var(--shadow)}
+
+/* Import Button */
+.btn-import{
+  display:flex;align-items:center;gap:6px;padding:8px 14px;font-size:12px;font-weight:600;
+  background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;border-radius:10px;
+  box-shadow:0 4px 12px rgba(37,99,235,.25);transition:all .2s;
+}
+.btn-import:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(37,99,235,.35)}
+.btn-import:active{transform:translateY(0)}
+.btn-import svg{width:14px;height:14px}
+.btn-ghost{
+  display:flex;align-items:center;gap:6px;padding:8px 14px;font-size:12px;font-weight:600;
+  background:var(--slate-100);color:var(--slate-600);border-radius:10px;transition:all .2s;
+}
+.btn-ghost:hover{background:var(--slate-200)}
+.btn-ghost svg{width:14px;height:14px}
+
+/* ========== Content Area ========== */
+.content{padding:24px 28px}
+
+/* ========== KPI Row ========== */
+.kpi-row{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;
+}
+.kpi-card{
+  background:var(--card);border-radius:var(--radius);padding:20px;
+  box-shadow:var(--shadow);border:1px solid var(--slate-200);
+  position:relative;overflow:hidden;
+  opacity:0;transform:translateY(20px);
+  animation:kpiEnter .6s cubic-bezier(.16,1,.3,1) forwards;
+}
+.kpi-card:nth-child(1){animation-delay:.05s}
+.kpi-card:nth-child(2){animation-delay:.15s}
+.kpi-card:nth-child(3){animation-delay:.25s}
+.kpi-card:nth-child(4){animation-delay:.35s}
+@keyframes kpiEnter{to{opacity:1;transform:translateY(0)}}
+
+.kpi-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  border-radius:3px 3px 0 0;
+}
+.kpi-card.kpi-blue::before{background:linear-gradient(90deg,var(--blue),var(--blue-l))}
+.kpi-card.kpi-cyan::before{background:linear-gradient(90deg,var(--cyan),var(--cyan-l))}
+.kpi-card.kpi-green::before{background:linear-gradient(90deg,var(--green),var(--green-l))}
+.kpi-card.kpi-amber::before{background:linear-gradient(90deg,var(--amber),var(--amber-l))}
+
+.kpi-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.kpi-label{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--slate-500);font-weight:600}
+.kpi-label svg{width:14px;height:14px}
+.kpi-icon-badge{
+  width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.kpi-icon-badge svg{width:18px;height:18px}
+.kpi-blue .kpi-icon-badge{background:var(--blue-xl);color:var(--blue)}
+.kpi-cyan .kpi-icon-badge{background:var(--cyan-xl);color:var(--cyan-d)}
+.kpi-green .kpi-icon-badge{background:var(--green-xl);color:var(--green-d)}
+.kpi-amber .kpi-icon-badge{background:var(--amber-xl);color:var(--amber)}
+
+.kpi-body{display:flex;align-items:center;gap:16px}
+.kpi-main{flex:1;min-width:0}
+.kpi-value{font-size:28px;font-weight:800;color:var(--slate-800);line-height:1.1;letter-spacing:-.5px}
+.kpi-value .unit{font-size:14px;font-weight:600;color:var(--slate-400);margin-left:2px}
+.kpi-value .names{font-size:13px;font-weight:600;color:var(--slate-700);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.kpi-sub{display:flex;align-items:center;gap:4px;font-size:12px;margin-top:4px}
+.kpi-sub .delta-up{color:var(--green-d);font-weight:600}
+.kpi-sub .delta-down{color:var(--rose);font-weight:600}
+.kpi-sub .delta-flat{color:var(--slate-400);font-weight:600}
+.kpi-sub .label{color:var(--slate-400)}
+
+.kpi-mini{width:72px;height:56px;flex-shrink:0}
+.kpi-mini svg{width:100%;height:100%}
+
+/* ========== Charts Grid ========== */
+.charts-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;
+}
+.chart-card{
+  background:var(--card);border-radius:var(--radius);padding:22px;
+  box-shadow:var(--shadow);border:1px solid var(--slate-200);
+  opacity:0;transform:translateY(20px);
+  animation:chartEnter .6s cubic-bezier(.16,1,.3,1) forwards;
+  animation-delay:.5s;
+}
+@keyframes chartEnter{to{opacity:1;transform:translateY(0)}}
+
+.chart-card.full{grid-column:1/-1}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.chart-title{font-size:15px;font-weight:700;color:var(--slate-800)}
+.chart-title .sub{font-size:12px;color:var(--slate-400);font-weight:500;margin-left:8px}
+.chart-legend{display:flex;gap:12px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--slate-500)}
+.legend-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+.chart-body{position:relative}
+.chart-body svg{width:100%;height:auto;display:block}
+
+/* Chart animation classes */
+.bar-rect{transform-origin:bottom;transform:scaleY(0);animation:barGrow .8s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes barGrow{to{transform:scaleY(1)}}
+.line-path{stroke-dasharray:9999;stroke-dashoffset:9999;transition:stroke-dashoffset 1.2s cubic-bezier(.16,1,.3,1)}
+.line-dot{opacity:0;animation:dotFade .4s ease forwards}
+@keyframes dotFade{to{opacity:1}}
+.radar-poly{transform-origin:center;transform:scale(0);animation:radarGrow .8s cubic-bezier(.34,1.56,.64,1) forwards}
+@keyframes radarGrow{to{transform:scale(1)}}
+.donut-ring{stroke-dasharray:var(--circ);stroke-dashoffset:var(--circ);animation:donutFill 1s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes donutFill{to{stroke-dashoffset:var(--offset)}}
+@keyframes lineDraw{to{stroke-dashoffset:0}}
+.spark-path{stroke-dasharray:200;stroke-dashoffset:200;animation:lineDraw 1s ease forwards}
+.spark-bar{transform-origin:bottom;transform:scaleY(0);animation:barGrow .6s ease forwards}
+
+/* ========== Student Table ========== */
+.table-card{
+  background:var(--card);border-radius:var(--radius);padding:22px;
+  box-shadow:var(--shadow);border:1px solid var(--slate-200);
+  opacity:0;transform:translateY(20px);
+  animation:chartEnter .6s cubic-bezier(.16,1,.3,1) forwards;animation-delay:.7s;
+}
+.table-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.table-search{display:flex;align-items:center;gap:8px;background:var(--slate-50);border:1px solid var(--slate-200);border-radius:8px;padding:6px 12px}
+.table-search input{border:none;background:transparent;font-size:12px;width:160px}
+.table-search svg{width:14px;height:14px;color:var(--slate-400)}
+
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table th{
+  text-align:left;padding:10px 12px;font-weight:600;color:var(--slate-500);
+  border-bottom:2px solid var(--slate-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;
+  white-space:nowrap;cursor:pointer;user-select:none;
+}
+.data-table th:hover{color:var(--slate-700)}
+.data-table th .sort-icon{display:inline-block;margin-left:3px;opacity:.4}
+.data-table th.sorted .sort-icon{opacity:1;color:var(--blue)}
+.data-table td{padding:10px 12px;border-bottom:1px solid var(--slate-100);color:var(--slate-700)}
+.data-table tbody tr{transition:background .15s}
+.data-table tbody tr:hover{background:var(--slate-50)}
+.data-table .rank{font-weight:700;width:36px}
+.data-table .rank-1{color:#f59e0b;font-size:14px}
+.data-table .rank-2{color:#94a3b8;font-size:13px}
+.data-table .rank-3{color:#b45309;font-size:13px}
+.data-table .student-name{font-weight:600;color:var(--slate-800)}
+.score-cell{font-weight:600;text-align:center}
+.score-high{color:var(--green-d)}
+.score-mid{color:var(--amber)}
+.score-low{color:var(--rose)}
+.avg-cell{font-weight:700;color:var(--blue);text-align:center}
+.tag-star{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px}
+.tag-star.yes{background:var(--amber-xl);color:#b45309}
+.tag-star.no{background:var(--slate-100);color:var(--slate-400)}
+.delta-badge{display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:700;padding:1px 6px;border-radius:6px}
+.delta-up{background:var(--green-xl);color:var(--green-d)}
+.delta-down{background:var(--rose-xl);color:var(--rose)}
+.delta-flat{background:var(--slate-100);color:var(--slate-400)}
+
+/* ========== Student Detail View ========== */
+#student-view{display:none}
+.student-detail-header{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  margin-bottom:20px;flex-wrap:wrap;
+}
+.student-selector{
+  display:flex;align-items:center;gap:10px;background:var(--card);
+  border:1px solid var(--slate-200);border-radius:10px;padding:6px 8px 6px 14px;
+}
+.student-selector label{font-size:12px;font-weight:600;color:var(--slate-500)}
+.student-selector select{
+  border:1px solid var(--slate-200);border-radius:7px;padding:7px 28px 7px 10px;
+  font-size:13px;color:var(--slate-700);background:var(--slate-50);cursor:pointer;
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;
+}
+
+.student-info-bar{
+  display:flex;align-items:center;gap:20px;background:var(--card);
+  border:1px solid var(--slate-200);border-radius:var(--radius);padding:18px 22px;
+  margin-bottom:16px;flex-wrap:wrap;
+  opacity:0;animation:chartEnter .5s ease forwards;
+}
+.student-avatar{
+  width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+  font-size:20px;font-weight:800;color:#fff;flex-shrink:0;
+}
+.student-meta{flex:1;min-width:120px}
+.student-meta .name{font-size:18px;font-weight:700;color:var(--slate-800)}
+.student-meta .id{font-size:12px;color:var(--slate-400);margin-top:2px}
+.student-stat{display:flex;flex-direction:column;align-items:center;gap:2px;padding:0 16px;border-left:1px solid var(--slate-100)}
+.student-stat .val{font-size:20px;font-weight:800;color:var(--slate-800)}
+.student-stat .lbl{font-size:11px;color:var(--slate-400)}
+.student-stat .val.green{color:var(--green-d)}
+.student-stat .val.amber{color:var(--amber)}
+.student-stat .val.blue{color:var(--blue)}
+
+.student-charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.student-charts-grid .full{grid-column:1/-1}
+
+/* ========== Dim Cards (Student View) ========== */
+.dim-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+.dim-card{
+  background:var(--card);border-radius:12px;padding:16px;border:1px solid var(--slate-200);
+  text-align:center;position:relative;overflow:hidden;
+  opacity:0;transform:translateY(15px);animation:chartEnter .5s ease forwards;
+}
+.dim-card .dim-icon{
+  width:36px;height:36px;border-radius:10px;margin:0 auto 8px;
+  display:flex;align-items:center;justify-content:center;
+}
+.dim-card .dim-icon svg{width:20px;height:20px}
+.dim-card .dim-name{font-size:11px;color:var(--slate-500);font-weight:600;margin-bottom:6px}
+.dim-card .dim-score{font-size:24px;font-weight:800;color:var(--slate-800)}
+.dim-card .dim-score .max{font-size:12px;color:var(--slate-300);font-weight:600}
+.dim-card .dim-delta{font-size:11px;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:2px}
+.dim-card .dim-bar{height:4px;background:var(--slate-100);border-radius:2px;margin-top:8px;overflow:hidden}
+.dim-card .dim-bar-fill{height:100%;border-radius:2px;transform-origin:left;transform:scaleX(0);animation:barGrow .8s ease forwards}
+
+/* ========== Modal ========== */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;z-index:200;padding:20px;
+}
+.modal-overlay.show{display:flex;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{
+  background:#fff;border-radius:var(--radius-lg);max-width:680px;width:100%;
+  max-height:85vh;overflow-y:auto;box-shadow:var(--shadow-lg);
+  animation:modalSlide .3s cubic-bezier(.16,1,.3,1);
+}
+@keyframes modalSlide{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-header{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--slate-100)}
+.modal-header h2{font-size:17px;font-weight:700;color:var(--slate-800)}
+.modal-close{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--slate-400);background:transparent;transition:all .2s}
+.modal-close:hover{background:var(--slate-100);color:var(--slate-600)}
+.modal-close svg{width:18px;height:18px}
+.modal-body{padding:24px}
+.modal-tabs{display:flex;gap:4px;background:var(--slate-100);border-radius:10px;padding:3px;margin-bottom:18px}
+.modal-tab{flex:1;padding:8px;font-size:12px;font-weight:600;color:var(--slate-500);background:transparent;border-radius:7px;transition:all .2s;text-align:center}
+.modal-tab.active{background:#fff;color:var(--blue);box-shadow:var(--shadow)}
+.modal-textarea{
+  width:100%;min-height:220px;border:1px solid var(--slate-200);border-radius:10px;
+  padding:14px;font-size:12px;font-family:"SF Mono","Consolas",monospace;color:var(--slate-700);
+  resize:vertical;line-height:1.6;background:var(--slate-50);
+}
+.modal-textarea:focus{border-color:var(--blue);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.modal-format{background:var(--slate-50);border:1px solid var(--slate-200);border-radius:10px;padding:14px;margin-top:14px}
+.modal-format h4{font-size:12px;font-weight:700;color:var(--slate-600);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.modal-format h4 svg{width:14px;height:14px;color:var(--blue)}
+.modal-format code{display:block;font-size:11px;color:var(--slate-500);font-family:"SF Mono","Consolas",monospace;line-height:1.6;white-space:pre-wrap}
+.modal-format .fmt-example{margin-top:8px;font-size:11px;color:var(--slate-400);font-family:"SF Mono","Consolas",monospace;white-space:pre-wrap;background:#fff;border-radius:6px;padding:8px;border:1px solid var(--slate-200)}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--slate-100)}
+.modal-btn{padding:9px 18px;font-size:13px;font-weight:600;border-radius:9px;transition:all .2s}
+.modal-btn-cancel{background:var(--slate-100);color:var(--slate-600)}
+.modal-btn-cancel:hover{background:var(--slate-200)}
+.modal-btn-primary{background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;box-shadow:0 4px 12px rgba(37,99,235,.25)}
+.modal-btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(37,99,235,.35)}
+
+/* ========== Toast ========== */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--slate-800);color:#fff;padding:12px 24px;border-radius:10px;
+  font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);z-index:300;
+  opacity:0;transition:all .3s cubic-bezier(.16,1,.3,1);display:flex;align-items:center;gap:8px;
+}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.toast svg{width:16px;height:16px}
+.toast.success{background:var(--green-d)}
+.toast.error{background:var(--rose)}
+
+/* ========== Mobile Toggle ========== */
+.mobile-toggle{display:none;position:fixed;top:14px;left:14px;z-index:101;width:40px;height:40px;border-radius:10px;background:var(--sidebar-bg);color:#fff;align-items:center;justify-content:center}
+.mobile-toggle svg{width:22px;height:22px}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
+
+/* ========== Responsive ========== */
+@media(max-width:1100px){
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  .charts-grid{grid-template-columns:1fr}
+  .student-charts-grid{grid-template-columns:1fr}
+  .dim-cards{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar.open + .sidebar-overlay{display:block}
+  .main{margin-left:0}
+  .mobile-toggle{display:flex}
+  .content{padding:16px}
+  .header{padding:14px 16px 14px 60px}
+  .kpi-row{grid-template-columns:1fr;gap:12px}
+  .dim-cards{grid-template-columns:repeat(2,1fr)}
+  .header-left h1{font-size:16px}
+  .date-picker{flex-wrap:wrap}
+}
+@media(max-width:480px){
+  .dim-cards{grid-template-columns:1fr}
+  .student-info-bar{gap:10px}
+  .student-stat{padding:0 8px}
+}
+
+/* SVG text */
+svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+</style>
+</head>
+<body>
+
+<!-- Mobile Toggle -->
+<button class="mobile-toggle" id="mobileToggle" aria-label="菜单">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+</button>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <svg viewBox="0 0 40 40" fill="none">
+          <rect width="40" height="40" rx="10" fill="url(#lg)"/>
+          <defs><linearGradient id="lg" x1="0" y1="0" x2="40" y2="40"><stop stop-color="#2563eb"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs>
+          <path d="M12 14h16M12 20h16M12 26h10" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="30" cy="26" r="3" fill="#34d399"/>
+        </svg>
+        <div>
+          <div class="logo-text">五维评价看板</div>
+          <div class="logo-sub">东华小学 · 向善向上</div>
+        </div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">数据看板</div>
+      <div class="nav-item active" data-view="class">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        <span>班级总览</span>
+      </div>
+      <div class="nav-item" data-view="student">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+        <span>学生详情</span>
+      </div>
+      <div class="nav-section-label">数据管理</div>
+      <div class="nav-item" id="navImport">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        <span>导入数据</span>
+      </div>
+      <div class="nav-item" id="navExport">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3m0 0l4 4m-4-4l-4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        <span>导出CSV</span>
+      </div>
+      <div class="nav-section-label">统计信息</div>
+      <div class="nav-item" style="cursor:default">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span>本周评价</span>
+        <span class="nav-badge" id="navEvalCount">0</span>
+      </div>
+      <div class="nav-item" style="cursor:default">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <span>班级人数</span>
+        <span class="nav-badge" id="navStudentCount">0</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <strong>五维评价体系</strong><br>
+      作业 · 眼神 · 金点子 · 书写 · 善上
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <h1 id="pageTitle">班级周评价总览</h1>
+        <span class="week-badge" id="weekBadge">第4周</span>
+      </div>
+      <div class="header-actions">
+        <!-- Date Picker (visual) -->
+        <div class="date-picker">
+          <div class="dp-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+          </div>
+          <select id="selWeek">
+            <option value="4">第4周</option>
+            <option value="3">第3周</option>
+            <option value="2">第2周</option>
+            <option value="1">第1周</option>
+          </select>
+          <select id="selTerm">
+            <option>2025秋季学期</option>
+            <option>2025春季学期</option>
+          </select>
+        </div>
+        <!-- View Toggle -->
+        <div class="view-toggle">
+          <button class="active" id="btnClassView">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+            班级
+          </button>
+          <button id="btnStudentView">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+            学生
+          </button>
+        </div>
+        <button class="btn-import" id="btnImport">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+          导入数据
+        </button>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- ===== Class View ===== -->
+      <div id="class-view">
+        <!-- KPI Row -->
+        <section class="kpi-row" id="kpiRow"></section>
+
+        <!-- Charts -->
+        <section class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">班级五维雷达图<span class="sub">本周各维度均分</span></div>
+            </div>
+            <div class="chart-body" id="classRadarChart"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">各维度均分对比<span class="sub">柱状图</span></div>
+            </div>
+            <div class="chart-body" id="classBarChart"></div>
+          </div>
+          <div class="chart-card full">
+            <div class="chart-header">
+              <div class="chart-title">周次趋势<span class="sub">全班四周各维度均分变化</span></div>
+              <div class="chart-legend" id="lineLegend"></div>
+            </div>
+            <div class="chart-body" id="classLineChart"></div>
+          </div>
+        </section>
+
+        <!-- Student Table -->
+        <section class="table-card">
+          <div class="table-header">
+            <div class="chart-title">学生评价明细<span class="sub" id="tableSub">本周</span></div>
+            <div class="table-search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" id="tableSearch" placeholder="搜索学生姓名...">
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data-table" id="studentTable">
+              <thead><tr id="tableHead"></tr></thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- ===== Student View ===== -->
+      <div id="student-view">
+        <div class="student-detail-header">
+          <div class="student-selector">
+            <label>选择学生</label>
+            <select id="selStudent"></select>
+          </div>
+        </div>
+        <div id="studentDetailContent"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>导入周评价数据</h2>
+      <button class="modal-close" id="modalClose">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-tabs">
+        <button class="modal-tab active" data-tab="csv">CSV 格式</button>
+        <button class="modal-tab" data-tab="json">JSON 格式</button>
+      </div>
+      <textarea class="modal-textarea" id="importTextarea" placeholder="粘贴数据..."></textarea>
+      <div class="modal-format">
+        <h4>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          格式说明
+        </h4>
+        <code id="formatDesc">每行格式：姓名,周次,作业守卫者,眼神小雷达,金点子大王,书写小标兵,善上小天使</code>
+        <div class="fmt-example" id="formatExample">张小明,4,9,8,7,9,10
+李小红,4,10,9,8,9,10</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" id="modalCancel">取消</button>
+      <button class="modal-btn modal-btn-primary" id="modalConfirm">确认导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+//  班级周评价数据看板 - JavaScript
+// ============================================================
+
+// ===== 五维配置 =====
+const DIMS = [
+  { key:'homework', name:'作业守卫者', short:'作业', color:'#2563eb', bg:'#dbeafe',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>' },
+  { key:'focus', name:'眼神小雷达', short:'眼神', color:'#06b6d4', bg:'#cffafe',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>' },
+  { key:'ideas', name:'金点子大王', short:'金点子', color:'#f59e0b', bg:'#fef3c7',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7c.6.5 1 1.3 1 2.1V18h6v-1.2c0-.8.4-1.6 1-2.1A7 7 0 0012 2z"/></svg>' },
+  { key:'writing', name:'书写小标兵', short:'书写', color:'#10b981', bg:'#d1fae5',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>' },
+  { key:'kindness', name:'善上小天使', short:'善上', color:'#8b5cf6', bg:'#ede9fe',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>' },
+];
+
+const DIM_KEYS = DIMS.map(d=>d.key);
+
+// ===== 学生名字 =====
+const STUDENT_NAMES = [
+  '陈思源','林梓涵','黄子轩','张雨桐','李俊熙','王梓萱','刘一诺','赵乐天',
+  '周语晨','吴明轩','徐心怡','孙浩然','马若曦','朱嘉睿','胡梦瑶','郭天佑',
+  '何芷晴','高雅轩','罗子墨','梁艺涵','宋承泽','谢雨欣','唐锦程','许若萱',
+  '韩梓豪','冯诗语','邓子涵','曹明阳','彭思远','曾雅静','萧子睿','田雨菲',
+  '董昊然','袁梦琪','于子晨','蒋雨泽','卢思源','苏语桐','魏子谦','丁若彤',
+];
+
+// ===== Seeded Random =====
+let _seed = 20250314;
+function srand(){
+  _seed = (_seed * 9301 + 49297) % 233280;
+  return _seed / 233280;
+}
+function rint(min,max){return Math.floor(srand()*(max-min+1))+min;}
+
+// ===== 数据生成 =====
+function generateData(){
+  const students = [];
+  const totalWeeks = 4;
+  for(let i=0;i<STUDENT_NAMES.length;i++){
+    const name = STUDENT_NAMES[i];
+    // 每个学生有一个基础水平和进步趋势
+    const baseLevel = 6 + srand()*2.5; // 6-8.5
+    const trend = srand()*0.6 - 0.1; // -0.1 ~ 0.5 (大部分正进步)
+    const weeks = [];
+    for(let w=0;w<totalWeeks;w++){
+      const wkData = { week:w+1 };
+      for(const dim of DIMS){
+        // 基础 + 趋势*周次 + 随机波动
+        let score = baseLevel + trend*w + (srand()-0.3)*1.8;
+        // 个别维度有偏好
+        if(dim.key==='kindness') score += 0.5; // 善上普遍偏高
+        if(dim.key==='ideas') score -= 0.3;    // 金点子偏低
+        score = Math.max(5, Math.min(10, Math.round(score)));
+        wkData[dim.key] = score;
+      }
+      weeks.push(wkData);
+    }
+    students.push({ id:i+1, name, weeks });
+  }
+  // 手动设计几个进步明显的学生（飞跃进步星）
+  if(students.length>=10){
+    // 第3个学生：从7分进步到9分
+    const p1 = students[2];
+    for(const w of p1.weeks){ for(const k of DIM_KEYS) w[k] = Math.min(10, 6 + w.week*0.8 + (srand()-0.5)); }
+    // 第8个学生
+    const p2 = students[7];
+    for(const w of p2.weeks){ for(const k of DIM_KEYS) w[k] = Math.min(10, 6.5 + w.week*0.7 + (srand()-0.5)); }
+    // 第15个学生
+    const p3 = students[14];
+    for(const w of p3.weeks){ for(const k of DIM_KEYS) w[k] = Math.min(10, 7 + w.week*0.6 + (srand()-0.5)); }
+  }
+  return students;
+}
+
+// ===== 全局状态 =====
+let STATE = {
+  students: generateData(),
+  currentWeek: 4,
+  totalWeeks: 4,
+  view: 'class',
+  selectedStudent: 0,
+  sortKey: 'avg',
+  sortDir: 'desc',
+  searchText: '',
+};
+
+// ===== 工具函数 =====
+function $(sel){return document.querySelector(sel);}
+function $$(sel){return document.querySelectorAll(sel);}
+function avg(arr){return arr.reduce((a,b)=>a+b,0)/arr.length;}
+function sum(arr){return arr.reduce((a,b)=>a+b,0);}
+function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
+function fmt(v,d=1){return Number(v).toFixed(d);}
+
+// 获取学生某周数据
+function getWeekData(student, week){
+  return student.weeks.find(w=>w.week===week) || student.weeks[student.weeks.length-1];
+}
+// 学生某周五维均分
+function studentWeekAvg(student, week){
+  const d = getWeekData(student, week);
+  return avg(DIM_KEYS.map(k=>d[k]));
+}
+// 学生某周是否五星全能（全≥9）
+function isAllStar(student, week){
+  const d = getWeekData(student, week);
+  return DIM_KEYS.every(k=>d[k]>=9);
+}
+
+// ===== KPI 计算 =====
+function calcKPIs(week){
+  const sts = STATE.students;
+  const prevWeek = week>1 ? week-1 : null;
+
+  // KPI1: 班级综合均分
+  const allScores = [];
+  sts.forEach(s=>{
+    const d = getWeekData(s, week);
+    DIM_KEYS.forEach(k=>allScores.push(d[k]));
+  });
+  const classAvg = avg(allScores);
+  let prevClassAvg = null;
+  if(prevWeek){
+    const prevScores = [];
+    sts.forEach(s=>{
+      const d = getWeekData(s, prevWeek);
+      DIM_KEYS.forEach(k=>prevScores.push(d[k]));
+    });
+    prevClassAvg = avg(prevScores);
+  }
+
+  // KPI2: 五星全能王
+  const starStudents = sts.filter(s=>isAllStar(s, week));
+  const starCount = starStudents.length;
+  const starPct = sts.length>0 ? (starCount/sts.length*100) : 0;
+
+  // KPI3: 飞跃进步星 - 进步最大的5位
+  const progressions = [];
+  if(prevWeek){
+    sts.forEach(s=>{
+      const cur = studentWeekAvg(s, week);
+      const prev = studentWeekAvg(s, prevWeek);
+      progressions.push({ name:s.name, delta: cur-prev, cur, prev });
+    });
+  }
+  progressions.sort((a,b)=>b.delta-a.delta);
+  const topProgress = progressions.slice(0,5);
+
+  // KPI4: 最强风气标 - 全班得分最高维度
+  const dimAvgs = {};
+  DIMS.forEach(dim=>{
+    const scores = sts.map(s=>getWeekData(s,week)[dim.key]);
+    dimAvgs[dim.key] = avg(scores);
+  });
+  let bestDim = DIMS[0], bestAvg = 0;
+  DIMS.forEach(dim=>{
+    if(dimAvgs[dim.key] > bestAvg){ bestAvg = dimAvgs[dim.key]; bestDim = dim; }
+  });
+
+  return { classAvg, prevClassAvg, starCount, starPct, topProgress, bestDim, bestAvg, dimAvgs };
+}
+
+// ===== SVG 图表渲染 =====
+
+// --- 环形图 ---
+function renderDonut(container, value, max, color, label, sublabel){
+  const radius = 52;
+  const circ = 2*Math.PI*radius;
+  const pct = clamp(value/max, 0, 1);
+  const offset = circ * (1-pct);
+  container.innerHTML = `
+    <svg viewBox="0 0 140 140" style="max-width:130px;margin:0 auto">
+      <circle cx="70" cy="70" r="${radius}" fill="none" stroke="#e2e8f0" stroke-width="9"/>
+      <circle cx="70" cy="70" r="${radius}" fill="none" stroke="${color}" stroke-width="9"
+        stroke-linecap="round" transform="rotate(-90 70 70)"
+        style="--circ:${circ};--offset:${offset}"
+        class="donut-ring"/>
+      <text x="70" y="66" text-anchor="middle" font-size="28" font-weight="800" fill="#1e293b">${value.toFixed(1)}</text>
+      <text x="70" y="86" text-anchor="middle" font-size="11" fill="#94a3b8">${sublabel||''}</text>
+    </svg>`;
+}
+
+// --- 迷你环形图 ---
+function renderMiniDonut(container, value, max, color){
+  const r=24, c=2*Math.PI*r, pct=clamp(value/max,0,1), off=c*(1-pct);
+  container.innerHTML = `
+    <svg viewBox="0 0 64 56">
+      <circle cx="32" cy="28" r="${r}" fill="none" stroke="#e2e8f0" stroke-width="5"/>
+      <circle cx="32" cy="28" r="${r}" fill="none" stroke="${color}" stroke-width="5"
+        stroke-linecap="round" transform="rotate(-90 32 28)"
+        style="--circ:${c};--offset:${off}" class="donut-ring"/>
+      <text x="32" y="32" text-anchor="middle" font-size="13" font-weight="800" fill="#1e293b">${value.toFixed(1)}</text>
+    </svg>`;
+}
+
+// --- 雷达图 ---
+function renderRadar(container, data, opts={}){
+  // data: [{label, value(0-10), color}]
+  const size = opts.size || 300;
+  const cx = size/2, cy = size/2;
+  const maxR = opts.maxR || 110;
+  const maxVal = opts.maxVal || 10;
+  const levels = 5;
+  const n = data.length;
+  const angleStep = (Math.PI*2)/n;
+  const startAngle = -Math.PI/2;
+
+  // 网格
+  let gridSVG = '';
+  for(let l=1;l<=levels;l++){
+    const r = (maxR/levels)*l;
+    let pts = '';
+    for(let i=0;i<n;i++){
+      const a = startAngle + i*angleStep;
+      const x = cx + Math.cos(a)*r;
+      const y = cy + Math.sin(a)*r;
+      pts += `${x},${y} `;
+    }
+    gridSVG += `<polygon points="${pts.trim()}" fill="none" stroke="#e2e8f0" stroke-width="1" ${l===levels?'stroke-width="1.5"':''}/>`;
+  }
+  // 轴线
+  let axesSVG = '';
+  let labelsSVG = '';
+  for(let i=0;i<n;i++){
+    const a = startAngle + i*angleStep;
+    const x2 = cx + Math.cos(a)*maxR;
+    const y2 = cy + Math.sin(a)*maxR;
+    axesSVG += `<line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="#e2e8f0" stroke-width="1"/>`;
+    // 标签
+    const lx = cx + Math.cos(a)*(maxR+28);
+    const ly = cy + Math.sin(a)*(maxR+28);
+    const labelColor = data[i].color || '#64748b';
+    labelsSVG += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="600" fill="${labelColor}">${data[i].label}</text>`;
+    // 数值标签
+    const vx = cx + Math.cos(a)*(maxR+16);
+    const vy = cy + Math.sin(a)*(maxR+16);
+    labelsSVG += `<text x="${vx}" y="${vy}" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="#94a3b8">${data[i].value.toFixed(1)}</text>`;
+  }
+
+  // 数据多边形
+  let dataPts = '';
+  let dotsSVG = '';
+  for(let i=0;i<n;i++){
+    const a = startAngle + i*angleStep;
+    const r = (data[i].value/maxVal)*maxR;
+    const x = cx + Math.cos(a)*r;
+    const y = cy + Math.sin(a)*r;
+    dataPts += `${x},${y} `;
+  }
+  const fill = opts.fill || 'rgba(37,99,235,.12)';
+  const stroke = opts.stroke || '#2563eb';
+
+  container.innerHTML = `
+    <svg viewBox="0 0 ${size} ${size}">
+      ${gridSVG}
+      ${axesSVG}
+      <polygon points="${dataPts.trim()}" fill="${fill}" stroke="${stroke}" stroke-width="2.5"
+        stroke-linejoin="round" class="radar-poly" style="animation-delay:.3s"/>
+      ${dotsSVG}
+      ${labelsSVG}
+    </svg>`;
+  // 添加点
+  setTimeout(()=>{
+    const svg = container.querySelector('svg');
+    if(!svg) return;
+    for(let i=0;i<n;i++){
+      const a = startAngle + i*angleStep;
+      const r = (data[i].value/maxVal)*maxR;
+      const x = cx + Math.cos(a)*r;
+      const y = cy + Math.sin(a)*r;
+      const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('cx',x); dot.setAttribute('cy',y); dot.setAttribute('r','4');
+      dot.setAttribute('fill','#fff'); dot.setAttribute('stroke',data[i].color||stroke);
+      dot.setAttribute('stroke-width','2.5');
+      dot.style.opacity='0'; dot.style.animation='dotFade .4s ease .9s forwards';
+      svg.appendChild(dot);
+    }
+  },0);
+}
+
+// --- 迷你雷达图 ---
+function renderMiniRadar(container, data, color){
+  const size=64, cx=32, cy=30, maxR=22, maxVal=10, n=data.length;
+  const angleStep=(Math.PI*2)/n, startAngle=-Math.PI/2;
+  let pts='';
+  for(let i=0;i<n;i++){
+    const a=startAngle+i*angleStep;
+    const r=(data[i]/maxVal)*maxR;
+    pts+=`${cx+Math.cos(a)*r},${cy+Math.sin(a)*r} `;
+  }
+  let grid='';
+  for(let l=1;l<=3;l++){
+    const r=(maxR/3)*l; let gp='';
+    for(let i=0;i<n;i++){
+      const a=startAngle+i*angleStep;
+      gp+=`${cx+Math.cos(a)*r},${cy+Math.sin(a)*r} `;
+    }
+    grid+=`<polygon points="${gp.trim()}" fill="none" stroke="#e2e8f0" stroke-width=".5"/>`;
+  }
+  container.innerHTML=`<svg viewBox="0 0 64 56">${grid}<polygon points="${pts.trim()}" fill="${color}22" stroke="${color}" stroke-width="1.5" class="radar-poly" style="animation-delay:.3s"/></svg>`;
+}
+
+// --- 柱状图 ---
+function renderBarChart(container, data, opts={}){
+  // data: [{label, value, color, prev?}]
+  const W = opts.width || 500, H = opts.height || 280;
+  const pad = { t:30, r:20, b:50, l:40 };
+  const chartW = W - pad.l - pad.r;
+  const chartH = H - pad.t - pad.b;
+  const maxVal = opts.maxVal || 10;
+  const barW = chartW / data.length * 0.5;
+  const gap = chartW / data.length;
+
+  let barsSVG = '';
+  let labelsSVG = '';
+  let gridSVG = '';
+  // Y轴网格
+  for(let v=2;v<=maxVal;v+=2){
+    const y = pad.t + chartH - (v/maxVal)*chartH;
+    gridSVG += `<line x1="${pad.l}" y1="${y}" x2="${W-pad.r}" y2="${y}" stroke="#f1f5f9" stroke-width="1"/>`;
+    gridSVG += `<text x="${pad.l-6}" y="${y+3}" text-anchor="end" font-size="9" fill="#94a3b8">${v}</text>`;
+  }
+  // 柱子
+  data.forEach((d,i)=>{
+    const x = pad.l + i*gap + gap*0.25;
+    const h = (d.value/maxVal)*chartH;
+    const y = pad.t + chartH - h;
+    barsSVG += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="5" fill="${d.color}"
+      class="bar-rect" style="animation-delay:${0.3+i*0.1}s"/>`;
+    // 数值
+    barsSVG += `<text x="${x+barW/2}" y="${y-6}" text-anchor="middle" font-size="12" font-weight="700" fill="${d.color}"
+      style="opacity:0;animation:dotFade .4s ease ${0.8+i*0.1}s forwards">${d.value.toFixed(1)}</text>`;
+    // 上周对比线
+    if(d.prev!==undefined){
+      const py = pad.t + chartH - (d.prev/maxVal)*chartH;
+      barsSVG += `<line x1="${x-2}" y1="${py}" x2="${x+barW+2}" y2="${py}" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3,2"
+        style="opacity:0;animation:dotFade .4s ease ${1.0+i*0.1}s forwards"/>`;
+    }
+    // 标签
+    labelsSVG += `<text x="${x+barW/2}" y="${H-pad.b+18}" text-anchor="middle" font-size="10" font-weight="600" fill="#475569">${d.label}</text>`;
+  });
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${gridSVG}${barsSVG}${labelsSVG}</svg>`;
+}
+
+// --- 迷你柱状图 ---
+function renderMiniBar(container, data, color){
+  const W=72, H=56, maxVal=10;
+  const barW = W/data.length*0.6;
+  const gap = W/data.length;
+  let bars='';
+  data.forEach((v,i)=>{
+    const x = i*gap + gap*0.2;
+    const h = (v/maxVal)*(H-6);
+    bars += `<rect x="${x}" y="${H-h}" width="${barW}" height="${h}" rx="2" fill="${color}" class="spark-bar" style="animation-delay:${0.2+i*0.06}s"/>`;
+  });
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${bars}</svg>`;
+}
+
+// --- 折线图 ---
+function renderLineChart(container, series, opts={}){
+  // series: [{ name, color, data:[{x, y}] }]
+  const W = opts.width || 700, H = opts.height || 300;
+  const pad = { t:30, r:30, b:45, l:40 };
+  const chartW = W - pad.l - pad.r;
+  const chartH = H - pad.t - pad.b;
+  const xLabels = opts.xLabels || [];
+  const xCount = xLabels.length;
+  const maxVal = opts.maxVal || 10;
+  const minVal = opts.minVal || 5;
+
+  let gridSVG = '';
+  for(let v=minVal;v<=maxVal;v++){
+    const y = pad.t + chartH - ((v-minVal)/(maxVal-minVal))*chartH;
+    gridSVG += `<line x1="${pad.l}" y1="${y}" x2="${W-pad.r}" y2="${y}" stroke="#f1f5f9" stroke-width="1"/>`;
+    gridSVG += `<text x="${pad.l-6}" y="${y+3}" text-anchor="end" font-size="9" fill="#94a3b8">${v}</text>`;
+  }
+  // X轴标签
+  let xLabelsSVG = '';
+  for(let i=0;i<xCount;i++){
+    const x = pad.l + (chartW/(xCount-1))*i;
+    xLabelsSVG += `<text x="${x}" y="${H-pad.b+18}" text-anchor="middle" font-size="10" font-weight="600" fill="#475569">${xLabels[i]}</text>`;
+  }
+
+  let pathsSVG = '';
+  let dotsSVG = '';
+  series.forEach((s,si)=>{
+    let pathD = '';
+    s.data.forEach((pt,i)=>{
+      const x = pad.l + (chartW/(xCount-1))*i;
+      const y = pad.t + chartH - ((pt.y-minVal)/(maxVal-minVal))*chartH;
+      pathD += (i===0?'M':'L') + x + ',' + y + ' ';
+      dotsSVG += `<circle cx="${x}" cy="${y}" r="4" fill="#fff" stroke="${s.color}" stroke-width="2.5" class="line-dot" style="animation-delay:${0.8+i*0.1}s"/>`;
+    });
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    // We'll use innerHTML with computed path length
+    pathsSVG += `<path d="${pathD}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="line-path" style="--len:1000;animation-delay:${0.3+si*0.1}s"/>`;
+  });
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${gridSVG}${xLabelsSVG}${pathsSVG}${dotsSVG}</svg>`;
+
+  // Fix stroke-dasharray to actual path length and trigger draw animation
+  requestAnimationFrame(()=>{
+    container.querySelectorAll('.line-path').forEach((p,si)=>{
+      const len = p.getTotalLength();
+      p.style.strokeDasharray = len;
+      p.style.strokeDashoffset = len;
+      p.style.transition = `stroke-dashoffset 1.2s cubic-bezier(.16,1,.3,1) ${0.3+si*0.15}s`;
+      requestAnimationFrame(()=>{
+        p.style.strokeDashoffset = '0';
+      });
+    });
+  });
+}
+
+// --- 迷你折线图 ---
+function renderMiniLine(container, data, color){
+  const W=72, H=56, maxVal=10, minVal=5;
+  const n = data.length;
+  let pathD='';
+  data.forEach((v,i)=>{
+    const x = (W/(n-1))*i;
+    const y = H - ((v-minVal)/(maxVal-minVal))*(H-6) - 3;
+    pathD += (i===0?'M':'L')+x+','+y+' ';
+  });
+  // Area fill
+  const areaD = pathD + `L${W},${H} L0,${H} Z`;
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}">
+    <path d="${areaD}" fill="${color}15"/>
+    <path d="${pathD}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spark-path"/>
+  </svg>`;
+}
+
+// ===== 渲染 KPI 卡片 =====
+function renderKPIs(){
+  const k = calcKPIs(STATE.currentWeek);
+  const container = $('#kpiRow');
+
+  // KPI1: 班级综合均分 - 环形图
+  const delta1 = k.prevClassAvg!==null ? k.classAvg - k.prevClassAvg : null;
+  const delta1Str = delta1!==null ?
+    (delta1>=0 ? `<span class="delta-up">↑ ${fmt(Math.abs(delta1))}</span>` : `<span class="delta-down">↓ ${fmt(Math.abs(delta1))}</span>`)
+    : '<span class="delta-flat">—</span>';
+
+  // KPI2: 五星全能王
+  // KPI3: 飞跃进步星
+  const topProgressNames = k.topProgress.map(p=>p.name).join('、');
+  const topProgressDelta = k.topProgress.length>0 ? k.topProgress[0].delta : 0;
+
+  // KPI4: 最强风气标
+  const dimAvgsArr = DIMS.map(d=>k.dimAvgs[d.key]);
+
+  // 迷你图数据
+  // KPI1: 最近4周综合均分趋势
+  const weekAvgs = [];
+  for(let w=1;w<=STATE.totalWeeks;w++){
+    const scores=[];
+    STATE.students.forEach(s=>{
+      const d=getWeekData(s,w);
+      DIM_KEYS.forEach(kk=>scores.push(d[kk]));
+    });
+    weekAvgs.push(avg(scores));
+  }
+  // KPI2: 迷你雷达 - 本周5维均分
+  const radarData = DIMS.map(d=>k.dimAvgs[d.key]);
+  // KPI3: 迷你折线 - top1学生的进步趋势
+  const top1Student = k.topProgress.length>0 ? STATE.students.find(s=>s.name===k.topProgress[0].name) : null;
+  const top1Trend = top1Student ? STATE.totalWeeks>0 ? Array.from({length:STATE.totalWeeks},(_,i)=>studentWeekAvg(top1Student,i+1)) : [] : [];
+  // KPI4: 迷你柱状 - 5维均分
+  const barData = DIMS.map(d=>k.dimAvgs[d.key]);
+
+  container.innerHTML = `
+    <!-- KPI1: 班级综合均分 -->
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-top">
+        <div class="kpi-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
+          班级综合均分
+        </div>
+        <div class="kpi-icon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
+        </div>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-main">
+          <div class="kpi-value">${fmt(k.classAvg)}<span class="unit">/10</span></div>
+          <div class="kpi-sub">${delta1Str} <span class="label">较上周</span></div>
+        </div>
+        <div class="kpi-mini" id="miniDonut1"></div>
+      </div>
+    </div>
+
+    <!-- KPI2: 五星全能王 -->
+    <div class="kpi-card kpi-cyan">
+      <div class="kpi-top">
+        <div class="kpi-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          五星全能王
+        </div>
+        <div class="kpi-icon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+        </div>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-main">
+          <div class="kpi-value">${k.starCount}<span class="unit">人</span></div>
+          <div class="kpi-sub"><span class="delta-up">占总人数 ${fmt(k.starPct,0)}%</span></div>
+        </div>
+        <div class="kpi-mini" id="miniRadar2"></div>
+      </div>
+    </div>
+
+    <!-- KPI3: 飞跃进步星 -->
+    <div class="kpi-card kpi-green">
+      <div class="kpi-top">
+        <div class="kpi-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L4 12h6v8l8-10h-6V2z"/></svg>
+          飞跃进步星
+        </div>
+        <div class="kpi-icon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>
+        </div>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-main" style="min-width:0">
+          <div class="kpi-value"><span class="names">${topProgressNames || '暂无数据'}</span></div>
+          <div class="kpi-sub"><span class="delta-up">+${fmt(topProgressDelta)}分</span> <span class="label">最大进步幅度</span></div>
+        </div>
+        <div class="kpi-mini" id="miniLine3"></div>
+      </div>
+    </div>
+
+    <!-- KPI4: 最强风气标 -->
+    <div class="kpi-card kpi-amber">
+      <div class="kpi-top">
+        <div class="kpi-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
+          最强风气标
+        </div>
+        <div class="kpi-icon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8" fill="currentColor"/><rect x="12" y="6" width="3" height="12" fill="currentColor"/><rect x="17" y="13" width="3" height="5" fill="currentColor"/></svg>
+        </div>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-main">
+          <div class="kpi-value" style="font-size:22px">${k.bestDim.name}</div>
+          <div class="kpi-sub"><span class="delta-up">均分 ${fmt(k.bestAvg)}分</span></div>
+        </div>
+        <div class="kpi-mini" id="miniBar4"></div>
+      </div>
+    </div>
+  `;
+
+  // 渲染迷你图
+  renderMiniDonut($('#miniDonut1'), k.classAvg, 10, '#2563eb');
+  renderMiniRadar($('#miniRadar2'), radarData, '#06b6d4');
+  renderMiniLine($('#miniLine3'), top1Trend, '#10b981');
+  renderMiniBar($('#miniBar4'), barData, '#f59e0b');
+}
+
+// ===== 渲染班级图表 =====
+function renderClassCharts(){
+  const k = calcKPIs(STATE.currentWeek);
+
+  // 1. 雷达图
+  const radarData = DIMS.map(d=>({ label:d.short, value:k.dimAvgs[d.key], color:d.color }));
+  renderRadar($('#classRadarChart'), radarData, { fill:'rgba(37,99,235,.1)', stroke:'#2563eb' });
+
+  // 2. 柱状图
+  const prevDimAvgs = STATE.currentWeek>1 ? {} : null;
+  if(prevDimAvgs){
+    DIMS.forEach(d=>{
+      const scores = STATE.students.map(s=>getWeekData(s,STATE.currentWeek-1)[d.key]);
+      prevDimAvgs[d.key] = avg(scores);
+    });
+  }
+  const barData = DIMS.map(d=>({
+    label:d.short, value:k.dimAvgs[d.key], color:d.color,
+    prev: prevDimAvgs ? prevDimAvgs[d.key] : undefined
+  }));
+  renderBarChart($('#classBarChart'), barData, { maxVal:10 });
+
+  // 3. 折线图
+  const lineSeries = DIMS.map(d=>{
+    const data = [];
+    for(let w=1;w<=STATE.totalWeeks;w++){
+      const scores = STATE.students.map(s=>getWeekData(s,w)[d.key]);
+      data.push({ x:w, y:avg(scores) });
+    }
+    return { name:d.name, color:d.color, data };
+  });
+  const xLabels = Array.from({length:STATE.totalWeeks},(_,i)=>`第${i+1}周`);
+  renderLineChart($('#classLineChart'), lineSeries, { xLabels, maxVal:10, minVal:5 });
+
+  // Legend
+  $('#lineLegend').innerHTML = DIMS.map(d=>`
+    <div class="legend-item"><div class="legend-dot" style="background:${d.color}"></div>${d.short}</div>
+  `).join('');
+}
+
+// ===== 渲染学生表格 =====
+function renderTable(){
+  const week = STATE.currentWeek;
+  const prevWeek = week>1 ? week-1 : null;
+  const sts = STATE.students;
+
+  // 构建表格数据
+  let rows = sts.map(s=>{
+    const d = getWeekData(s, week);
+    const avgScore = studentWeekAvg(s, week);
+    const prevAvg = prevWeek ? studentWeekAvg(s, prevWeek) : null;
+    const delta = prevAvg!==null ? avgScore - prevAvg : null;
+    const star = isAllStar(s, week);
+    return { student:s, data:d, avg:avgScore, delta, star };
+  });
+
+  // 搜索过滤
+  if(STATE.searchText){
+    rows = rows.filter(r=>r.student.name.includes(STATE.searchText));
+  }
+
+  // 排序
+  rows.sort((a,b)=>{
+    let va, vb;
+    switch(STATE.sortKey){
+      case 'name': va=a.student.name; vb=b.student.name; break;
+      case 'avg': va=a.avg; vb=b.avg; break;
+      case 'star': va=a.star?1:0; vb=b.star?1:0; break;
+      default:
+        va = a.data[STATE.sortKey] || 0;
+        vb = b.data[STATE.sortKey] || 0;
+    }
+    if(typeof va==='string') return STATE.sortDir==='asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    return STATE.sortDir==='asc' ? va-vb : vb-va;
+  });
+
+  // 表头
+  const head = $('#tableHead');
+  const sortIcon = key => {
+    if(STATE.sortKey!==key) return '<span class="sort-icon">↕</span>';
+    return STATE.sortDir==='asc' ? '<span class="sort-icon">↑</span>' : '<span class="sort-icon">↓</span>';
+  };
+  head.innerHTML = `
+    <th data-sort="rank" style="width:36px">#</th>
+    <th data-sort="name" class="${STATE.sortKey==='name'?'sorted':''}">姓名${sortIcon('name')}</th>
+    ${DIMS.map(d=>`<th data-sort="${d.key}" class="${STATE.sortKey===d.key?'sorted':''}" style="text-align:center">${d.short}${sortIcon(d.key)}</th>`).join('')}
+    <th data-sort="avg" class="${STATE.sortKey==='avg'?'sorted':''}" style="text-align:center">均分${sortIcon('avg')}</th>
+    <th data-sort="delta" style="text-align:center">较上周</th>
+    <th data-sort="star" class="${STATE.sortKey==='star'?'sorted':''}" style="text-align:center">五星${sortIcon('star')}</th>
+  `;
+  // 排序点击
+  head.querySelectorAll('th[data-sort]').forEach(th=>{
+    th.addEventListener('click',()=>{
+      const key = th.dataset.sort;
+      if(key==='rank') return;
+      if(STATE.sortKey===key){ STATE.sortDir = STATE.sortDir==='asc'?'desc':'asc'; }
+      else { STATE.sortKey = key; STATE.sortDir = 'desc'; }
+      renderTable();
+    });
+  });
+
+  // 表体
+  const body = $('#tableBody');
+  body.innerHTML = rows.map((r,i)=>{
+    const rank = i+1;
+    const rankClass = rank<=3 ? `rank-${rank}` : '';
+    const dimCells = DIMS.map(d=>{
+      const v = r.data[d.key];
+      const cls = v>=9?'score-high':v>=7?'score-mid':'score-low';
+      return `<td class="score-cell ${cls}">${v}</td>`;
+    }).join('');
+    let deltaHTML = '<td style="text-align:center"><span class="delta-badge delta-flat">—</span></td>';
+    if(r.delta!==null){
+      if(r.delta>0) deltaHTML = `<td style="text-align:center"><span class="delta-badge delta-up">↑${fmt(r.delta)}</span></td>`;
+      else if(r.delta<0) deltaHTML = `<td style="text-align:center"><span class="delta-badge delta-down">↓${fmt(Math.abs(r.delta))}</span></td>`;
+      else deltaHTML = `<td style="text-align:center"><span class="delta-badge delta-flat">→0</span></td>`;
+    }
+    const starHTML = r.star ?
+      `<td style="text-align:center"><span class="tag-star yes">★ 全能</span></td>` :
+      `<td style="text-align:center"><span class="tag-star no">—</span></td>`;
+    return `<tr>
+      <td class="rank ${rankClass}">${rank<=3?['①','②','③'][rank-1]:rank}</td>
+      <td class="student-name">${r.student.name}</td>
+      ${dimCells}
+      <td class="avg-cell">${fmt(r.avg)}</td>
+      ${deltaHTML}
+      ${starHTML}
+    </tr>`;
+  }).join('');
+
+  $('#tableSub').textContent = `第${week}周 · ${rows.length}人`;
+}
+
+// ===== 渲染学生详情 =====
+function renderStudentDetail(){
+  const s = STATE.students[STATE.selectedStudent];
+  if(!s) return;
+  const week = STATE.currentWeek;
+  const prevWeek = week>1 ? week-1 : null;
+  const d = getWeekData(s, week);
+  const prevD = prevWeek ? getWeekData(s, prevWeek) : null;
+  const avgScore = studentWeekAvg(s, week);
+  const prevAvg = prevWeek ? studentWeekAvg(s, prevWeek) : null;
+  const delta = prevAvg!==null ? avgScore - prevAvg : null;
+  const star = isAllStar(s, week);
+
+  // 头像颜色
+  const avatarColors = ['#2563eb','#06b6d4','#10b981','#f59e0b','#8b5cf6'];
+  const avColor = avatarColors[s.id % avatarColors.length];
+
+  // 维度卡片
+  const dimCardsHTML = DIMS.map((dim,i)=>{
+    const v = d[dim.key];
+    const prevV = prevD ? prevD[dim.key] : null;
+    const dd = prevV!==null ? v - prevV : null;
+    let deltaHTML = '<div class="dim-delta" style="color:#94a3b8">— 较上周</div>';
+    if(dd!==null){
+      if(dd>0) deltaHTML = `<div class="dim-delta" style="color:#059669">↑ ${fmt(dd)} 较上周</div>`;
+      else if(dd<0) deltaHTML = `<div class="dim-delta" style="color:#f43f5e">↓ ${fmt(Math.abs(dd))} 较上周</div>`;
+      else deltaHTML = `<div class="dim-delta" style="color:#94a3b8">→ 0 较上周</div>`;
+    }
+    return `<div class="dim-card" style="animation-delay:${i*0.08}s">
+      <div class="dim-icon" style="background:${dim.bg};color:${dim.color}">${dim.icon}</div>
+      <div class="dim-name">${dim.name}</div>
+      <div class="dim-score">${v}<span class="max">/10</span></div>
+      ${deltaHTML}
+      <div class="dim-bar"><div class="dim-bar-fill" style="background:${dim.color};width:${v*10}%;animation-delay:${0.3+i*0.08}s"></div></div>
+    </div>`;
+  }).join('');
+
+  // 个人雷达图数据
+  const radarData = DIMS.map(dim=>({ label:dim.short, value:d[dim.key], color:dim.color }));
+  // 上周雷达数据（叠加）
+  const prevRadarData = prevD ? DIMS.map(dim=>({ label:dim.short, value:prevD[dim.key], color:'#cbd5e1' })) : null;
+
+  // 趋势折线数据
+  const trendSeries = DIMS.map(dim=>{
+    const data = s.weeks.map(w=>({ x:w.week, y:w[dim.key] }));
+    return { name:dim.name, color:dim.color, data };
+  });
+  const xLabels = s.weeks.map(w=>`第${w.week}周`);
+
+  // 均分趋势
+  const avgTrend = s.weeks.map(w=>studentWeekAvg(s,w.week));
+
+  $('#studentDetailContent').innerHTML = `
+    <!-- 信息栏 -->
+    <div class="student-info-bar">
+      <div class="student-avatar" style="background:${avColor}">${s.name.charAt(0)}</div>
+      <div class="student-meta">
+        <div class="name">${s.name}</div>
+        <div class="id">学号 #${String(s.id).padStart(2,'0')}</div>
+      </div>
+      <div class="student-stat"><div class="val blue">${fmt(avgScore)}</div><div class="lbl">本周均分</div></div>
+      <div class="student-stat"><div class="val ${delta>=0?'green':'amber'}">${delta!==null?(delta>=0?'+':'')+fmt(delta):'—'}</div><div class="lbl">较上周</div></div>
+      <div class="student-stat"><div class="val ${star?'amber':''}">${star?'★':'—'}</div><div class="lbl">五星全能</div></div>
+      <div class="student-stat"><div class="val">${week}</div><div class="lbl">当前周次</div></div>
+    </div>
+
+    <!-- 维度卡片 -->
+    <div class="dim-cards">${dimCardsHTML}</div>
+
+    <!-- 图表 -->
+    <div class="student-charts-grid" style="margin-top:16px">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">个人五维雷达图<span class="sub">本周 vs 上周</span></div>
+        </div>
+        <div class="chart-body" id="stuRadar"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">各周维度趋势<span class="sub">折线图</span></div>
+        </div>
+        <div class="chart-body" id="stuLine"></div>
+      </div>
+      <div class="chart-card full">
+        <div class="chart-header">
+          <div class="chart-title">周次均分变化<span class="sub">进步轨迹</span></div>
+        </div>
+        <div class="chart-body" id="stuAvgLine"></div>
+      </div>
+    </div>
+  `;
+
+  // 渲染雷达图
+  renderRadar($('#stuRadar'), radarData, { fill:'rgba(37,99,235,.12)', stroke:'#2563eb' });
+
+  // 渲染折线图
+  renderLineChart($('#stuLine'), trendSeries, { xLabels, maxVal:10, minVal:5 });
+
+  // 均分趋势
+  renderLineChart($('#stuAvgLine'), [{ name:'均分', color:'#2563eb', data: avgTrend.map((v,i)=>({x:i+1,y:v})) }], { xLabels, maxVal:10, minVal:5 });
+}
+
+// ===== 视图切换 =====
+function switchView(view){
+  STATE.view = view;
+  if(view==='class'){
+    $('#class-view').style.display = '';
+    $('#student-view').style.display = 'none';
+    $('#pageTitle').textContent = '班级周评价总览';
+    $('#btnClassView').classList.add('active');
+    $('#btnStudentView').classList.remove('active');
+    $$('.nav-item[data-view]').forEach(n=>n.classList.toggle('active', n.dataset.view==='class'));
+  } else {
+    $('#class-view').style.display = 'none';
+    $('#student-view').style.display = '';
+    $('#pageTitle').textContent = '学生个人详情';
+    $('#btnClassView').classList.remove('active');
+    $('#btnStudentView').classList.add('active');
+    $$('.nav-item[data-view]').forEach(n=>n.classList.toggle('active', n.dataset.view==='student'));
+    renderStudentDetail();
+  }
+}
+
+// ===== 导入数据 =====
+function openImportModal(){
+  $('#importModal').classList.add('show');
+  $('#importTextarea').value = '';
+}
+function closeImportModal(){
+  $('#importModal').classList.remove('show');
+}
+function doImport(){
+  const text = $('#importTextarea').value.trim();
+  if(!text){ showToast('请粘贴数据','error'); return; }
+  const activeTab = $('.modal-tab.active').dataset.tab;
+  try{
+    if(activeTab==='csv'){
+      parseCSV(text);
+    } else {
+      parseJSON(text);
+    }
+  }catch(e){
+    showToast('导入失败：'+e.message,'error');
+  }
+}
+
+function parseCSV(text){
+  const lines = text.split('\n').map(l=>l.trim()).filter(l=>l && !l.startsWith('#') && !l.startsWith('姓名'));
+  if(lines.length===0) throw new Error('无有效数据行');
+  // 按周次分组
+  const weekMap = {}; // {weekNum: [{name, scores}]}
+  let maxWeek = 0;
+  lines.forEach(line=>{
+    const parts = line.split(',').map(p=>p.trim());
+    if(parts.length<7) throw new Error(`数据列数不足：${line}`);
+    const [name, weekStr, ...scores] = parts;
+    const week = parseInt(weekStr);
+    if(isNaN(week) || week<1) throw new Error(`无效周次：${weekStr}`);
+    if(scores.length<5) throw new Error(`分数列数不足，需5个维度`);
+    const nums = scores.slice(0,5).map(s=>parseInt(s));
+    if(nums.some(n=>isNaN(n)||n<0||n>10)) throw new Error(`分数无效（需0-10）：${scores.slice(0,5).join(',')}`);
+    if(!weekMap[week]) weekMap[week] = [];
+    weekMap[week].push({ name, scores:nums });
+    maxWeek = Math.max(maxWeek, week);
+  });
+
+  // 构建学生数据
+  // 收集所有学生姓名
+  const allNames = [...new Set(Object.values(weekMap).flat().map(r=>r.name))];
+  const newStudents = allNames.map((name,idx)=>{
+    const weeks = [];
+    for(let w=1;w<=maxWeek;w++){
+      const rec = (weekMap[w]||[]).find(r=>r.name===name);
+      if(rec){
+        const wk = { week:w };
+        DIM_KEYS.forEach((k,i)=>{ wk[k]=rec.scores[i]; });
+        weeks.push(wk);
+      }
+    }
+    return { id:idx+1, name, weeks };
+  });
+
+  STATE.students = newStudents;
+  STATE.totalWeeks = maxWeek;
+  STATE.currentWeek = maxWeek;
+  // 更新周次选择器
+  updateWeekSelector();
+  refreshAll();
+  closeImportModal();
+  showToast(`成功导入 ${newStudents.length} 名学生 · ${maxWeek} 周数据`,'success');
+}
+
+function parseJSON(text){
+  const data = JSON.parse(text);
+  if(!Array.isArray(data)) throw new Error('JSON应为数组格式');
+  // 期望格式: [{name, weeks:[{week, homework, focus, ideas, writing, kindness}]}]
+  let maxWeek = 0;
+  const newStudents = data.map((s,idx)=>{
+    if(!s.name) throw new Error(`第${idx+1}条记录缺少name`);
+    if(!Array.isArray(s.weeks)) throw new Error(`${s.name}缺少weeks数组`);
+    const weeks = s.weeks.map(w=>{
+      const wk = { week:w.week||1 };
+      DIM_KEYS.forEach(k=>{ wk[k] = clamp(parseInt(w[k])||0, 0, 10); });
+      maxWeek = Math.max(maxWeek, wk.week);
+      return wk;
+    }).sort((a,b)=>a.week-b.week);
+    return { id:idx+1, name:s.name, weeks };
+  });
+  STATE.students = newStudents;
+  STATE.totalWeeks = maxWeek;
+  STATE.currentWeek = maxWeek;
+  updateWeekSelector();
+  refreshAll();
+  closeImportModal();
+  showToast(`成功导入 ${newStudents.length} 名学生 · ${maxWeek} 周数据`,'success');
+}
+
+function updateWeekSelector(){
+  const sel = $('#selWeek');
+  const opts = [];
+  for(let w=STATE.totalWeeks;w>=1;w--){
+    opts.push(`<option value="${w}" ${w===STATE.currentWeek?'selected':''}>第${w}周</option>`);
+  }
+  sel.innerHTML = opts.join('');
+  // 更新学生选择器
+  const stuSel = $('#selStudent');
+  stuSel.innerHTML = STATE.students.map((s,i)=>`<option value="${i}" ${i===STATE.selectedStudent?'selected':''}>${s.name}</option>`).join('');
+}
+
+// ===== 导出CSV =====
+function exportCSV(){
+  const lines = ['姓名,周次,作业守卫者,眼神小雷达,金点子大王,书写小标兵,善上小天使'];
+  STATE.students.forEach(s=>{
+    s.weeks.forEach(w=>{
+      lines.push(`${s.name},${w.week},${w.homework},${w.focus},${w.ideas},${w.writing},${w.kindness}`);
+    });
+  });
+  const csv = '\uFEFF' + lines.join('\n'); // BOM for Excel
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `班级评价_第${STATE.currentWeek}周.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('已导出CSV文件','success');
+}
+
+// ===== Toast =====
+function showToast(msg, type='info'){
+  const t = $('#toast');
+  t.className = 'toast ' + type;
+  const icon = type==='success' ?
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' :
+    type==='error' ?
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>' :
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>';
+  t.innerHTML = icon + '<span>'+msg+'</span>';
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+// ===== 刷新所有 =====
+function refreshAll(){
+  // 更新导航统计
+  $('#navStudentCount').textContent = STATE.students.length;
+  const evalCount = STATE.students.filter(s=>s.weeks.some(w=>w.week===STATE.currentWeek)).length;
+  $('#navEvalCount').textContent = evalCount;
+  $('#weekBadge').textContent = `第${STATE.currentWeek}周`;
+  $('#tableSub') && ($('#tableSub').textContent = `第${STATE.currentWeek}周`);
+
+  renderKPIs();
+  renderClassCharts();
+  renderTable();
+  if(STATE.view==='student') renderStudentDetail();
+}
+
+// ===== 事件绑定 =====
+function bindEvents(){
+  // 侧边导航
+  $$('.nav-item[data-view]').forEach(item=>{
+    item.addEventListener('click',()=>{
+      switchView(item.dataset.view);
+      // 移动端关闭侧边栏
+      $('#sidebar').classList.remove('open');
+      $('#sidebarOverlay').classList.remove('show');
+    });
+  });
+
+  // 视图切换按钮
+  $('#btnClassView').addEventListener('click',()=>switchView('class'));
+  $('#btnStudentView').addEventListener('click',()=>switchView('student'));
+
+  // 周次选择
+  $('#selWeek').addEventListener('change',e=>{
+    STATE.currentWeek = parseInt(e.target.value);
+    refreshAll();
+  });
+
+  // 学生选择
+  $('#selStudent').addEventListener('change',e=>{
+    STATE.selectedStudent = parseInt(e.target.value);
+    renderStudentDetail();
+  });
+
+  // 导入按钮
+  $('#btnImport').addEventListener('click',openImportModal);
+  $('#navImport').addEventListener('click',openImportModal);
+  $('#modalClose').addEventListener('click',closeImportModal);
+  $('#modalCancel').addEventListener('click',closeImportModal);
+  $('#modalConfirm').addEventListener('click',doImport);
+  $('#importModal').addEventListener('click',e=>{
+    if(e.target===$('#importModal')) closeImportModal();
+  });
+
+  // 导入Tab切换
+  $$('.modal-tab').forEach(tab=>{
+    tab.addEventListener('click',()=>{
+      $$('.modal-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      const type = tab.dataset.tab;
+      if(type==='csv'){
+        $('#formatDesc').textContent = '每行格式：姓名,周次,作业守卫者,眼神小雷达,金点子大王,书写小标兵,善上小天使';
+        $('#formatExample').textContent = '张小明,4,9,8,7,9,10\n李小红,4,10,9,8,9,10';
+        $('#importTextarea').placeholder = '粘贴CSV数据...';
+      } else {
+        $('#formatDesc').textContent = 'JSON数组格式：[{name, weeks:[{week, homework, focus, ideas, writing, kindness}]}]';
+        $('#formatExample').textContent = '[\n  {"name":"张小明","weeks":[{"week":4,"homework":9,"focus":8,"ideas":7,"writing":9,"kindness":10}]}\n]';
+        $('#importTextarea').placeholder = '粘贴JSON数据...';
+      }
+    });
+  });
+
+  // 导出
+  $('#navExport').addEventListener('click',exportCSV);
+
+  // 表格搜索
+  $('#tableSearch').addEventListener('input',e=>{
+    STATE.searchText = e.target.value.trim();
+    renderTable();
+  });
+
+  // 移动端菜单
+  $('#mobileToggle').addEventListener('click',()=>{
+    $('#sidebar').classList.toggle('open');
+    $('#sidebarOverlay').classList.toggle('show');
+  });
+  $('#sidebarOverlay').addEventListener('click',()=>{
+    $('#sidebar').classList.remove('open');
+    $('#sidebarOverlay').classList.remove('show');
+  });
+}
+
+// ===== 初始化 =====
+function init(){
+  updateWeekSelector();
+  bindEvents();
+  refreshAll();
+}
+
+// 启动
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
