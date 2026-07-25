@@ -1644,6 +1644,14 @@ function migrateData(data) {
   data.enrichments.forEach(function(c) {
     if (c.videoUrl === undefined) c.videoUrl = '';
   });
+
+  // 兜底：用 getDefaultData 补全所有缺失字段，防止云端旧数据缺字段导致渲染崩溃
+  var defaults = getDefaultData();
+  for (var key in defaults) {
+    if (data[key] === undefined || data[key] === null) {
+      data[key] = defaults[key];
+    }
+  }
   return data;
 }
 
@@ -2158,6 +2166,7 @@ function renderClassroom() {
   const role = getCurrentRole();
   const grid = document.getElementById('courseGrid');
   if (!grid) return;
+  if (!appData.courses || !Array.isArray(appData.courses)) appData.courses = migrateData({}).courses;
 
   var gf = document.getElementById('gradeFilter');
   var sf = document.getElementById('semesterFilter');
