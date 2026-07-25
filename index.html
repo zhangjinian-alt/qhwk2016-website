@@ -3,7 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>青花微课 - 小学数学教师个人教学网站</title>
+<title>青花微课 - 小学数学教师个人网站</title>
+<meta name="description" content="青花微课——东莞市东华小学张吉年老师的数学教学网站。同步课堂、培优微课、AI作业批改、家校互通、学习反馈、多元评价，让每个孩子都能在数学中找到乐趣与自信。">
+<meta name="keywords" content="小学数学,数学教学,作业批改,数学思维,三年级数学,四年级数学,五年级数学,六年级数学,青花微课,张吉年,东华小学">
+<meta property="og:type" content="website">
+<meta property="og:title" content="青花微课 - 小学数学教师个人网站">
+<meta property="og:description" content="同步课堂、培优微课、AI作业批改、家校互通，让每个孩子都能在数学中找到乐趣与自信。">
+<meta property="og:url" content="https://qhwk2016.com">
+<meta property="og:locale" content="zh_CN">
+<link rel="canonical" href="https://qhwk2016.com/">
+<link rel="icon" type="image/x-icon" href="/favicon.ico?v=20260724">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=20260724">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=20260724">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20260724">
+<link rel="manifest" href="/site.webmanifest?v=20260724">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "EducationalOrganization",
+  "name": "青花微课",
+  "description": "小学数学教师张吉年的个人网站，提供同步课堂、培优微课、AI作业批改等服务",
+  "url": "https://qhwk2016.com",
+  "address": {"@type": "PostalAddress", "addressLocality": "东莞", "addressRegion": "广东", "addressCountry": "CN"},
+  "teacher": {"@type": "Person", "name": "张吉年", "jobTitle": "小学数学教师"}
+}
+</script>
 <style>
 /* ===== CSS Variables & Reset ===== */
 :root {
@@ -64,9 +88,7 @@ img { max-width:100%; display:block; }
   flex-shrink:0;
 }
 .logo-icon {
-  width:36px; height:36px; background:var(--primary);
-  border-radius:10px; display:flex; align-items:center; justify-content:center;
-  font-size:20px; color:white;
+  width:36px; height:36px; border-radius:10px; object-fit:contain; background:transparent;
 }
 .logo-text {
   display:flex; flex-direction:column; line-height:1.2;
@@ -136,7 +158,7 @@ img { max-width:100%; display:block; }
   border-radius:20px; font-size:15px; font-weight:600; color:var(--primary);
   margin-bottom:24px; box-shadow:var(--shadow-sm);
 }
-.hero-badge .mascot { font-size:24px; }
+.hero-badge .mascot { width:24px; height:24px; vertical-align:middle; margin-right:6px; }
 .hero h1 {
   font-size:clamp(28px,5vw,42px); font-weight:700;
   color:var(--text); margin-bottom:12px;
@@ -552,6 +574,77 @@ img { max-width:100%; display:block; }
   100% { transform:scale(1); opacity:1; }
 }
 
+/* ===== Learning Calendar ===== */
+.calendar-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.calendar-header .cal-title { font-size:18px; font-weight:600; }
+.calendar-header .cal-legend { display:flex; gap:12px; font-size:12px; color:var(--text-muted); }
+.calendar-header .cal-legend span { display:flex; align-items:center; gap:4px; }
+.cal-legend .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+.cal-weekdays { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:6px; }
+.cal-weekdays div { text-align:center; font-size:13px; font-weight:600; color:var(--text-muted); padding:4px; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.cal-day { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:8px; font-size:14px; cursor:pointer; transition:var(--transition); position:relative; }
+.cal-day:hover { transform:scale(1.08); }
+.cal-day.empty { cursor:default; }
+.cal-day.empty:hover { transform:none; }
+.cal-day.has-learning { background:#F0FFF4; color:#52C41A; }
+.cal-day.all-done { background:#FFF7E6; color:#FA8C16; font-weight:700; }
+.cal-day.today { border:2px solid var(--primary); }
+
+/* ===== Adventure Map ===== */
+.adventure-node { background:var(--bg-card); border-radius:var(--radius-lg); padding:24px; box-shadow:var(--shadow); text-align:center; position:relative; transition:var(--transition); margin-bottom:16px; }
+.adventure-node:hover { box-shadow:var(--shadow-lg); transform:translateY(-2px); }
+.adventure-node.locked { opacity:0.5; filter:grayscale(0.8); }
+.adventure-node.cleared { border:2px solid var(--success); }
+.adventure-node .scene-icon { font-size:40px; margin-bottom:8px; }
+.adventure-node .scene-name { font-size:18px; font-weight:700; margin-bottom:4px; }
+.adventure-node .scene-desc { font-size:13px; color:var(--text-muted); margin-bottom:12px; }
+.adventure-node .scene-stars { font-size:22px; margin-bottom:8px; }
+.adventure-node .scene-state { display:inline-block; padding:4px 14px; border-radius:12px; font-size:13px; font-weight:600; }
+.adventure-state-locked { background:var(--bg); color:var(--text-muted); }
+.adventure-state-pending { background:var(--primary-bg); color:var(--primary); }
+.adventure-state-progress { background:#FFF7E6; color:#FA8C16; }
+.adventure-state-cleared { background:#F0FFF4; color:var(--success); }
+.adventure-connector { text-align:center; font-size:24px; color:var(--border); margin:-8px 0 8px; }
+
+/* ===== Review Recommendations ===== */
+.review-list { display:flex; flex-direction:column; gap:12px; }
+.review-item { display:flex; align-items:center; gap:16px; background:var(--bg-card); border-radius:var(--radius); padding:16px 20px; box-shadow:var(--shadow-sm); transition:var(--transition); }
+.review-item:hover { box-shadow:var(--shadow); }
+.review-rank { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; flex-shrink:0; }
+.review-rank.top1 { background:#FFF7E6; color:#FA8C16; }
+.review-rank.top2 { background:#EBF5FF; color:var(--primary); }
+.review-rank.top3 { background:#F0FFF4; color:var(--success); }
+.review-rank.other { background:var(--bg); color:var(--text-muted); }
+.review-content { flex:1; }
+.review-content .review-topic { font-size:15px; font-weight:600; margin-bottom:2px; }
+.review-content .review-reason { font-size:13px; color:var(--text-muted); }
+.review-actions { display:flex; gap:8px; flex-shrink:0; }
+
+/* ===== Teacher Info Card ===== */
+.teacher-card { display:flex; align-items:center; gap:24px; background:var(--bg-card); border-radius:var(--radius-lg); padding:32px; box-shadow:var(--shadow); margin-bottom:20px; }
+.teacher-avatar { width:100px; height:100px; border-radius:50%; object-fit:contain; background:linear-gradient(135deg,var(--primary),var(--primary-light)); flex-shrink:0; padding:8px; box-sizing:border-box; }
+.teacher-info-text { flex:1; }
+.teacher-info-text h3 { font-size:24px; font-weight:700; margin-bottom:4px; }
+.teacher-info-text .teacher-grade { font-size:14px; color:var(--primary); font-weight:500; margin-bottom:8px; }
+.teacher-info-text .teacher-motto { font-size:15px; color:var(--text-secondary); font-style:italic; }
+
+/* ===== Filter Bar ===== */
+.filter-bar { display:flex; gap:12px; margin-bottom:24px; flex-wrap:wrap; align-items:center; }
+.filter-bar .filter-label { font-size:14px; font-weight:500; color:var(--text-secondary); }
+.filter-select { padding:8px 16px; border:2px solid var(--border); border-radius:var(--radius-sm); font-size:14px; background:var(--bg); cursor:pointer; outline:none; transition:var(--transition); }
+.filter-select:focus { border-color:var(--primary); background:white; }
+
+/* ===== Time Filter ===== */
+.time-filter { display:flex; gap:8px; margin-bottom:16px; }
+.time-filter-btn { padding:6px 16px; border-radius:16px; font-size:13px; font-weight:500; color:var(--text-muted); background:var(--bg); cursor:pointer; transition:var(--transition); border:none; }
+.time-filter-btn.active { background:var(--primary); color:white; }
+
+/* ===== Category Tabs ===== */
+.cat-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+.cat-tab { padding:6px 16px; border-radius:16px; font-size:13px; font-weight:500; color:var(--text-muted); background:var(--bg); cursor:pointer; transition:var(--transition); border:none; }
+.cat-tab.active { background:var(--primary); color:white; }
+
 /* ===== Responsive ===== */
 @media (max-width:768px) {
   .nav-desktop { display:none; }
@@ -574,6 +667,35 @@ img { max-width:100%; display:block; }
   .medal-grid { grid-template-columns:repeat(2,1fr); }
   .store-grid { grid-template-columns:1fr; }
   .hero-cta { flex-direction:column; align-items:center; }
+  .hw-list-item { flex-direction:column; }
+  .hw-thumb { width:100%; height:auto; max-height:160px; }
+  .hw-upload-area { padding:24px 16px; }
+}
+
+/* ===== Homework Styles ===== */
+.hw-upload-zone { background:var(--bg-card); border-radius:var(--radius-lg); padding:24px; box-shadow:var(--shadow); margin-bottom:24px; }
+.hw-upload-area { border:2px dashed var(--border); border-radius:var(--radius); padding:32px; text-align:center; cursor:pointer; transition:var(--transition); }
+.hw-upload-area:hover { border-color:var(--primary); background:var(--primary-bg); }
+.hw-upload-area.active { border-color:var(--primary); background:var(--primary-bg); }
+.hw-preview { max-width:200px; max-height:200px; border-radius:var(--radius-sm); margin:8px auto; display:block; }
+.hw-list-item { background:var(--bg-card); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:var(--shadow-sm); display:flex; gap:16px; align-items:flex-start; }
+.hw-thumb { width:80px; height:80px; object-fit:cover; border-radius:8px; flex-shrink:0; }
+.hw-info { flex:1; min-width:0; }
+.hw-status { display:inline-block; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:500; }
+.hw-status.pending { background:#FAEEDA; color:#BA7517; }
+.hw-status.grading { background:#E6F1FB; color:#185FA5; }
+.hw-status.graded { background:#EAF3DE; color:#3B6D11; }
+.hw-status.reviewed { background:#EAF3DE; color:#27500A; }
+.hw-status.failed { background:#FCEBEB; color:#A32D2D; }
+.hw-detail { background:var(--bg-card); border-radius:var(--radius-lg); padding:24px; box-shadow:var(--shadow); }
+.hw-problem { padding:12px; border-radius:8px; margin-bottom:8px; }
+.hw-problem.correct { background:#EAF3DE; }
+.hw-problem.wrong { background:#FCEBEB; }
+.hw-problem-label { font-size:13px; font-weight:500; margin-bottom:4px; }
+.hw-problem-detail { font-size:12px; color:var(--text-secondary); }
+.hw-filter-bar { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+.hw-filter-btn { padding:6px 14px; border-radius:16px; font-size:13px; font-weight:500; background:var(--bg); color:var(--text-secondary); cursor:pointer; transition:var(--transition); border:none; }
+.hw-filter-btn.active { background:var(--primary); color:white; }
 }
 </style>
 </head>
@@ -583,7 +705,7 @@ img { max-width:100%; display:block; }
 <header class="header">
   <div class="header-inner">
     <div class="logo" onclick="navigate('home')">
-      <div class="logo-icon">🧮</div>
+      <img class="logo-icon" src="logo.png?v=20260724" alt="青花微课">
       <div class="logo-text">
         <span class="logo-title">青花微课</span>
         <span class="logo-domain">qhwk2016.com</span>
@@ -592,7 +714,7 @@ img { max-width:100%; display:block; }
     <nav class="nav-desktop" id="navDesktop">
       <a href="#" data-page="home" class="active">首页</a>
       <a href="#" data-page="classroom">同步课堂</a>
-      <a href="#" data-page="thinking">思维拓展</a>
+      <a href="#" data-page="thinking">培优微课</a>
       <a href="#" data-page="parent">家校互通</a>
       <a href="#" data-page="feedback">学习反馈</a>
       <a href="#" data-page="evaluate">多元评价</a>
@@ -612,7 +734,7 @@ img { max-width:100%; display:block; }
 <nav class="mobile-nav" id="mobileNav">
   <a href="#" data-page="home" class="active" onclick="navigate('home');toggleMobileNav()">首页</a>
   <a href="#" data-page="classroom" onclick="navigate('classroom');toggleMobileNav()">同步课堂</a>
-  <a href="#" data-page="thinking" onclick="navigate('thinking');toggleMobileNav()">思维拓展</a>
+  <a href="#" data-page="thinking" onclick="navigate('thinking');toggleMobileNav()">培优微课</a>
   <a href="#" data-page="parent" onclick="navigate('parent');toggleMobileNav()">家校互通</a>
   <a href="#" data-page="feedback" onclick="navigate('feedback');toggleMobileNav()">学习反馈</a>
   <a href="#" data-page="evaluate" onclick="navigate('evaluate');toggleMobileNav()">多元评价</a>
@@ -629,8 +751,7 @@ img { max-width:100%; display:block; }
 <div class="hero">
   <div class="container">
     <div class="hero-badge">
-      <span class="mascot">🧮</span>
-      <span id="welcomeMsg">欢迎回来，小明同学！</span>
+      <img class="mascot" src="logo.png?v=20260724" alt=""><span id="welcomeMsg">欢迎回来，小明同学！</span>
     </div>
     <h1 id="heroTitle">今天小π带来了「有趣的分数」</h1>
     <p class="subtitle">每天进步一点点，数学其实很好玩！</p>
@@ -650,7 +771,7 @@ img { max-width:100%; display:block; }
   <h2 class="section-title" id="homeTaskTitle">📋 今日任务清单</h2>
   <div class="task-grid" id="homeTaskGrid">
     <div class="video-card">
-      <div class="video-thumb" onclick="openVideo('分数的基本概念')">
+      <div class="video-thumb" onclick="openVideo(0)">
         <div class="play-btn">▶</div>
       </div>
       <h3>分数的基本概念</h3>
@@ -679,6 +800,13 @@ img { max-width:100%; display:block; }
   </div>
 </div>
 
+<div class="container section" id="homeCalendarSection">
+  <h2 class="section-title">📅 学习月历</h2>
+  <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
+    <div id="calendarContainer"></div>
+  </div>
+</div>
+
 <div class="container section" id="homeQuickSection">
   <h2 class="section-title" id="homeQuickTitle">快捷入口</h2>
   <div class="quick-grid">
@@ -688,9 +816,9 @@ img { max-width:100%; display:block; }
       <p>微课视频 + 随堂练习</p>
     </div>
     <div class="quick-card" onclick="navigate('thinking')">
-      <div class="icon" style="background:#FFF7E6;">🧠</div>
-      <h4>思维拓展</h4>
-      <p>闯关挑战 + 趣味数学</p>
+      <div class="icon" style="background:#FFF7E6;">🌟</div>
+      <h4>培优微课</h4>
+      <p>培优拓展 + 思维提升</p>
     </div>
     <div class="quick-card" onclick="navigate('parent')">
       <div class="icon" style="background:#F0FFF4;">🏠</div>
@@ -720,6 +848,22 @@ img { max-width:100%; display:block; }
 <section class="page" id="page-classroom">
 <div class="container section">
   <h2 class="section-title">📚 同步课堂</h2>
+  <div class="filter-bar" id="classroomFilterBar">
+    <span class="filter-label">年级：</span>
+    <select class="filter-select" id="gradeFilter" onchange="applyClassroomFilter()">
+      <option value="all">全部年级</option>
+      <option value="三年级">三年级</option>
+      <option value="四年级">四年级</option>
+      <option value="五年级">五年级</option>
+      <option value="六年级">六年级</option>
+    </select>
+    <span class="filter-label">学期：</span>
+    <select class="filter-select" id="semesterFilter" onchange="applyClassroomFilter()">
+      <option value="all">全部学期</option>
+      <option value="上">上学期</option>
+      <option value="下">下学期</option>
+    </select>
+  </div>
   <div class="course-grid" id="courseGrid"></div>
 </div>
 <div class="container section">
@@ -730,15 +874,27 @@ img { max-width:100%; display:block; }
 </div>
 </section>
 
-<!-- ===== THINKING PAGE ===== -->
+<!-- ===== ENRICHMENT PAGE (培优微课) ===== -->
 <section class="page" id="page-thinking">
 <div class="container section">
-  <h2 class="section-title">🧠 数学思维拓展</h2>
-  <div class="level-grid" id="levelGrid"></div>
-</div>
-<div class="container section">
-  <h3 style="margin-bottom:20px;">🌈 生活中的数学</h3>
-  <div class="card-grid" id="lifeMathGrid"></div>
+  <h2 class="section-title">🌟 培优微课</h2>
+  <div class="filter-bar" id="enrichmentFilterBar">
+    <span class="filter-label">年级：</span>
+    <select class="filter-select" id="enrichmentGradeFilter" onchange="applyEnrichmentFilter()">
+      <option value="all">全部年级</option>
+      <option value="三年级">三年级</option>
+      <option value="四年级">四年级</option>
+      <option value="五年级">五年级</option>
+      <option value="六年级">六年级</option>
+    </select>
+    <span class="filter-label">学期：</span>
+    <select class="filter-select" id="enrichmentSemesterFilter" onchange="applyEnrichmentFilter()">
+      <option value="all">全部学期</option>
+      <option value="上">上学期</option>
+      <option value="下">下学期</option>
+    </select>
+  </div>
+  <div class="course-grid" id="enrichmentGrid"></div>
 </div>
 </section>
 
@@ -770,16 +926,23 @@ img { max-width:100%; display:block; }
     </div>
   </div>
 </div>
+<!-- 作业上传区 -->
+<div class="container section" id="hwUploadSection">
+</div>
 </section>
-
-<!-- ===== FEEDBACK PAGE ===== -->
 <section class="page" id="page-feedback">
 <div class="container section">
   <h2 class="section-title">📊 学习反馈</h2>
+  <div class="time-filter" id="feedbackTimeFilter">
+    <button class="time-filter-btn active" onclick="setFeedbackTimeRange('week',this)">近一周</button>
+    <button class="time-filter-btn" onclick="setFeedbackTimeRange('month',this)">近一月</button>
+    <button class="time-filter-btn" onclick="setFeedbackTimeRange('all',this)">全部</button>
+  </div>
   <div class="radar-section">
     <div class="chart-container">
-      <h3 style="margin-bottom:16px;">三维学习雷达图</h3>
-      <canvas id="radar3D" width="360" height="360"></canvas>
+      <h3 style="margin-bottom:16px;">五维能力雷达图</h3>
+      <canvas id="radar3D" width="380" height="380"></canvas>
+      <div id="radarAnalysis" style="margin-top:12px;font-size:13px;color:var(--text-muted);"></div>
     </div>
     <div>
       <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);margin-bottom:20px;">
@@ -793,65 +956,28 @@ img { max-width:100%; display:block; }
   <h3 style="margin-bottom:20px;">📝 错题本</h3>
   <div class="mistake-list" id="mistakeList"></div>
 </div>
+<div class="container section" id="reviewSection">
+  <h3 style="margin-bottom:20px;">🎯 智能复习推荐</h3>
+  <div class="review-list" id="reviewList"></div>
+</div>
+<!-- 作业批改/反馈区 -->
+<div class="container section" id="hwGradingSection">
+</div>
 </section>
-
-<!-- ===== EVALUATE PAGE ===== -->
 <section class="page" id="page-evaluate">
-<div class="container section">
-  <h2 class="section-title">🏆 多元评价</h2>
-  <div class="radar-section">
-    <div class="chart-container">
-      <h3 style="margin-bottom:16px;">五维雷达图</h3>
-      <canvas id="radar5D" width="380" height="380"></canvas>
-    </div>
-    <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
-      <h3 style="margin-bottom:16px;">🎉 电子喜报</h3>
-      <div style="text-align:center;padding:20px;background:linear-gradient(135deg,#FFF7E6,#FFF0F5);border-radius:var(--radius);">
-        <p style="font-size:20px;font-weight:700;color:var(--star);margin-bottom:8px;">🌟 优秀学员喜报</p>
-        <div style="width:60px;height:60px;background:var(--primary);border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:28px;color:white;">🧮</div>
-        <p style="font-size:18px;font-weight:600;">小明同学</p>
-        <p style="font-size:14px;color:var(--text-secondary);margin:8px 0;">计算 | 理解 | 审题全面发展</p>
-        <p style="font-size:13px;color:var(--text-muted);font-style:italic;">"继续保持认真审题的好习惯，你是最棒的！"</p>
-      </div>
-    </div>
+
+<!-- 班级一周评价看板（顶部） -->
+<div class="container section" id="classEvalSection">
+  <h2 class="section-title">📊 班级一周评价</h2>
+  <div style="background:var(--bg-card);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow);">
+    <iframe id="classDashboardFrame" src="" style="width:100%;height:750px;border:none;" allow="clipboard-write"></iframe>
   </div>
 </div>
-<div class="container section">
-  <h3 style="margin-bottom:20px;">🏅 勋章墙</h3>
-  <div class="medal-grid" id="medalWall"></div>
-</div>
-<div class="container section">
-  <h3 style="margin-bottom:20px;">🎁 积分商城</h3>
-  <div class="store-grid" id="pointStore"></div>
-</div>
-<div class="container section">
-  <h3 style="margin-bottom:20px;">🧰 教师工具箱</h3>
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
-    <a href="五维评价/class-dashboard.html" style="text-decoration:none;color:inherit;">
-      <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);transition:transform 0.2s,box-shadow 0.2s;cursor:pointer;border-top:4px solid var(--primary);" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='var(--shadow-hover)'" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow)'">
-        <div style="font-size:32px;margin-bottom:12px;">📊</div>
-        <h4 style="font-size:18px;margin-bottom:8px;">班级评价看板</h4>
-        <p style="font-size:14px;color:var(--text-secondary);line-height:1.5;">五维评分数据看板，班级周评价统计、学生详情、CSV导入导出</p>
-        <p style="font-size:12px;color:var(--primary);margin-top:12px;font-weight:600;">点击进入 →</p>
-      </div>
-    </a>
-    <a href="https://api.qhwk2016.com/quality/" target="_blank" style="text-decoration:none;color:inherit;">
-      <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);transition:transform 0.2s,box-shadow 0.2s;cursor:pointer;border-top:4px solid var(--accent);" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='var(--shadow-hover)'" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow)'">
-        <div style="font-size:32px;margin-bottom:12px;">📈</div>
-        <h4 style="font-size:18px;margin-bottom:8px;">质量分析平台</h4>
-        <p style="font-size:14px;color:var(--text-secondary);line-height:1.5;">教学质量可视化，年级总览、班级排名、一分四率数据分析</p>
-        <p style="font-size:12px;color:var(--accent);margin-top:12px;font-weight:600;">需密码登录 →</p>
-      </div>
-    </a>
-    <a href="课堂行为/index.html" style="text-decoration:none;color:inherit;">
-      <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);transition:transform 0.2s,box-shadow 0.2s;cursor:pointer;border-top:4px solid var(--secondary);" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='var(--shadow-hover)'" onmouseout="this.style.transform='';this.style.boxShadow='var(--shadow)'">
-        <div style="font-size:32px;margin-bottom:12px;">🎥</div>
-        <h4 style="font-size:18px;margin-bottom:8px;">课堂行为监测</h4>
-        <p style="font-size:14px;color:var(--text-secondary);line-height:1.5;">AI课堂行为检测系统，学生/教师行为识别与统计分析</p>
-        <p style="font-size:12px;color:var(--secondary);margin-top:12px;font-weight:600;">演示模式 →</p>
-      </div>
-    </a>
-  </div>
+
+<!-- 个人评价（底部 - 需登录） -->
+<div class="container section" id="personalEvalSection">
+  <h2 class="section-title">👤 个人五维评价</h2>
+  <div id="personalEvalContent"></div>
 </div>
 </section>
 
@@ -859,22 +985,14 @@ img { max-width:100%; display:block; }
 <section class="page" id="page-about">
 <div class="container section">
   <h2 class="section-title">👤 关于我</h2>
+  <div class="teacher-card" id="teacherInfoCard"></div>
   <div class="about-section">
-    <h3 style="font-size:22px;margin-bottom:12px;">教学理念</h3>
-    <p style="color:var(--text-secondary);line-height:1.8;">
-      我相信每个孩子都有学好数学的潜力。数学不是冰冷的公式，而是理解世界的语言。
-      在我的课堂上，我注重培养孩子们的<strong>数学思维</strong>和<strong>学习兴趣</strong>，
-      让每个孩子都能在轻松愉快的氛围中掌握数学知识，建立自信。
-    </p>
+    <div id="aboutPhilosophyHeader"></div>
+    <div id="aboutPhilosophy"></div>
   </div>
   <div class="about-section">
-    <h3 style="font-size:22px;margin-bottom:12px;">工作经历与荣誉</h3>
-    <ul style="color:var(--text-secondary);line-height:2;padding-left:20px;">
-      <li>教龄 12 年，一直从事小学数学教学工作</li>
-      <li>市级骨干教师、优秀班主任</li>
-      <li>多次获得市级优质课比赛一等奖</li>
-      <li>开发的"青花微课"系列微课资源覆盖三年级至六年级全部知识点</li>
-    </ul>
+    <div id="aboutHonorsHeader"></div>
+    <div id="aboutHonors"></div>
   </div>
   <div class="about-section">
     <h3 style="font-size:22px;margin-bottom:16px;">📝 教学反思</h3>
@@ -893,7 +1011,7 @@ img { max-width:100%; display:block; }
     <div class="footer-col">
       <h4>学习</h4>
       <a href="#" onclick="navigate('classroom')">同步课堂</a>
-      <a href="#" onclick="navigate('thinking')">思维拓展</a>
+      <a href="#" onclick="navigate('thinking')">培优微课</a>
       <a href="#" onclick="navigate('feedback')">错题本</a>
     </div>
     <div class="footer-col">
@@ -910,7 +1028,7 @@ img { max-width:100%; display:block; }
     </div>
   </div>
   <div class="footer-bottom">
-    © 2026 青花微课 - 小学数学教师个人教学网站<br>
+    © 2026 青花微课 - 小学数学教师个人网站<br>
     <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" style="color:#CCD5DE;">粤ICP备2026098482号-1</a><br>
     <span class="beian-line">
       <img src="police-icon.png?v=20260721" alt="公安备案" />
@@ -1009,7 +1127,7 @@ img { max-width:100%; display:block; }
     <!-- 注册视图 -->
     <div id="cloudRegisterView" style="display:none;">
       <h3 style="margin:0 0 8px;font-size:20px;text-align:center;color:#333;">☁️ 注册云端账号</h3>
-      <p style="color:#888;font-size:13px;margin:0 0 20px;text-align:center;line-height:1.5;">教师内部使用，注册需邀请码</p>
+      <p style="color:#888;font-size:13px;margin:0 0 20px;text-align:center;line-height:1.5;">注册需邀请码，请联系张老师获取</p>
       <input type="text" id="cloudRegUsername" placeholder="用户名（英文/数字）" autocomplete="username" style="width:100%;padding:12px;margin-bottom:10px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
       <input type="password" id="cloudRegPassword" placeholder="密码（至少8位）" autocomplete="new-password" style="width:100%;padding:12px;margin-bottom:10px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
       <input type="password" id="cloudRegPassword2" placeholder="再次输入密码" autocomplete="new-password" style="width:100%;padding:12px;margin-bottom:10px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
@@ -1036,6 +1154,25 @@ function isCloudLoggedIn() { return !!getCloudToken(); }
 
 // 本地记录的云端数据版本号（用于乐观锁）
 let cloudDataVersion = 0;
+
+// 从后端错误响应 / 异常对象中提取可读错误信息
+function extractErrorDetail(err) {
+  if (!err) return null;
+  if (typeof err === 'string') return err;
+  if (err.detail) {
+    if (typeof err.detail === 'string') return err.detail;
+    if (Array.isArray(err.detail)) {
+      return err.detail.map(function(d) {
+        return (typeof d === 'string') ? d : (d.msg || d.message || JSON.stringify(d));
+      }).join('; ');
+    }
+    if (typeof err.detail === 'object') {
+      return err.detail.msg || err.detail.message || JSON.stringify(err.detail);
+    }
+  }
+  if (err.message) return err.message;
+  try { return JSON.stringify(err); } catch (e) { return '未知错误'; }
+}
 
 // 封装带认证的 fetch
 async function fetchWithAuth(url, options = {}) {
@@ -1070,7 +1207,7 @@ async function syncToCloud() {
       // 版本冲突：云端有更新的数据，用云端覆盖本地
       const result = await resp.json();
       const detail = result.detail;
-      appData = JSON.parse(detail.server_data);
+      appData = migrateData(JSON.parse(detail.server_data));
       cloudDataVersion = detail.server_version;
       localStorage.setItem(DATA_KEY, encryptData(appData));
       updateHomeStats();
@@ -1135,7 +1272,7 @@ async function doCloudLogin() {
     showToast("云端登录成功！正在同步数据...");
     const cloudData = await loadFromCloud();
     if (cloudData && Object.keys(cloudData).length > 0) {
-      appData = cloudData; localStorage.setItem(DATA_KEY, encryptData(appData));
+      appData = migrateData(cloudData); localStorage.setItem(DATA_KEY, encryptData(appData));
       updateHomeStats(); draw3DRadar();
       setSyncStatus("synced");
       showToast("云端数据已同步到本地");
@@ -1455,19 +1592,74 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 // ===== DATA STORE =====
+function migrateData(data) {
+  // 数据迁移：确保旧数据包含新字段（loadData 与云端同步共用，避免旧云端数据缺字段导致渲染崩溃）
+  if (data.thinkingLevels) {
+    var scenes = ['🌲','⚔️','🏰','🧩','🌟'];
+    data.thinkingLevels.forEach(function(l, i) {
+      if (l.videoUrl === undefined) l.videoUrl = '';
+      if (l.scene === undefined) l.scene = scenes[i % scenes.length];
+      if (l.state === undefined) l.state = l.unlocked ? (i === 0 ? 'cleared' : 'pending') : 'locked';
+      if (l.earnedStars === undefined) l.earnedStars = l.unlocked ? (l.difficulty || 1) : 0;
+    });
+  }
+  if (!data.courses || !Array.isArray(data.courses) || data.courses.length === 0) {
+    data.courses = [
+      { title: '分数的基本概念', grade: '三年级', thumb: '#4A90D9', duration: '8分钟', videoUrl: '' },
+      { title: '分数的大小比较', grade: '三年级', thumb: '#7AB8F5', duration: '10分钟', videoUrl: '' },
+      { title: '同分母分数加减', grade: '三年级', thumb: '#52C41A', duration: '12分钟', videoUrl: '' },
+      { title: '小数的初步认识', grade: '三年级', thumb: '#FAAD14', duration: '9分钟', videoUrl: '' },
+      { title: '两位数乘两位数', grade: '三年级', thumb: '#FF7A45', duration: '15分钟', videoUrl: '' },
+      { title: '面积的计算', grade: '三年级', thumb: '#9254DE', duration: '11分钟', videoUrl: '' },
+    ];
+  }
+  data.courses.forEach(function(c) {
+    if (c.videoUrl === undefined) c.videoUrl = '';
+  });
+  if (data.lifeMath) {
+    data.lifeMath.forEach(function(l) {
+      if (l.category === undefined) l.category = '生活中的数学';
+    });
+  }
+  if (!data.learningCalendar) data.learningCalendar = {};
+  if (!data.teacherInfo) data.teacherInfo = { name:'张吉年老师', grade:'小学数学（三至六年级）', motto:'让每个孩子都能在数学中找到乐趣与自信' };
+  if (!data.reviewTopics) data.reviewTopics = [];
+  if (!data.classroomFilter) data.classroomFilter = { grade:'all', semester:'all' };
+  if (!data.enrichmentFilter) data.enrichmentFilter = { grade:'all', semester:'all' };
+  if (data.lifeMathCategory === undefined) data.lifeMathCategory = 'all';
+  if (!data.enrichments || !Array.isArray(data.enrichments) || data.enrichments.length === 0) {
+    data.enrichments = [
+      { title: '巧算速算技巧', grade: '三年级', thumb: '#FF6B6B', duration: '12分钟', videoUrl: '' },
+      { title: '图形计数进阶', grade: '三年级', thumb: '#4ECDC4', duration: '15分钟', videoUrl: '' },
+      { title: '等量代换思想', grade: '三年级', thumb: '#45B7D1', duration: '10分钟', videoUrl: '' },
+      { title: '周期问题精讲', grade: '四年级', thumb: '#96CEB4', duration: '14分钟', videoUrl: '' },
+      { title: '鸡兔同笼拓展', grade: '四年级', thumb: '#FFEAA7', duration: '18分钟', videoUrl: '' },
+      { title: '行程问题基础', grade: '四年级', thumb: '#DDA0DD', duration: '16分钟', videoUrl: '' },
+      { title: '分数应用题进阶', grade: '五年级', thumb: '#F0E68C', duration: '20分钟', videoUrl: '' },
+      { title: '数列规律探索', grade: '五年级', thumb: '#87CEEB', duration: '15分钟', videoUrl: '' },
+      { title: '工程问题精讲', grade: '六年级', thumb: '#20B2AA', duration: '22分钟', videoUrl: '' },
+      { title: '比例应用提升', grade: '六年级', thumb: '#FFA07A', duration: '18分钟', videoUrl: '' },
+    ];
+  }
+  data.enrichments.forEach(function(c) {
+    if (c.videoUrl === undefined) c.videoUrl = '';
+  });
+  return data;
+}
+
 function loadData() {
   const raw = localStorage.getItem(DATA_KEY);
   if (!raw) return getDefaultData();
   
   // Try encrypted first, then fallback to plain JSON
+  var data = null;
   const decrypted = decryptData(raw);
-  if (decrypted) return decrypted;
-  
-  try {
-    return JSON.parse(raw);
-  } catch (e) {
-    return getDefaultData();
+  if (decrypted) data = decrypted;
+  else {
+    try { data = JSON.parse(raw); } catch (e) { return getDefaultData(); }
   }
+
+  return migrateData(data);
 }
 
 function saveData() {
@@ -1493,21 +1685,27 @@ function getDefaultData() {
       { name: '思维王者', icon: '🔒', type: 'locked', unlocked: false, date: '', condition: '通过头脑风暴关卡' },
     ],
     courses: [
-      { title: '分数的基本概念', grade: '三年级', thumb: '#4A90D9', duration: '8分钟' },
-      { title: '分数的大小比较', grade: '三年级', thumb: '#7AB8F5', duration: '10分钟' },
-      { title: '同分母分数加减', grade: '三年级', thumb: '#52C41A', duration: '12分钟' },
-      { title: '小数的初步认识', grade: '三年级', thumb: '#FAAD14', duration: '9分钟' },
-      { title: '两位数乘两位数', grade: '三年级', thumb: '#FF7A45', duration: '15分钟' },
-      { title: '面积的计算', grade: '三年级', thumb: '#9254DE', duration: '11分钟' },
+      { title: '分数的基本概念', grade: '三年级', thumb: '#4A90D9', duration: '8分钟', videoUrl: '' },
+      { title: '分数的大小比较', grade: '三年级', thumb: '#7AB8F5', duration: '10分钟', videoUrl: '' },
+      { title: '同分母分数加减', grade: '三年级', thumb: '#52C41A', duration: '12分钟', videoUrl: '' },
+      { title: '小数的初步认识', grade: '三年级', thumb: '#FAAD14', duration: '9分钟', videoUrl: '' },
+      { title: '两位数乘两位数', grade: '三年级', thumb: '#FF7A45', duration: '15分钟', videoUrl: '' },
+      { title: '面积的计算', grade: '三年级', thumb: '#9254DE', duration: '11分钟', videoUrl: '' },
     ],
     thinkingLevels: [
-      { name: '基础推理', stars: '⭐', difficulty: 1, desc: '适合初学者的逻辑推理', unlocked: true },
-      { name: '进阶挑战', stars: '⭐⭐', difficulty: 2, desc: '需要一定的数学基础', unlocked: true },
-      { name: '头脑风暴', stars: '⭐⭐⭐', difficulty: 3, desc: '挑战你的思维极限', unlocked: false },
+      { name: '森林入口', scene: '🌲', stars: '⭐', difficulty: 1, desc: '基础推理关卡，适合入门挑战', unlocked: true, state: 'cleared', earnedStars: 3, videoUrl: '' },
+      { name: '基础试炼', scene: '⚔️', stars: '⭐⭐', difficulty: 2, desc: '需要一定的数学运算基础', unlocked: true, state: 'cleared', earnedStars: 2, videoUrl: '' },
+      { name: '城堡谜题', scene: '🏰', stars: '⭐⭐', difficulty: 2, desc: '逻辑解谜与推理挑战', unlocked: true, state: 'progress', earnedStars: 0, videoUrl: '' },
+      { name: '逻辑挑战', scene: '🧩', stars: '⭐⭐⭐', difficulty: 3, desc: '挑战你的逻辑思维极限', unlocked: false, state: 'pending', earnedStars: 0, videoUrl: '' },
+      { name: '星空宝藏', scene: '🌟', stars: '⭐⭐⭐', difficulty: 3, desc: '终极关卡，赢取星空宝藏', unlocked: false, state: 'locked', earnedStars: 0, videoUrl: '' },
     ],
     lifeMath: [
-      { title: '超市里的分数', desc: '和爸爸妈妈去超市，找出3个用到分数的商品标签', done: false },
-      { title: '家里的对称轴', desc: '在家中找到5个对称的物品并拍照记录', done: false },
+      { title: '超市里的分数', desc: '和爸爸妈妈去超市，找出3个用到分数的商品标签', category: '生活中的数学', done: false },
+      { title: '家里的对称轴', desc: '在家中找到5个对称的物品并拍照记录', category: '生活中的数学', done: false },
+      { title: '高斯求和的故事', desc: '小高斯如何快速计算1+2+...+100？', category: '数学史话', done: false },
+      { title: '神奇的数字魔术', desc: '用一个数字魔术惊艳你的朋友！', category: '数学魔术', done: false },
+      { title: '斐波那契与兔子', desc: '兔子繁殖中藏着的神奇数列', category: '数学家故事', done: false },
+      { title: '巧移火柴棒', desc: '移动一根火柴使等式成立', category: '趣味思维', done: false },
     ],
     notices: [
       { type: '作业通知', title: '本周数学作业安排', date: '2026-07-06', content: '请完成课本第45-47页练习题，下周一检查。' },
@@ -1533,6 +1731,53 @@ function getDefaultData() {
     userName: '小明同学',
     parentStudentName: '',
     messages: [],
+    profile: {
+      philosophy: '我相信每个孩子都有学好数学的潜力。数学不是冰冷的公式，而是理解世界的语言。在我的课堂上，我注重培养孩子们的数学思维和学习兴趣，让每个孩子都能在轻松愉快的氛围中掌握数学知识，建立自信。',
+      honors: [
+        '教龄 12 年，一直从事小学数学教学工作',
+        '市级骨干教师、优秀班主任',
+        '多次获得市级优质课比赛一等奖',
+        '开发的"青花微课"系列微课资源覆盖三年级至六年级全部知识点'
+      ]
+    },
+    evalLabels: ['计算能力', '理解能力', '应用能力', '审题能力', '答题速度'],
+    learningCalendar: {
+      '2026-07-22':'all-done','2026-07-21':'has-learning','2026-07-20':'has-learning',
+      '2026-07-19':'all-done','2026-07-18':'has-learning','2026-07-17':'all-done',
+      '2026-07-16':'has-learning','2026-07-15':'has-learning','2026-07-14':'all-done',
+      '2026-07-13':'has-learning','2026-07-12':'all-done','2026-07-11':'has-learning',
+      '2026-07-10':'has-learning','2026-07-09':'all-done','2026-07-08':'has-learning',
+      '2026-07-07':'has-learning','2026-07-06':'all-done','2026-07-05':'has-learning',
+      '2026-07-04':'has-learning','2026-07-03':'all-done','2026-07-02':'has-learning',
+      '2026-07-01':'all-done'
+    },
+    teacherInfo: {
+      name: '张吉年老师',
+      grade: '小学数学（三至六年级）',
+      motto: '让每个孩子都能在数学中找到乐趣与自信'
+    },
+    reviewTopics: [
+      { topic: '分数的通分与约分', reason: '近期错题集中，需重点巩固', mastery: 45 },
+      { topic: '两位数乘法进位', reason: '计算准确率待提升', mastery: 60 },
+      { topic: '面积单位换算', reason: '概念混淆，需强化理解', mastery: 55 },
+      { topic: '小数的大小比较', reason: '易错知识点，建议复习', mastery: 70 },
+      { topic: '时间计算应用题', reason: '审题习惯待改善', mastery: 65 }
+    ],
+    classroomFilter: { grade: 'all', semester: 'all' },
+    enrichmentFilter: { grade: 'all', semester: 'all' },
+    lifeMathCategory: 'all',
+    enrichments: [
+      { title: '巧算速算技巧', grade: '三年级', thumb: '#FF6B6B', duration: '12分钟', videoUrl: '' },
+      { title: '图形计数进阶', grade: '三年级', thumb: '#4ECDC4', duration: '15分钟', videoUrl: '' },
+      { title: '等量代换思想', grade: '三年级', thumb: '#45B7D1', duration: '10分钟', videoUrl: '' },
+      { title: '周期问题精讲', grade: '四年级', thumb: '#96CEB4', duration: '14分钟', videoUrl: '' },
+      { title: '鸡兔同笼拓展', grade: '四年级', thumb: '#FFEAA7', duration: '18分钟', videoUrl: '' },
+      { title: '行程问题基础', grade: '四年级', thumb: '#DDA0DD', duration: '16分钟', videoUrl: '' },
+      { title: '分数应用题进阶', grade: '五年级', thumb: '#F0E68C', duration: '20分钟', videoUrl: '' },
+      { title: '数列规律探索', grade: '五年级', thumb: '#87CEEB', duration: '15分钟', videoUrl: '' },
+      { title: '工程问题精讲', grade: '六年级', thumb: '#20B2AA', duration: '22分钟', videoUrl: '' },
+      { title: '比例应用提升', grade: '六年级', thumb: '#FFA07A', duration: '18分钟', videoUrl: '' },
+    ]
   };
 }
 
@@ -1684,6 +1929,11 @@ function switchMode(mode) {
   document.querySelectorAll('.mode-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === mode);
   });
+  // 切换到学生/家长模式时，自动退出教师认证，防止仍看到教师专属功能
+  if (isAuthenticated()) {
+    sessionStorage.removeItem(SESSION_KEY);
+    updateAuthUI();
+  }
   saveData();
   updateRoleUI();
   renderAllPages();
@@ -1706,12 +1956,12 @@ function toggleExercise(el) {
 // ===== PAGE RENDERING =====
 function renderPageContent(page) {
   switch(page) {
-    case 'home': updateHomeStats(); break;
+    case 'home': updateHomeStats(); renderCalendar(); break;
     case 'classroom': renderClassroom(); break;
-    case 'thinking': renderThinking(); break;
-    case 'parent': renderParent(); break;
-    case 'feedback': renderFeedback(); break;
-    case 'evaluate': renderEvaluate(); break;
+    case 'thinking': renderEnrichment(); break;
+    case 'parent': renderParent(); renderHwUpload(); break;
+    case 'feedback': renderFeedback(); renderReviewRecommendations(); renderHwGrading(); break;
+    case 'evaluate': renderEvaluate(); updateClassEvalVisibility(); break;
     case 'about': renderAbout(); break;
   }
 }
@@ -1724,7 +1974,7 @@ function updateHomeStats() {
   if (role === 'teacher') {
     if (p) p.textContent = appData.courses.length + ' 门课程';
     if (m) m.textContent = appData.notices.length + ' 条通知';
-    if (s) s.textContent = appData.thinkingLevels.length + ' 个关卡';
+    if (s) s.textContent = appData.enrichments.length + ' 门培优课';
   } else {
     if (p) p.textContent = appData.points + ' 积分';
     if (m) m.textContent = appData.medals.filter(x => x.unlocked).length + ' 枚勋章';
@@ -1779,11 +2029,14 @@ function renderHomeByRole(role) {
     if (quickTitle) quickTitle.textContent = '数据概览';
     if (quickGrid) quickGrid.innerHTML =
       '<div class="quick-card" onclick="navigate(\'classroom\')"><div class="icon" style="background:#EBF5FF;">📚</div><h4>同步课堂</h4><p>' + appData.courses.length + ' 门课程</p></div>' +
-      '<div class="quick-card" onclick="navigate(\'thinking\')"><div class="icon" style="background:#FFF7E6;">🧠</div><h4>思维拓展</h4><p>' + appData.thinkingLevels.length + ' 个关卡</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'thinking\')"><div class="icon" style="background:#FFF7E6;">🌟</div><h4>培优微课</h4><p>' + appData.enrichments.length + ' 门课程</p></div>' +
       '<div class="quick-card" onclick="navigate(\'parent\')"><div class="icon" style="background:#F0FFF4;">🏠</div><h4>家校互通</h4><p>' + appData.notices.length + ' 条通知</p></div>' +
       '<div class="quick-card" onclick="navigate(\'feedback\')"><div class="icon" style="background:#FFF0F5;">📊</div><h4>学习反馈</h4><p>' + appData.mistakes.length + ' 道错题</p></div>' +
       '<div class="quick-card" onclick="navigate(\'evaluate\')"><div class="icon" style="background:#F3E8FF;">🏆</div><h4>多元评价</h4><p>' + appData.medals.filter(function(x){return x.unlocked}).length + '/' + appData.medals.length + ' 勋章</p></div>' +
-      '<div class="quick-card" onclick="navigate(\'about\')"><div class="icon" style="background:#FFF2E8;">👤</div><h4>关于我</h4><p>' + appData.blogs.length + ' 篇文章</p></div>';
+      '<div class="quick-card" onclick="navigate(\'about\')"><div class="icon" style="background:#FFF2E8;">👤</div><h4>关于我</h4><p>' + appData.blogs.length + ' 篇文章</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'feedback\')"><div class="icon" style="background:#E6F1FB;">📋</div><h4>作业批改</h4><p>AI 批改工作台</p></div>' +
+      '<div class="quick-card" onclick="window.open(\'课堂行为/index.html\',\'_blank\')"><div class="icon" style="background:#FAEEDA;">📹</div><h4>课堂行为</h4><p>AI 行为检测</p></div>' +
+      '<div class="quick-card" onclick="window.open(\'五维评价/class-dashboard.html\',\'_blank\')"><div class="icon" style="background:#EAF3DE;">📊</div><h4>班级看板</h4><p>五维评价全览</p></div>';
   } else if (role === 'parent') {
     if (taskTitle) taskTitle.textContent = '📊 孩子学习概览';
     taskGrid.innerHTML = '<div class="video-card" style="cursor:pointer;" onclick="navigate(\'feedback\')">' +
@@ -1801,7 +2054,7 @@ function renderHomeByRole(role) {
       '<div class="quick-card" onclick="navigate(\'classroom\')"><div class="icon" style="background:#EBF5FF;">📚</div><h4>课程进度</h4><p>查看已学课程</p></div>';
   } else {
     if (taskTitle) taskTitle.textContent = '📋 今日任务清单';
-    taskGrid.innerHTML = '<div class="video-card"><div class="video-thumb" onclick="openVideo(\'分数的基本概念\')"><div class="play-btn">▶</div></div><h3>分数的基本概念</h3><p class="meta">时长 8分钟 · 三年级</p></div>' +
+    taskGrid.innerHTML = '<div class="video-card"><div class="video-thumb" onclick="openVideo(0)"><div class="play-btn">▶</div></div><h3>分数的基本概念</h3><p class="meta">时长 8分钟 · 三年级</p></div>' +
       '<div class="exercise-card"><h3>随堂练习</h3><div id="exerciseList">' +
       '<div class="exercise-item" onclick="toggleExercise(this)"><div class="checkbox">✓</div><span class="ex-text">1/2 + 1/4 = ?</span></div>' +
       '<div class="exercise-item" onclick="toggleExercise(this)"><div class="checkbox">✓</div><span class="ex-text">比较 1/3 和 1/5 的大小</span></div>' +
@@ -1813,12 +2066,81 @@ function renderHomeByRole(role) {
     if (quickTitle) quickTitle.textContent = '快捷入口';
     if (quickGrid) quickGrid.innerHTML =
       '<div class="quick-card" onclick="navigate(\'classroom\')"><div class="icon" style="background:#EBF5FF;">📚</div><h4>同步课堂</h4><p>微课视频 + 随堂练习</p></div>' +
-      '<div class="quick-card" onclick="navigate(\'thinking\')"><div class="icon" style="background:#FFF7E6;">🧠</div><h4>思维拓展</h4><p>闯关挑战 + 趣味数学</p></div>' +
+      '<div class="quick-card" onclick="navigate(\'thinking\')"><div class="icon" style="background:#FFF7E6;">🌟</div><h4>培优微课</h4><p>培优拓展 + 思维提升</p></div>' +
       '<div class="quick-card" onclick="navigate(\'parent\')"><div class="icon" style="background:#F0FFF4;">🏠</div><h4>家校互通</h4><p>通知公告 + 悄悄话</p></div>' +
       '<div class="quick-card" onclick="navigate(\'feedback\')"><div class="icon" style="background:#FFF0F5;">📊</div><h4>学习反馈</h4><p>错题本 + 雷达图</p></div>' +
       '<div class="quick-card" onclick="navigate(\'evaluate\')"><div class="icon" style="background:#F3E8FF;">🏆</div><h4>多元评价</h4><p>勋章墙 + 积分商城</p></div>' +
       '<div class="quick-card" onclick="navigate(\'about\')"><div class="icon" style="background:#FFF2E8;">👤</div><h4>关于我</h4><p>教学理念 + 荣誉</p></div>';
   }
+}
+
+// ===== LEARNING CALENDAR =====
+function renderCalendar() {
+  var container = document.getElementById('calendarContainer');
+  if (!container) return;
+  var role = getCurrentRole();
+  if (role === 'teacher') {
+    container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:24px 0;">教师模式下暂不展示学生个人月历</p>';
+    return;
+  }
+  var now = new Date();
+  var year = now.getFullYear();
+  var month = now.getMonth();
+  var firstDay = new Date(year, month, 1).getDay();
+  var daysInMonth = new Date(year, month + 1, 0).getDate();
+  var today = now.getDate();
+  var cal = appData.learningCalendar || {};
+
+  var html = '<div class="calendar-header">';
+  html += '<span class="cal-title">' + year + '年' + (month + 1) + '月</span>';
+  html += '<div class="cal-legend">';
+  html += '<span><span class="dot" style="background:#52C41A;"></span>有学习</span>';
+  html += '<span><span class="dot" style="background:#FAAD14;"></span>全部完成</span>';
+  html += '</div></div>';
+  html += '<div class="cal-weekdays">';
+  ['日','一','二','三','四','五','六'].forEach(function(d) {
+    html += '<div>' + d + '</div>';
+  });
+  html += '</div>';
+  html += '<div class="cal-grid">';
+  for (var i = 0; i < firstDay; i++) html += '<div class="cal-day empty"></div>';
+  for (var d = 1; d <= daysInMonth; d++) {
+    var dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    var status = cal[dateStr];
+    var classes = 'cal-day';
+    if (d === today) classes += ' today';
+    if (status === 'all-done') classes += ' all-done';
+    else if (status === 'has-learning') classes += ' has-learning';
+    html += '<div class="' + classes + '" onclick="showDayDetail(\'' + dateStr + '\')">' + d + '</div>';
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function showDayDetail(dateStr) {
+  var cal = appData.learningCalendar || {};
+  var status = cal[dateStr];
+  var html = '<h3 style="margin-bottom:12px;">📅 ' + dateStr + ' 学习明细</h3>';
+  if (status === 'all-done') {
+    html += '<div style="text-align:center;padding:20px;">';
+    html += '<div style="font-size:48px;margin-bottom:8px;">🎉</div>';
+    html += '<p style="color:var(--success);font-size:16px;font-weight:600;">今日任务全部完成！</p>';
+    html += '<p style="color:var(--text-muted);font-size:14px;margin-top:8px;">获得 ⭐⭐⭐ 奖励</p>';
+    html += '</div>';
+  } else if (status === 'has-learning') {
+    html += '<div style="text-align:center;padding:20px;">';
+    html += '<div style="font-size:48px;margin-bottom:8px;">📝</div>';
+    html += '<p style="color:var(--text-secondary);font-size:16px;">当日有学习记录</p>';
+    html += '<p style="color:var(--text-muted);font-size:14px;margin-top:8px;">继续努力，完成全部任务获得满星！</p>';
+    html += '</div>';
+  } else {
+    html += '<div style="text-align:center;padding:20px;">';
+    html += '<div style="font-size:48px;margin-bottom:8px;opacity:0.4;">💤</div>';
+    html += '<p style="color:var(--text-muted);font-size:16px;">当日无学习记录</p>';
+    html += '</div>';
+  }
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modal').classList.add('open');
 }
 
 // ===== CLASSROOM =====
@@ -1837,11 +2159,18 @@ function renderClassroom() {
   const grid = document.getElementById('courseGrid');
   if (!grid) return;
 
+  var gf = document.getElementById('gradeFilter');
+  var sf = document.getElementById('semesterFilter');
+  if (gf) gf.value = appData.classroomFilter.grade;
+  if (sf) sf.value = appData.classroomFilter.semester;
+
   if (role === 'teacher') {
     grid.innerHTML = appData.courses.map(function(c, i) {
       return '<div class="course-card" style="position:relative;">' +
-        '<div class="course-thumb" style="background:linear-gradient(135deg,' + c.thumb + ',' + c.thumb + '88);" onclick="openVideo(\'' + c.title + '\')">' +
-        '<div style="width:56px;height:56px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:' + c.thumb + ';">▶</div></div>' +
+        '<div class="course-thumb" style="background:linear-gradient(135deg,' + c.thumb + ',' + c.thumb + '88);" onclick="openVideo(' + i + ')">' +
+        '<div style="width:56px;height:56px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:' + c.thumb + ';">▶</div>' +
+        (c.videoUrl ? '<span style="position:absolute;top:8px;left:8px;background:var(--success);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;">🎬 有视频</span>' : '<span style="position:absolute;top:8px;left:8px;background:var(--text-muted);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;">无视频</span>') +
+        '</div>' +
         '<div class="course-info"><h3>' + c.title + '</h3><span class="grade-badge">' + c.grade + '</span>' +
         '<span style="font-size:13px;color:var(--text-muted);margin-left:8px;">' + c.duration + '</span></div>' +
         '<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px;">' +
@@ -1860,22 +2189,101 @@ function renderClassroom() {
         '<span style="font-size:13px;color:var(--text-muted);margin-left:8px;">' + c.duration + '</span></div></div>';
     }).join('');
   } else {
-    grid.innerHTML = appData.courses.map(function(c) {
-      return '<div class="course-card" onclick="openVideo(\'' + c.title + '\')">' +
+    var matchCount = 0;
+    var html = appData.courses.map(function(c, i) {
+      var gradeOk = appData.classroomFilter.grade === 'all' || c.grade === appData.classroomFilter.grade;
+      if (!gradeOk) return '';
+      matchCount++;
+      return '<div class="course-card" onclick="openVideo(' + i + ')">' +
         '<div class="course-thumb" style="background:linear-gradient(135deg,' + c.thumb + ',' + c.thumb + '88);">' +
-        '<div style="width:56px;height:56px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:' + c.thumb + ';">▶</div></div>' +
+        '<div style="width:56px;height:56px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:' + c.thumb + ';">▶</div>' +
+        (c.videoUrl ? '<span style="position:absolute;top:8px;left:8px;background:var(--accent);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;">🎬 视频</span>' : '') +
+        '</div>' +
         '<div class="course-info"><h3>' + c.title + '</h3><span class="grade-badge">' + c.grade + '</span>' +
         '<span style="font-size:13px;color:var(--text-muted);margin-left:8px;">' + c.duration + '</span></div></div>';
     }).join('');
+    grid.innerHTML = matchCount === 0 ? '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-muted);"><div style="font-size:48px;margin-bottom:12px;">🔍</div><p>没有找到匹配的课程</p></div>' : html;
   }
 
   const tbIdx = document.getElementById('textbookIndex');
   if (tbIdx) {
-    const grades = ['三年级上', '三年级下', '四年级上', '四年级下'];
+    const grades = ['三年级上', '三年级下', '四年级上', '四年级下', '五年级上', '五年级下', '六年级上', '六年级下'];
     tbIdx.innerHTML = grades.map(function(g) {
-      return '<div style="padding:10px 16px;background:var(--bg);border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer;" onclick="showToast(\'今天需要辅导：' + g + ' 第42页\')">' + g + ' 📖</div>';
+      return '<div style="padding:10px 16px;background:var(--bg);border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer;transition:var(--transition);" onclick="showTextbookCatalog(\'' + g + '\')" onmouseover="this.style.background=\'var(--primary-bg)\';this.style.color=\'var(--primary)\'" onmouseout="this.style.background=\'var(--bg)\';this.style.color=\'var(--text)\'">' + g + ' <span style="font-size:16px;">📖</span></div>';
     }).join('');
   }
+}
+
+// 电子课本目录（人教版小学数学）
+const TEXTBOOK_CATALOG = {
+  '三年级上': ['时、分、秒', '万以内的加法和减法（一）', '测量', '万以内的加法和减法（二）', '倍的认识', '多位数乘一位数', '长方形和正方形', '分数的初步认识', '数学广角—集合', '总复习'],
+  '三年级下': ['位置与方向（一）', '除数是一位数的除法', '复式统计表', '两位数乘两位数', '面积', '年、月、日', '小数的初步认识', '数学广角—搭配（二）', '总复习'],
+  '四年级上': ['大数的认识', '公顷和平方千米', '角的度量', '三位数乘两位数', '平行四边形和梯形', '除数是两位数的除法', '条形统计图', '数学广角—优化', '总复习'],
+  '四年级下': ['四则运算', '观察物体（二）', '运算律', '小数的意义和性质', '三角形', '小数的加法和减法', '图形的运动（二）', '平均数与条形统计图', '数学广角—鸡兔同笼', '总复习'],
+  '五年级上': ['小数乘法', '位置', '小数除法', '可能性', '简易方程', '多边形的面积', '数学广角—植树问题', '总复习'],
+  '五年级下': ['观察物体（三）', '因数与倍数', '长方体和正方体', '分数的意义和性质', '图形的运动（三）', '分数的加法和减法', '折线统计图', '数学广角—找次品', '总复习'],
+  '六年级上': ['分数乘法', '位置与方向（二）', '分数除法', '比', '圆', '百分数（一）', '扇形统计图', '数学广角—数与形', '总复习'],
+  '六年级下': ['负数', '百分数（二）', '圆柱与圆锥', '比例', '数学广角—鸽巢问题', '整理和复习']
+};
+
+function showTextbookCatalog(key) {
+  var catalog = TEXTBOOK_CATALOG[key] || [];
+  var grade = key.replace(/上|下/, '');
+  var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+  html += '<h3 style="margin:0;">📖 ' + key + ' 电子课本目录</h3>';
+  html += '<span style="font-size:13px;color:var(--text-muted);">' + catalog.length + ' 个单元</span></div>';
+  html += '<div style="max-height:420px;overflow-y:auto;padding-right:8px;">';
+  catalog.forEach(function(unit, i) {
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:8px;transition:var(--transition);" onmouseover="this.style.background=\'var(--primary-bg)\'" onmouseout="this.style.background=\'var(--bg)\'">';
+    html += '<span style="font-size:14px;color:var(--text);"><span style="display:inline-block;width:28px;color:var(--primary);font-weight:600;">第' + (i+1) + '单元</span>' + unit + '</span>';
+    html += '<button onclick="filterClassroomByTextbook(\'' + grade + '\', \'' + unit.replace(/'/g, '\\\'') + '\')" style="background:var(--primary-bg);color:var(--primary);border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-weight:500;transition:var(--transition);" onmouseover="this.style.background=\'var(--primary)\';this.style.color=\'#fff\'" onmouseout="this.style.background=\'var(--primary-bg)\';this.style.color=\'var(--primary)\'">相关微课</button>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '<p style="margin-top:12px;font-size:12px;color:var(--text-muted);text-align:center;">提示：目录依据人教版小学数学教材整理，点击"相关微课"可快速筛选对应年级课程。</p>';
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modal').classList.add('open');
+}
+
+function filterClassroomByTextbook(grade, keyword) {
+  closeModalDirect();
+  var gf = document.getElementById('gradeFilter');
+  if (gf) {
+    gf.value = grade;
+    appData.classroomFilter.grade = grade;
+  }
+  saveData();
+  renderClassroom();
+  setTimeout(function() {
+    var cards = document.querySelectorAll('.course-card');
+    var found = false;
+    cards.forEach(function(card) {
+      var title = card.querySelector('h3');
+      if (title && title.textContent.indexOf(keyword) !== -1) {
+        card.style.boxShadow = '0 0 0 2px var(--primary), 0 8px 24px rgba(74,144,217,0.2)';
+        card.style.transform = 'translateY(-4px)';
+        found = true;
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        card.style.boxShadow = '';
+        card.style.transform = '';
+      }
+    });
+    if (found) {
+      showToast('已定位到 "' + keyword + '" 相关微课');
+    } else {
+      showToast('已切换至 ' + grade + ' 课程，该章节暂无对应微课');
+    }
+  }, 120);
+}
+
+function applyClassroomFilter() {
+  var gf = document.getElementById('gradeFilter');
+  var sf = document.getElementById('semesterFilter');
+  if (gf) appData.classroomFilter.grade = gf.value;
+  if (sf) appData.classroomFilter.semester = sf.value;
+  saveData();
+  renderClassroom();
 }
 
 function addCourse() {
@@ -1886,7 +2294,8 @@ function addCourse() {
       {value:'四年级',text:'四年级'},{value:'五年级',text:'五年级'},{value:'六年级',text:'六年级'}
     ]},
     { label: '时长', name: 'duration', type: 'text', placeholder: '例如：8分钟', required: true },
-    { label: '缩略图颜色', name: 'thumb', type: 'color', value: '#4A90D9' }
+    { label: '缩略图颜色', name: 'thumb', type: 'color', value: '#4A90D9' },
+    { label: '视频', name: 'videoUrl', type: 'videofield', placeholder: '粘贴视频URL或上传文件' }
   ], function(data) {
     appData.courses.push(data);
     saveData();
@@ -1903,7 +2312,8 @@ function editCourse(idx) {
       {value:'四年级',text:'四年级'},{value:'五年级',text:'五年级'},{value:'六年级',text:'六年级'}
     ]},
     { label: '时长', name: 'duration', type: 'text', value: c.duration, required: true },
-    { label: '缩略图颜色', name: 'thumb', type: 'color', value: c.thumb }
+    { label: '缩略图颜色', name: 'thumb', type: 'color', value: c.thumb },
+    { label: '视频', name: 'videoUrl', type: 'videofield', value: c.videoUrl || '', placeholder: '粘贴视频URL或上传文件' }
   ], function(data) {
     appData.courses[idx] = data;
     saveData();
@@ -1919,107 +2329,162 @@ function deleteCourse(idx) {
   showToast('课程已删除');
 }
 
-// ===== THINKING =====
-function renderThinking() {
-  const role = getCurrentRole();
-  const grid = document.getElementById('levelGrid');
+// ===== ENRICHMENT (培优微课) =====
+function renderEnrichment() {
+  var role = getCurrentRole();
+  if (!appData.enrichments || !Array.isArray(appData.enrichments)) appData.enrichments = migrateData({}).enrichments;
+  var grid = document.getElementById('enrichmentGrid');
   if (!grid) return;
 
+  var gf = document.getElementById('enrichmentGradeFilter');
+  var sf = document.getElementById('enrichmentSemesterFilter');
+  if (gf) gf.value = appData.enrichmentFilter.grade;
+  if (sf) sf.value = appData.enrichmentFilter.semester;
+
   if (role === 'teacher') {
-    grid.innerHTML = appData.thinkingLevels.map(function(l, i) {
-      return '<div class="level-card' + (l.unlocked ? '' : ' locked') + '" style="position:relative;">' +
-        '<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px;">' +
-        '<button onclick="event.stopPropagation();editThinkingLevel(' + i + ')" style="background:rgba(255,255,255,0.9);border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">✏️</button>' +
+    grid.innerHTML = appData.enrichments.map(function(c, i) {
+      return '<div class="course-card" style="position:relative;">' +
+        '<div class="course-thumb" style="background:linear-gradient(135deg,' + c.thumb + ',' + c.thumb + '88);" onclick="openEnrichmentVideo(' + i + ')">' +
+        '<div style="width:56px;height:56px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:' + c.thumb + ';">▶</div>' +
+        (c.videoUrl ? '<span style="position:absolute;top:8px;left:8px;background:var(--success);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;">🎬 有视频</span>' : '<span style="position:absolute;top:8px;left:8px;background:var(--text-muted);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;">无视频</span>') +
         '</div>' +
-        '<div class="stars">' + l.stars + '</div><h3>' + l.name + '</h3>' +
-        '<p style="color:var(--text-muted);font-size:14px;">' + l.desc + '</p>' +
-        '<button class="btn btn-primary" style="margin-top:16px;" onclick="showToast(\'预览关卡：' + l.name + '\')">👁️ 预览关卡</button></div>';
+        '<div class="course-info"><h3>' + c.title + '</h3><span class="grade-badge">' + c.grade + '</span>' +
+        '<span style="font-size:13px;color:var(--text-muted);margin-left:8px;">' + c.duration + '</span></div>' +
+        '<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px;">' +
+        '<button onclick="event.stopPropagation();editEnrichment(' + i + ')" style="background:rgba(255,255,255,0.9);border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">✏️</button>' +
+        '<button onclick="event.stopPropagation();deleteEnrichment(' + i + ')" style="background:rgba(255,255,255,0.9);border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">🗑️</button>' +
+        '</div></div>';
     }).join('') +
-      '<div class="level-card" style="display:flex;align-items:center;justify-content:center;border:2px dashed var(--border);cursor:pointer;background:var(--bg);" onclick="addThinkingLevel()">' +
-      '<div style="text-align:center;color:var(--text-muted);"><div style="font-size:32px;margin-bottom:8px;">➕</div><div style="font-size:14px;font-weight:500;">添加关卡</div></div></div>';
+      '<div class="course-card" style="display:flex;align-items:center;justify-content:center;border:2px dashed var(--border);cursor:pointer;background:var(--bg);" onclick="addEnrichment()">' +
+      '<div style="text-align:center;color:var(--text-muted);"><div style="font-size:32px;margin-bottom:8px;">➕</div><div style="font-size:14px;font-weight:500;">添加课程</div></div></div>';
   } else if (role === 'parent') {
-    grid.innerHTML = appData.thinkingLevels.map(function(l) {
-      return '<div class="level-card' + (l.unlocked ? '' : ' locked') + '">' +
-        '<div class="stars">' + l.stars + '</div><h3>' + l.name + '</h3>' +
-        '<p style="color:var(--text-muted);font-size:14px;">' + l.desc + '</p>' +
-        '<div style="margin-top:16px;padding:8px 16px;border-radius:8px;background:' + (l.unlocked ? 'var(--success)' : 'var(--bg)') + ';color:' + (l.unlocked ? 'white' : 'var(--text-muted)') + ';font-size:14px;font-weight:500;text-align:center;">' +
-        (l.unlocked ? '✅ 已解锁' : '🔒 未解锁') + '</div></div>';
+    grid.innerHTML = appData.enrichments.map(function(c) {
+      return '<div class="course-card" style="opacity:0.85;" onclick="showToast(\'请在学生模式下观看课程\')">' +
+        '<div class="course-thumb" style="background:linear-gradient(135deg,' + c.thumb + ',' + c.thumb + '88);">' +
+        '<div style="width:56px;height:56px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:' + c.thumb + ';">📖</div></div>' +
+        '<div class="course-info"><h3>' + c.title + '</h3><span class="grade-badge">' + c.grade + '</span>' +
+        '<span style="font-size:13px;color:var(--text-muted);margin-left:8px;">' + c.duration + '</span></div></div>';
     }).join('');
   } else {
-    grid.innerHTML = appData.thinkingLevels.map(function(l) {
-      return '<div class="level-card' + (l.unlocked ? '' : ' locked') + '">' +
-        '<div class="stars">' + l.stars + '</div><h3>' + l.name + '</h3>' +
-        '<p style="color:var(--text-muted);font-size:14px;">' + l.desc + '</p>' +
-        '<button class="btn ' + (l.unlocked ? 'btn-primary' : '') + '" style="margin-top:16px;opacity:' + (l.unlocked?1:0.5) + ';" ' + (l.unlocked?'onclick="showToast(\'关卡挑战开始！加油💪\')"':'') + '>' +
-        (l.unlocked ? '开始闯关' : '🔒 明天解锁') + '</button></div>';
+    var matchCount = 0;
+    var html = appData.enrichments.map(function(c, i) {
+      var gradeOk = appData.enrichmentFilter.grade === 'all' || c.grade === appData.enrichmentFilter.grade;
+      if (!gradeOk) return '';
+      matchCount++;
+      return '<div class="course-card" onclick="openEnrichmentVideo(' + i + ')">' +
+        '<div class="course-thumb" style="background:linear-gradient(135deg,' + c.thumb + ',' + c.thumb + '88);">' +
+        '<div style="width:56px;height:56px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:' + c.thumb + ';">▶</div>' +
+        (c.videoUrl ? '<span style="position:absolute;top:8px;left:8px;background:var(--accent);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;">🎬 视频</span>' : '') +
+        '</div>' +
+        '<div class="course-info"><h3>' + c.title + '</h3><span class="grade-badge">' + c.grade + '</span>' +
+        '<span style="font-size:13px;color:var(--text-muted);margin-left:8px;">' + c.duration + '</span></div></div>';
     }).join('');
+    grid.innerHTML = matchCount === 0 ? '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-muted);"><div style="font-size:48px;margin-bottom:12px;">🔍</div><p>没有找到匹配的课程</p></div>' : html;
+  }
+}
+
+function applyEnrichmentFilter() {
+  var gf = document.getElementById('enrichmentGradeFilter');
+  var sf = document.getElementById('enrichmentSemesterFilter');
+  if (gf) appData.enrichmentFilter.grade = gf.value;
+  if (sf) appData.enrichmentFilter.semester = sf.value;
+  saveData();
+  renderEnrichment();
+}
+
+function addEnrichment() {
+  openFormModal('添加培优微课', [
+    { label: '课程标题', name: 'title', type: 'text', required: true, placeholder: '例如：巧算速算技巧' },
+    { label: '适用年级', name: 'grade', type: 'select', value: '三年级', options: [
+      {value:'一年级',text:'一年级'},{value:'二年级',text:'二年级'},{value:'三年级',text:'三年级'},
+      {value:'四年级',text:'四年级'},{value:'五年级',text:'五年级'},{value:'六年级',text:'六年级'}
+    ]},
+    { label: '时长', name: 'duration', type: 'text', placeholder: '例如：12分钟', required: true },
+    { label: '缩略图颜色', name: 'thumb', type: 'color', value: '#FF6B6B' },
+    { label: '视频', name: 'videoUrl', type: 'videofield', placeholder: '粘贴视频URL或上传文件' }
+  ], function(data) {
+    appData.enrichments.push(data);
+    saveData();
+    renderEnrichment();
+    showToast('培优微课已添加');
+  }, '添加');
+}
+function editEnrichment(idx) {
+  var c = appData.enrichments[idx];
+  openFormModal('编辑培优微课', [
+    { label: '课程标题', name: 'title', type: 'text', value: c.title, required: true },
+    { label: '适用年级', name: 'grade', type: 'select', value: c.grade, options: [
+      {value:'一年级',text:'一年级'},{value:'二年级',text:'二年级'},{value:'三年级',text:'三年级'},
+      {value:'四年级',text:'四年级'},{value:'五年级',text:'五年级'},{value:'六年级',text:'六年级'}
+    ]},
+    { label: '时长', name: 'duration', type: 'text', value: c.duration, required: true },
+    { label: '缩略图颜色', name: 'thumb', type: 'color', value: c.thumb },
+    { label: '视频', name: 'videoUrl', type: 'videofield', value: c.videoUrl || '', placeholder: '粘贴视频URL或上传文件' }
+  ], function(data) {
+    appData.enrichments[idx] = data;
+    saveData();
+    renderEnrichment();
+    showToast('培优微课已更新');
+  }, '保存修改');
+}
+function deleteEnrichment(idx) {
+  if (!confirm('确定删除课程「' + appData.enrichments[idx].title + '」吗？')) return;
+  appData.enrichments.splice(idx, 1);
+  saveData();
+  renderEnrichment();
+  showToast('培优微课已删除');
+}
+function openEnrichmentVideo(idx) {
+  var c = appData.enrichments[idx];
+  if (!c) return;
+  var url = c.videoUrl || '';
+  var role = getCurrentRole();
+  var html = '<h3 style="margin-bottom:8px;">' + c.title + '</h3>';
+  html += '<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">' + c.grade + ' · ' + c.duration + '</p>';
+
+  if (url) {
+    if (url.match(/\.(mp4|webm|ogg)(\?|#|$)/i) || url.indexOf('/videos/') !== -1) {
+      html += '<div style="background:#000;border-radius:12px;overflow:hidden;margin:16px 0;">';
+      html += '<video controls autoplay style="width:100%;display:block;max-height:480px;" src="' + url + '"></video>';
+      html += '</div>';
+    } else if (url.indexOf('bilibili.com') !== -1 || url.indexOf('b23.tv') !== -1) {
+      var bvid = '';
+      var match = url.match(/(?:bilibili\.com\/video\/|b23\.tv\/)(BV[\w]+)/i);
+      if (match) bvid = match[1];
+      if (bvid) {
+        html += '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin:16px 0;">';
+        html += '<iframe src="https://player.bilibili.com/player.html?bvid=' + bvid + '&high_quality=1&autoplay=1" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen="true" scrolling="no"></iframe>';
+        html += '</div>';
+      } else {
+        html += '<iframe src="' + url + '" style="width:100%;height:480px;border:0;border-radius:12px;" allowfullscreen></iframe>';
+      }
+    } else if (url.indexOf('v.qq.com') !== -1) {
+      html += '<div style="background:#000;border-radius:12px;overflow:hidden;margin:16px 0;">';
+      html += '<iframe src="' + url + '" style="width:100%;height:480px;border:0;" allowfullscreen></iframe>';
+      html += '</div>';
+    } else {
+      html += '<div style="background:#000;border-radius:12px;overflow:hidden;margin:16px 0;">';
+      html += '<video controls autoplay style="width:100%;display:block;max-height:480px;" src="' + url + '"></video>';
+      html += '</div>';
+    }
+  } else {
+    html += '<div style="background:linear-gradient(135deg,#FF6B6B,#FF8E8E);height:240px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:16px 0;">';
+    html += '<div style="text-align:center;color:rgba(255,255,255,0.9);">';
+    html += '<div style="width:64px;height:64px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;color:#FF6B6B;margin:0 auto 12px;">▶</div>';
+    html += '<p style="font-size:14px;">暂无视频</p>';
+    if (role === 'teacher') {
+      html += '<p style="font-size:13px;margin-top:4px;">点击 ✏️ 编辑课程添加视频链接或上传文件</p>';
+    }
+    html += '</div></div>';
   }
 
-  const lmGrid = document.getElementById('lifeMathGrid');
-  if (lmGrid) {
-    if (role === 'parent') {
-      lmGrid.innerHTML = appData.lifeMath.map(function(task) {
-        return '<div class="card"><h4 style="margin-bottom:8px;">' + task.title + '</h4>' +
-          '<p style="font-size:14px;color:var(--text-muted);margin-bottom:12px;">' + task.desc + '</p>' +
-          '<div style="padding:8px 16px;border-radius:8px;background:' + (task.done ? 'var(--success)' : 'var(--bg)') + ';color:' + (task.done ? 'white' : 'var(--text-muted)') + ';font-size:14px;font-weight:500;text-align:center;">' +
-          (task.done ? '✅ 已完成' : '⏳ 待完成') + '</div></div>';
-      }).join('');
-    } else {
-      lmGrid.innerHTML = appData.lifeMath.map(function(task) {
-        return '<div class="card"><h4 style="margin-bottom:8px;">' + task.title + '</h4>' +
-          '<p style="font-size:14px;color:var(--text-muted);margin-bottom:12px;">' + task.desc + '</p>' +
-          '<button class="btn btn-outline" style="padding:8px 20px;font-size:14px;" onclick="this.textContent=\'✅ 已打卡\';this.style.background=\'var(--success)\';this.style.color=\'white\';this.style.border=\'none\';showToast(\'打卡成功！⭐ +15\')">📸 去打卡</button></div>';
-      }).join('');
-    }
-  }
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('modalContent').innerHTML = html;
 }
 
 // ===== PARENT =====
 let noticeFilter = 'all';
 
-function editThinkingLevel(idx) {
-  var l = appData.thinkingLevels[idx];
-  openFormModal('编辑关卡', [
-    { label: '关卡名称', name: 'name', type: 'text', value: l.name, required: true },
-    { label: '描述', name: 'desc', type: 'text', value: l.desc, required: true },
-    { label: '星级', name: 'stars', type: 'select', value: l.stars, options: [
-      {value:'⭐',text:'1星'},{value:'⭐⭐',text:'2星'},{value:'⭐⭐⭐',text:'3星'}
-    ]},
-    { label: '难度', name: 'difficulty', type: 'select', value: String(l.difficulty), options: [
-      {value:'1',text:'简单'},{value:'2',text:'中等'},{value:'3',text:'困难'}
-    ]},
-    { label: '是否解锁', name: 'unlocked', type: 'checkbox', value: l.unlocked, placeholder: '学生可以挑战此关卡' }
-  ], function(data) {
-    appData.thinkingLevels[idx] = {
-      name: data.name, desc: data.desc, stars: data.stars,
-      difficulty: parseInt(data.difficulty), unlocked: data.unlocked
-    };
-    saveData();
-    renderThinking();
-    showToast('关卡已更新');
-  }, '保存修改');
-}
-function addThinkingLevel() {
-  openFormModal('添加关卡', [
-    { label: '关卡名称', name: 'name', type: 'text', required: true, placeholder: '例如：数独入门' },
-    { label: '描述', name: 'desc', type: 'text', required: true, placeholder: '关卡描述...' },
-    { label: '星级', name: 'stars', type: 'select', value: '⭐', options: [
-      {value:'⭐',text:'1星'},{value:'⭐⭐',text:'2星'},{value:'⭐⭐⭐',text:'3星'}
-    ]},
-    { label: '难度', name: 'difficulty', type: 'select', value: '1', options: [
-      {value:'1',text:'简单'},{value:'2',text:'中等'},{value:'3',text:'困难'}
-    ]},
-    { label: '是否解锁', name: 'unlocked', type: 'checkbox', value: false, placeholder: '学生可以挑战此关卡' }
-  ], function(data) {
-    appData.thinkingLevels.push({
-      name: data.name, desc: data.desc, stars: data.stars,
-      difficulty: parseInt(data.difficulty), unlocked: data.unlocked
-    });
-    saveData();
-    renderThinking();
-    showToast('关卡已添加');
-  }, '添加');
-}
 function filterNotices(type) {
   noticeFilter = type;
   renderParent();
@@ -2183,13 +2648,39 @@ function deleteNotice(idx) {
 
 function submitWhisper(e) {
   e.preventDefault();
-  const name = document.getElementById('whisperName').value;
-  const msg = document.getElementById('whisperMsg').value;
+  var name = document.getElementById('whisperName').value.trim();
+  var msg = document.getElementById('whisperMsg').value.trim();
+  if (!name) { showToast('请输入孩子姓名'); return; }
+  if (!msg) { showToast('请输入留言内容'); return; }
   if (!appData.messages) appData.messages = [];
   appData.messages.push({ name: name, msg: msg, time: new Date().toLocaleString(), read: false, replies: [] });
   saveData();
+
+  // 三重反馈，确保用户一定能看到发送成功
+  // 1) 按钮状态变化
+  var form = document.getElementById('whisperForm');
+  var btn = form ? form.querySelector('button[type="submit"]') : null;
+  if (btn) {
+    var origText = btn.textContent;
+    btn.textContent = '✅ 已发送';
+    btn.disabled = true;
+    btn.style.background = 'var(--success)';
+    btn.style.borderColor = 'var(--success)';
+    setTimeout(function() { btn.textContent = origText; btn.disabled = false; btn.style.background = ''; btn.style.borderColor = ''; }, 2000);
+  }
+  // 2) 表单内绿色提示条
+  var oldHint = document.getElementById('whisperSuccessHint');
+  if (oldHint) oldHint.remove();
+  var hint = document.createElement('div');
+  hint.id = 'whisperSuccessHint';
+  hint.style.cssText = 'padding:10px 14px;background:rgba(82,196,26,0.1);border:1px solid var(--success);border-radius:8px;color:var(--success);font-size:14px;font-weight:500;margin-bottom:12px;';
+  hint.innerHTML = '✅ 留言已发送给老师！老师回复后你会在这里看到。';
+  if (form) form.parentNode.insertBefore(hint, form);
+  setTimeout(function() { if (hint && hint.parentNode) hint.remove(); }, 5000);
+  // 3) Toast 提示
   showToast('留言已发送给老师！📧');
-  document.getElementById('whisperForm').reset();
+
+  if (form) form.reset();
   renderParent();
 }
 
@@ -2223,6 +2714,7 @@ function renderFeedback() {
   if (!list) return;
 
   var title = document.querySelector('#page-feedback > .container > .section-title');
+  const isLoggedIn = isAuthenticated() || isCloudLoggedIn();
 
   if (role === 'teacher') {
     if (title) title.textContent = '📊 全班学习分析';
@@ -2251,13 +2743,29 @@ function renderFeedback() {
           '<div class="reason">⚠️ 错误原因：' + m.reason + '</div>' +
           '<div class="solution">✅ 正确解法：' + m.solution + '</div></div>';
       }).join('');
-  } else {
+  } else if (isLoggedIn) {
+    // 已登录的学生/家长：显示个人学习数据
     if (title) title.textContent = role === 'parent' ? '📊 孩子的学习报告' : '📊 学习反馈';
     list.innerHTML = appData.mistakes.map(function(m) {
       return '<div class="mistake-item"><div class="question">❌ ' + m.question + ' = ' + m.wrongAnswer + '</div>' +
         '<div class="reason">⚠️ 错误原因：' + m.reason + '</div>' +
         '<div class="solution">✅ 正确解法：' + m.solution + '</div></div>';
     }).join('');
+    var totalExercises = appData.exercises.length;
+    var completed = appData.exercises.filter(function(x){return x;}).length;
+    list.innerHTML = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;">' +
+      '<p style="font-size:14px;color:var(--text-secondary);">📝 本周练习完成：<strong>' + completed + '/' + totalExercises + '</strong> | ' +
+      '🔥 连续学习：<strong>' + appData.streak + '天</strong> | ⭐ 积分：<strong>' + appData.points + '</strong></p></div>' +
+      list.innerHTML;
+  } else {
+    // 未登录：显示登录提示
+    if (title) title.textContent = '📊 学习反馈';
+    list.innerHTML =
+      '<div style="text-align:center;padding:48px 24px;background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow);">' +
+      '<div style="font-size:48px;margin-bottom:12px;">🔒</div>' +
+      '<h4 style="margin-bottom:8px;">请登录后查看学习数据</h4>' +
+      '<p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;">学习报告和错题本属于个人隐私数据，需登录后查看</p>' +
+      '<button class="btn btn-primary" onclick="openCloudLoginModal()">🔑 登录查看</button></div>';
   }
 
   draw3DRadar();
@@ -2267,22 +2775,25 @@ function draw3DRadar() {
   const canvas = document.getElementById('radar3D');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  const cx = 180, cy = 180, r = 140;
-  const labels = ['计算准确率', '理解能力', '审题习惯'];
-  // 动态计算：练习完成率 → 计算准确率，勋章解锁率 → 理解能力，错题数反向 → 审题习惯
+  const cx = 190, cy = 190, r = 150;
+  const labels = ['计算能力', '理解能力', '应用能力', '审题能力', '答题速度'];
   var exerciseTotal = appData.exercises.length;
   var exerciseDone = appData.exercises.filter(function(x){return x;}).length;
   var calcRate = exerciseTotal > 0 ? exerciseDone / exerciseTotal : 0.5;
   var medalTotal = appData.medals.length;
   var medalUnlocked = appData.medals.filter(function(x){return x.unlocked;}).length;
   var understandRate = medalTotal > 0 ? medalUnlocked / medalTotal : 0.5;
-  var mistakeRate = appData.mistakes.length > 0 ? Math.max(0.3, 1 - appData.mistakes.length * 0.08) : 0.9;
-  const values = [calcRate, understandRate, mistakeRate];
-  const angles = labels.map((_, i) => -Math.PI/2 + (2*Math.PI*i)/3);
-  ctx.clearRect(0, 0, 360, 360);
+  var thinkingTotal = appData.thinkingLevels.length;
+  var thinkingCleared = appData.thinkingLevels.filter(function(x){return x.state === 'cleared';}).length;
+  var applyRate = thinkingTotal > 0 ? thinkingCleared / thinkingTotal : 0.5;
+  var auditRate = appData.mistakes.length > 0 ? Math.max(0.3, 1 - appData.mistakes.length * 0.08) : 0.9;
+  var speedRate = Math.min(1, appData.streak / 14);
+  const values = [calcRate, understandRate, applyRate, auditRate, speedRate];
+  const angles = labels.map((_, i) => -Math.PI/2 + (2*Math.PI*i)/5);
+  ctx.clearRect(0, 0, 380, 380);
 
   // Grid
-  for (let level = 0.2; level <= 1; level += 0.2) {
+  for (let level = 0.25; level <= 1; level += 0.25) {
     ctx.beginPath();
     angles.forEach((a, i) => {
       const x = cx + r*level*Math.cos(a), y = cy + r*level*Math.sin(a);
@@ -2325,52 +2836,151 @@ function draw3DRadar() {
 
   // Labels
   angles.forEach((a, i) => {
-    const x = cx + (r+30)*Math.cos(a), y = cy + (r+30)*Math.sin(a);
+    const x = cx + (r+35)*Math.cos(a), y = cy + (r+35)*Math.sin(a);
     ctx.fillStyle = '#2C3E50';
-    ctx.font = '14px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.font = '13px "PingFang SC","Microsoft YaHei",sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText((values[i]*100).toFixed(0) + '%', x, y - 8);
-    ctx.fillText(labels[i], x, y + 12);
+    ctx.fillText(labels[i], x, y + 10);
   });
+  var analysis = document.getElementById('radarAnalysis');
+  if (analysis) {
+    var maxIdx = values.indexOf(Math.max.apply(null, values));
+    var minIdx = values.indexOf(Math.min.apply(null, values));
+    analysis.innerHTML = '优势能力：<strong style="color:var(--success)">' + labels[maxIdx] + '</strong>　薄弱能力：<strong style="color:var(--danger)">' + labels[minIdx] + '</strong>';
+  }
+}
+
+// ===== FEEDBACK: Time Range & Review =====
+var feedbackTimeRange = 'week';
+
+function setFeedbackTimeRange(range, btn) {
+  feedbackTimeRange = range;
+  document.querySelectorAll('#feedbackTimeFilter .time-filter-btn').forEach(function(b) {
+    b.classList.remove('active');
+  });
+  if (btn) btn.classList.add('active');
+  draw3DRadar();
+}
+
+function renderReviewRecommendations() {
+  var list = document.getElementById('reviewList');
+  if (!list) return;
+  var topics = appData.reviewTopics || [];
+  if (topics.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);"><div style="font-size:36px;margin-bottom:8px;">🎯</div><p>暂无复习推荐，继续学习吧！</p></div>';
+    return;
+  }
+  list.innerHTML = topics.map(function(t, i) {
+    var rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : 'other';
+    return '<div class="review-item">' +
+      '<div class="review-rank ' + rankClass + '">' + (i + 1) + '</div>' +
+      '<div class="review-content"><div class="review-topic">' + t.topic + '</div>' +
+      '<div class="review-reason">' + t.reason + ' · 掌握度 ' + t.mastery + '%</div></div>' +
+      '<div class="review-actions">' +
+      '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="showToast(\'正在打开复习微课...\')">🎬 复习</button>' +
+      '<button class="btn btn-primary" style="padding:6px 14px;font-size:13px;" onclick="showToast(\'开始专项练习！\')">✏️ 练习</button>' +
+      '</div></div>';
+  }).join('');
 }
 
 // ===== EVALUATE =====
+function updateClassEvalVisibility() {
+  var classSection = document.getElementById('classEvalSection');
+  var iframe = document.getElementById('classDashboardFrame');
+  if (!classSection) return;
+  var role = getCurrentRole();
+  if (role === 'teacher') {
+    classSection.style.display = '';
+    if (iframe) iframe.src = '五维评价/class-dashboard.html?role=teacher';
+  } else {
+    classSection.style.display = 'none';
+    if (iframe) iframe.src = '';
+  }
+}
+
 function renderEvaluate() {
   const role = getCurrentRole();
-  const wall = document.getElementById('medalWall');
-  if (!wall) return;
+  const content = document.getElementById('personalEvalContent');
+  if (!content) return;
 
-  var title = document.querySelector('#page-evaluate > .container > .section-title');
-  if (title) {
-    if (role === 'teacher') title.textContent = '🏆 评价管理';
-    else if (role === 'parent') title.textContent = '🏆 孩子的多元评价';
-    else title.textContent = '🏆 多元评价';
-  }
+  // 检查是否已登录（教师 PIN 或云端账号）
+  const isLoggedIn = isAuthenticated() || isCloudLoggedIn();
 
-  wall.innerHTML = appData.medals.map(function(m) {
-    return '<div class="medal-card' + (m.unlocked ? '' : ' locked') + '">' +
-      '<div class="medal-icon">' + m.icon + '</div>' +
-      '<div class="medal-name">' + m.name + '</div>' +
-      '<div class="medal-date">' + (m.unlocked ? m.date : m.condition) + '</div></div>';
-  }).join('');
+  if (role === 'teacher') {
+    // 教师模式：显示完整评价工具
+    var html = '<div class="radar-section"><div class="chart-container">';
+    html += '<h3 id="radarTitle" style="margin-bottom:16px;">五维雷达图 <button onclick="editEvalLabels()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 10px;font-size:12px;cursor:pointer;color:var(--primary);">⚙️ 编辑维度</button></h3>';
+    html += '<canvas id="radar5D" width="380" height="380"></canvas></div>';
+    html += '<div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);flex:1;">';
+    html += '<h3 style="margin-bottom:16px;">🎉 电子喜报</h3>';
+    html += '<div style="text-align:center;padding:20px;background:linear-gradient(135deg,#FFF7E6,#FFF0F5);border-radius:var(--radius);">';
+    html += '<p style="font-size:20px;font-weight:700;color:var(--star);margin-bottom:8px;">🌟 优秀学员喜报</p>';
+    html += '<div style="width:60px;height:60px;background:var(--primary);border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:28px;color:white;">🧮</div>';
+    html += '<p style="font-size:18px;font-weight:600;">' + (appData.userName || '小明同学') + '</p>';
+    html += '<p style="font-size:14px;color:var(--text-secondary);margin:8px 0;">计算 | 理解 | 审题全面发展</p></div></div></div>';
 
-  var storeEl = document.getElementById('pointStore');
-  if (storeEl) {
-    var storeContainer = storeEl.closest('.container.section');
+    // 勋章墙
+    html += '<div style="margin-top:24px;"><h3 style="margin-bottom:16px;">🏅 勋章墙</h3>';
+    html += '<div class="medal-grid">' + appData.medals.map(function(m) {
+      return '<div class="medal-card' + (m.unlocked ? '' : ' locked') + '"><div class="medal-icon">' + m.icon + '</div><div class="medal-name">' + m.name + '</div><div class="medal-date">' + (m.unlocked ? m.date : m.condition) + '</div></div>';
+    }).join('') + '</div></div>';
+
+    // 教师工具箱
+    html += '<div style="margin-top:24px;"><h3 style="margin-bottom:16px;">🧰 教师工具箱</h3>';
+    html += '<div style="display:flex;justify-content:center;">';
+    html += '<a href="课堂行为/index.html" style="text-decoration:none;color:inherit;width:100%;max-width:360px;"><div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);border-top:4px solid var(--secondary);cursor:pointer;text-align:center;"><div style="font-size:36px;">🎥</div><h4 style="margin:12px 0 8px;font-size:18px;">课堂行为监测</h4><p style="font-size:13px;color:var(--text-muted);">AI课堂行为检测系统</p></div></a>';
+    html += '</div></div>';
+
+    content.innerHTML = html;
+    setTimeout(draw5DRadar, 100);
+
+  } else if (isLoggedIn) {
+    // 学生/家长已登录：显示个人评价数据
+    var displayName = role === 'parent' ? (appData.parentStudentName || '我的孩子') : (appData.userName || '同学');
+    var html = '<div class="radar-section"><div class="chart-container">';
+    html += '<h3 id="radarTitle" style="margin-bottom:16px;">' + displayName + ' 的五维雷达图</h3>';
+    html += '<canvas id="radar5D" width="380" height="380"></canvas></div>';
+    html += '<div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);flex:1;">';
+    html += '<h3 style="margin-bottom:16px;">📋 本周表现小结</h3>';
+    html += '<div style="font-size:14px;color:var(--text-secondary);line-height:2;">';
+    html += '<p>📝 完成练习：' + appData.exercises.filter(function(x){return x;}).length + ' / ' + appData.exercises.length + '</p>';
+    html += '<p>🔥 连续学习：' + appData.streak + ' 天</p>';
+    html += '<p>⭐ 当前积分：' + appData.points + ' 分</p>';
+    html += '<p>🏅 已获勋章：' + appData.medals.filter(function(x){return x.unlocked;}).length + ' / ' + appData.medals.length + '</p>';
+    html += '</div></div></div>';
+
+    // 勋章墙
+    html += '<div style="margin-top:24px;"><h3 style="margin-bottom:16px;">🏅 勋章墙</h3>';
+    html += '<div class="medal-grid">' + appData.medals.map(function(m) {
+      return '<div class="medal-card' + (m.unlocked ? '' : ' locked') + '"><div class="medal-icon">' + m.icon + '</div><div class="medal-name">' + m.name + '</div><div class="medal-date">' + (m.unlocked ? m.date : m.condition) + '</div></div>';
+    }).join('') + '</div></div>';
+
+    // 积分商城（仅学生）
     if (role === 'student') {
-      if (storeContainer) storeContainer.style.display = '';
-      storeEl.innerHTML = appData.store.map(function(item) {
-        return '<div class="store-item" onclick="redeemItem(\'' + item.name + '\',' + item.price + ')">' +
-          '<div style="font-size:36px;">' + item.icon + '</div>' +
-          '<div style="font-weight:600;margin:8px 0;">' + item.name + '</div>' +
-          '<div class="price">' + item.price + ' 积分</div></div>';
-      }).join('');
-    } else {
-      if (storeContainer) storeContainer.style.display = 'none';
+      html += '<div style="margin-top:24px;"><h3 style="margin-bottom:16px;">🎁 积分商城</h3>';
+      html += '<div class="store-grid">' + appData.store.map(function(item) {
+        return '<div class="store-item" onclick="redeemItem(\'' + item.name + '\',' + item.price + ')"><div style="font-size:36px;">' + item.icon + '</div><div style="font-weight:600;margin:8px 0;">' + item.name + '</div><div class="price">' + item.price + ' 积分</div></div>';
+      }).join('') + '</div></div>';
     }
-  }
 
-  draw5DRadar();
+    content.innerHTML = html;
+    setTimeout(draw5DRadar, 100);
+
+  } else {
+    // 未登录：提示登录
+    content.innerHTML =
+      '<div style="text-align:center;padding:48px 24px;background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow);">' +
+      '<div style="font-size:64px;margin-bottom:16px;">🔒</div>' +
+      '<h3 style="margin-bottom:12px;">请登录后查看个人评价</h3>' +
+      '<p style="color:var(--text-muted);margin-bottom:24px;">学生和家长需登录账号才能查看自己的学习评价数据</p>' +
+      '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">' +
+      '<button class="btn btn-primary" onclick="openCloudLoginModal()">🔑 账号登录</button>' +
+      '<button class="btn btn-outline" onclick="switchMode(\'parent\');openCloudLoginModal()">👨‍👩‍👧 家长登录</button>' +
+      '</div>' +
+      '<p style="font-size:12px;color:var(--text-muted);margin-top:16px;">没有账号？请联系张老师获取邀请码</p>' +
+      '</div>';
+  }
 }
 
 function draw5DRadar() {
@@ -2378,7 +2988,10 @@ function draw5DRadar() {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const cx = 190, cy = 190, r = 150;
-  const labels = ['计算\n小达人', '思考\n小诸葛', '表达\n小讲师', '书写\n小标兵', '应用\n小能手'];
+  const labels = (appData.evalLabels || ['计算小达人', '思考小诸葛', '表达小讲师', '书写小标兵', '应用小能手']).map(function(l) {
+    if (l.length > 4) { var mid = Math.ceil(l.length / 2); return l.slice(0, mid) + '\n' + l.slice(mid); }
+    return l;
+  });
   // 动态计算各维度
   var exerciseTotal = appData.exercises.length;
   var exerciseDone = appData.exercises.filter(function(x){return x;}).length;
@@ -2439,6 +3052,22 @@ function draw5DRadar() {
   });
 }
 
+function editEvalLabels() {
+  var labels = appData.evalLabels || ['计算小达人', '思考小诸葛', '表达小讲师', '书写小标兵', '应用小能手'];
+  openFormModal('编辑五维名称', [
+    { label: '维度 1', name: 'label0', type: 'text', value: labels[0] || '', required: true },
+    { label: '维度 2', name: 'label1', type: 'text', value: labels[1] || '', required: true },
+    { label: '维度 3', name: 'label2', type: 'text', value: labels[2] || '', required: true },
+    { label: '维度 4', name: 'label3', type: 'text', value: labels[3] || '', required: true },
+    { label: '维度 5', name: 'label4', type: 'text', value: labels[4] || '', required: true }
+  ], function(data) {
+    appData.evalLabels = [data.label0, data.label1, data.label2, data.label3, data.label4];
+    saveData();
+    renderEvaluate();
+    showToast('五维名称已更新');
+  }, '保存修改');
+}
+
 function redeemItem(name, price) {
   if (appData.points >= price) {
     appData.points -= price;
@@ -2454,6 +3083,41 @@ function renderAbout() {
   const role = getCurrentRole();
   const list = document.getElementById('blogList');
   if (!list) return;
+
+  // 渲染教师信息卡片
+  var teacherCard = document.getElementById('teacherInfoCard');
+  if (teacherCard) {
+    var info = appData.teacherInfo || { name:'张吉年老师', grade:'小学数学', motto:'' };
+    var editBtn = role === 'teacher' ? ' <button onclick="editTeacherInfo()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 10px;font-size:12px;cursor:pointer;color:var(--primary);">✏️ 编辑</button>' : '';
+    teacherCard.innerHTML = '<img class="teacher-avatar" src="logo.png?v=20260724" alt="张吉年老师">' +
+      '<div class="teacher-info-text">' +
+      '<h3>' + info.name + editBtn + '</h3>' +
+      '<div class="teacher-grade">📚 ' + info.grade + '</div>' +
+      '<div class="teacher-motto">"' + info.motto + '"</div>' +
+      '</div>';
+  }
+
+  // 渲染教学理念
+  var philosophyHeader = document.getElementById('aboutPhilosophyHeader');
+  var philosophyBody = document.getElementById('aboutPhilosophy');
+  if (philosophyHeader && philosophyBody) {
+    var editBtn = role === 'teacher' ? ' <button onclick="editProfile()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 10px;font-size:12px;cursor:pointer;color:var(--primary);">✏️ 编辑</button>' : '';
+    philosophyHeader.innerHTML = '<h3 style="font-size:22px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">教学理念' + editBtn + '</h3>';
+    var p = appData.profile || { philosophy: '', honors: [] };
+    philosophyBody.innerHTML = '<p style="color:var(--text-secondary);line-height:1.8;white-space:pre-wrap;">' + (p.philosophy || '') + '</p>';
+  }
+
+  // 渲染工作经历与荣誉
+  var honorsHeader = document.getElementById('aboutHonorsHeader');
+  var honorsBody = document.getElementById('aboutHonors');
+  if (honorsHeader && honorsBody) {
+    var editBtn2 = role === 'teacher' ? ' <button onclick="editProfile()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 10px;font-size:12px;cursor:pointer;color:var(--primary);">✏️ 编辑</button>' : '';
+    honorsHeader.innerHTML = '<h3 style="font-size:22px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">工作经历与荣誉' + editBtn2 + '</h3>';
+    var p2 = appData.profile || { honors: [] };
+    var honors = p2.honors || [];
+    honorsBody.innerHTML = '<ul style="color:var(--text-secondary);line-height:2;padding-left:20px;">' +
+      honors.map(function(h) { return '<li>' + h + '</li>'; }).join('') + '</ul>';
+  }
 
   if (role === 'teacher') {
     list.innerHTML = appData.blogs.map(function(b, i) {
@@ -2519,16 +3183,85 @@ function deleteBlog(idx) {
   showToast('文章已删除');
 }
 
+function editProfile() {
+  var p = appData.profile || { philosophy: '', honors: [] };
+  openFormModal('编辑关于我', [
+    { label: '教学理念', name: 'philosophy', type: 'textarea', value: p.philosophy || '', required: true, placeholder: '输入你的教学理念...' },
+    { label: '工作经历与荣誉（每行一条）', name: 'honors', type: 'textarea', value: (p.honors || []).join('\n'), required: true, placeholder: '每行写一条经历或荣誉...' }
+  ], function(data) {
+    appData.profile = {
+      philosophy: data.philosophy,
+      honors: data.honors.split('\n').filter(function(h) { return h.trim(); })
+    };
+    saveData();
+    renderAbout();
+    showToast('关于我已更新');
+  }, '保存修改');
+}
+
+function editTeacherInfo() {
+  var info = appData.teacherInfo || { name:'', grade:'', motto:'' };
+  openFormModal('编辑教师信息', [
+    { label: '教师姓名', name: 'name', type: 'text', value: info.name, required: true },
+    { label: '任教年级', name: 'grade', type: 'text', value: info.grade, required: true },
+    { label: '教学格言', name: 'motto', type: 'text', value: info.motto, required: true, placeholder: '一句话教学格言...' }
+  ], function(data) {
+    appData.teacherInfo = { name: data.name, grade: data.grade, motto: data.motto };
+    saveData();
+    renderAbout();
+    showToast('教师信息已更新');
+  }, '保存修改');
+}
+
 // ===== MODAL =====
-function openVideo(title) {
+function openVideo(idx) {
+  var c = appData.courses[idx];
+  if (!c) return;
+  var url = c.videoUrl || '';
+  var role = getCurrentRole();
+  var html = '<h3 style="margin-bottom:8px;">' + c.title + '</h3>';
+  html += '<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">' + c.grade + ' · ' + c.duration + '</p>';
+
+  if (url) {
+    if (url.match(/\.(mp4|webm|ogg)(\?|#|$)/i) || url.indexOf('/videos/') !== -1) {
+      html += '<div style="background:#000;border-radius:12px;overflow:hidden;margin:16px 0;">';
+      html += '<video controls autoplay style="width:100%;display:block;max-height:480px;" src="' + url + '"></video>';
+      html += '</div>';
+    } else if (url.indexOf('bilibili.com') !== -1 || url.indexOf('b23.tv') !== -1) {
+      var bvid = '';
+      var match = url.match(/(?:bilibili\.com\/video\/|b23\.tv\/)(BV[\w]+)/i);
+      if (match) bvid = match[1];
+      if (bvid) {
+        html += '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin:16px 0;">';
+        html += '<iframe src="https://player.bilibili.com/player.html?bvid=' + bvid + '&high_quality=1&autoplay=1" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen="true" scrolling="no"></iframe>';
+        html += '</div>';
+      } else {
+        html += '<div style="background:#000;border-radius:12px;overflow:hidden;margin:16px 0;">';
+        html += '<iframe src="' + url + '" style="width:100%;height:480px;border:0;" allowfullscreen></iframe>';
+        html += '</div>';
+      }
+    } else if (url.indexOf('v.qq.com') !== -1) {
+      html += '<div style="background:#000;border-radius:12px;overflow:hidden;margin:16px 0;">';
+      html += '<iframe src="' + url + '" style="width:100%;height:480px;border:0;" allowfullscreen></iframe>';
+      html += '</div>';
+    } else {
+      html += '<div style="background:#000;border-radius:12px;overflow:hidden;margin:16px 0;">';
+      html += '<video controls autoplay style="width:100%;display:block;max-height:480px;" src="' + url + '"></video>';
+      html += '</div>';
+    }
+  } else {
+    html += '<div style="background:linear-gradient(135deg,#4A90D9,#7AB8F5);height:240px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:16px 0;">';
+    html += '<div style="text-align:center;color:rgba(255,255,255,0.9);">';
+    html += '<div style="width:64px;height:64px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;color:#4A90D9;margin:0 auto 12px;">▶</div>';
+    html += '<p style="font-size:14px;">暂无视频</p>';
+    if (role === 'teacher') {
+      html += '<p style="font-size:13px;margin-top:4px;">点击 ✏️ 编辑课程添加视频链接或上传文件</p>';
+    }
+    html += '</div></div>';
+  }
+
   document.getElementById('modal').classList.add('open');
-  document.getElementById('modalContent').innerHTML = `
-    <h3>▶ ${title}</h3>
-    <div style="background:linear-gradient(135deg,#4A90D9,#7AB8F5);height:240px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:16px 0;">
-      <div style="width:64px;height:64px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;color:#4A90D9;">▶</div>
-    </div>
-    <p style="color:var(--text-muted);text-align:center;">微课播放区域（连接后端视频服务后可播放）</p>
-  `;
+  document.getElementById('modalContent').innerHTML = html;
 }
 
 function closeModal(e) {
@@ -2568,6 +3301,13 @@ function openFormModal(title, fields, onSubmit, submitLabel) {
       html += '<input type="checkbox" name="' + f.name + '" ' + (f.value?'checked':'') + ' style="width:18px;height:18px;">';
       html += '<span style="font-size:14px;">' + (f.placeholder||'') + '</span>';
       html += '</label>';
+    } else if (f.type === 'videofield') {
+      html += '<div style="display:flex;gap:8px;">';
+      html += '<input type="text" name="' + f.name + '" value="' + (f.value||'') + '" placeholder="' + (f.placeholder||'粘贴视频URL...') + '" style="flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;outline:none;">';
+      html += '<button type="button" onclick="triggerVideoUpload(this)" style="padding:10px 16px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer;background:var(--bg);white-space:nowrap;">📁 上传</button>';
+      html += '<input type="file" accept="video/mp4,video/webm" style="display:none;" onchange="handleVideoUpload(this)">';
+      html += '</div>';
+      html += '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">支持 mp4/webm 直链、B站链接，或点击上传视频文件</div>';
     } else {
       html += '<input type="' + (f.type||'text') + '" name="' + f.name + '" value="' + (f.value||'') + '" placeholder="' + (f.placeholder||'') + '" ' + (f.required?'required':'') + ' style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;outline:none;">';
     }
@@ -2605,6 +3345,546 @@ function selectFormColor(btn, fieldName) {
   btn.style.borderColor = 'var(--text)';
   var hidden = group.querySelector('input[type="hidden"]');
   if (hidden) hidden.value = btn.dataset.color;
+}
+
+// ===== VIDEO UPLOAD =====
+function triggerVideoUpload(btn) {
+  var fileInput = btn.parentElement.querySelector('input[type="file"]');
+  if (fileInput) fileInput.click();
+}
+
+function handleVideoUpload(fileInput) {
+  var file = fileInput.files[0];
+  if (!file) return;
+  var textInput = fileInput.parentElement.querySelector('input[type="text"]');
+  var btn = fileInput.parentElement.querySelector('button');
+
+  if (file.size > 200 * 1024 * 1024) {
+    showToast('文件超过200MB限制，请压缩后上传', 'error');
+    fileInput.value = '';
+    return;
+  }
+
+  var token = getCloudToken() || '';
+  if (!token) { showToast('请先登录云端账号后再上传视频', 'error'); btn.textContent = '📁 重新上传'; btn.disabled = false; return; }
+
+  // 创建进度条 UI
+  var container = fileInput.parentElement;
+  var oldBar = container.querySelector('.video-progress');
+  if (oldBar) oldBar.remove();
+  var progressBar = document.createElement('div');
+  progressBar.className = 'video-progress';
+  progressBar.style.cssText = 'width:100%;margin-top:8px;';
+  progressBar.innerHTML =
+    '<div style="background:var(--bg);border-radius:8px;overflow:hidden;height:24px;position:relative;border:1px solid var(--border);">' +
+      '<div class="video-progress-fill" style="width:0%;height:100%;background:linear-gradient(90deg,var(--primary),var(--primary-light));transition:width 0.3s;"></div>' +
+      '<div class="video-progress-text" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--text);">0%</div>' +
+    '</div>' +
+    '<div class="video-progress-info" style="font-size:11px;color:var(--text-muted);margin-top:4px;text-align:center;">上传中... 请勿关闭页面</div>';
+  container.appendChild(progressBar);
+  var fillBar = progressBar.querySelector('.video-progress-fill');
+  var textEl = progressBar.querySelector('.video-progress-text');
+  var infoEl = progressBar.querySelector('.video-progress-info');
+
+  btn.textContent = '⏳ 上传中';
+  btn.disabled = true;
+
+  var formData = new FormData();
+  formData.append('file', file);
+
+  var xhr = new XMLHttpRequest();
+  var startTime = Date.now();
+
+  xhr.upload.addEventListener('progress', function(e) {
+    if (e.lengthComputable) {
+      var pct = Math.round((e.loaded / e.total) * 100);
+      fillBar.style.width = pct + '%';
+      textEl.textContent = pct + '%';
+      var elapsed = (Date.now() - startTime) / 1000;
+      if (e.loaded > 0 && elapsed > 0) {
+        var speedMB = (e.loaded / 1024 / 1024 / elapsed).toFixed(1);
+        var remaining = e.total - e.loaded;
+        var etaSec = Math.round(remaining / (e.loaded / elapsed));
+        if (etaSec > 60) {
+          infoEl.textContent = '已传 ' + (e.loaded/1048576).toFixed(1) + '/' + (e.total/1048576).toFixed(1) + 'MB · ' + speedMB + 'MB/s · 约' + Math.ceil(etaSec/60) + '分钟';
+        } else {
+          infoEl.textContent = '已传 ' + (e.loaded/1048576).toFixed(1) + '/' + (e.total/1048576).toFixed(1) + 'MB · ' + speedMB + 'MB/s · 约' + etaSec + '秒';
+        }
+      }
+    }
+  });
+
+  xhr.addEventListener('load', function() {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      try {
+        var data = JSON.parse(xhr.responseText);
+        if (textInput) textInput.value = data.url;
+        btn.textContent = '✅ 已上传';
+        btn.disabled = false;
+        fillBar.style.width = '100%';
+        fillBar.style.background = 'var(--success)';
+        textEl.textContent = '✅ 100%';
+        infoEl.textContent = '上传成功！' + (data.size ? (data.size/1048576).toFixed(1) + 'MB' : '');
+        showToast('视频上传成功');
+        setTimeout(function() { btn.textContent = '📁 上传'; }, 3000);
+        setTimeout(function() { if (progressBar && progressBar.parentNode) progressBar.remove(); }, 5000);
+      } catch (e) {
+        btn.textContent = '📁 重新上传';
+        btn.disabled = false;
+        infoEl.textContent = '解析返回失败';
+        showToast('上传失败：服务器返回异常', 'error');
+      }
+    } else {
+      var errMsg = '上传失败 (' + xhr.status + ')';
+      try { var ej = JSON.parse(xhr.responseText); if (ej.detail) errMsg = extractErrorDetail(ej); } catch (e) {}
+      btn.textContent = '📁 重新上传';
+      btn.disabled = false;
+      fillBar.style.background = 'var(--danger)';
+      infoEl.textContent = errMsg;
+      showToast('上传失败：' + errMsg, 'error');
+    }
+  });
+
+  xhr.addEventListener('error', function() {
+    btn.textContent = '📁 重新上传';
+    btn.disabled = false;
+    fillBar.style.background = 'var(--danger)';
+    textEl.textContent = '❌ 失败';
+    infoEl.textContent = '网络中断，请检查网络后重试';
+    showToast('上传失败：网络中断（可能是热点断开），请重试', 'error');
+  });
+
+  xhr.addEventListener('timeout', function() {
+    btn.textContent = '📁 重新上传';
+    btn.disabled = false;
+    fillBar.style.background = 'var(--danger)';
+    textEl.textContent = '❌ 超时';
+    infoEl.textContent = '上传超时，请检查网络后重试';
+    showToast('上传超时，请检查网络后重试', 'error');
+  });
+
+  xhr.open('POST', API_BASE + '/upload/video');
+  xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+  xhr.timeout = 600000; // 10分钟超时
+  xhr.send(formData);
+}
+
+// ===== HOMEWORK AI GRADING =====
+
+// 状态标签映射
+var hwStatusLabel = { pending:'待批改', grading:'AI批改中', graded:'AI已批改', reviewed:'已复核', failed:'批改失败' };
+var hwStatusIcon = { pending:'⏳', grading:'🤖', graded:'✅', reviewed:'✅✅', failed:'❌' };
+
+// 渲染家校互通页的作业上传区域
+function renderHwUpload() {
+  var section = document.getElementById('hwUploadSection');
+  if (!section) return;
+  var role = getCurrentRole();
+
+  if (role === 'teacher') {
+    section.innerHTML = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:20px;text-align:center;">' +
+      '<p style="font-size:14px;color:var(--primary);font-weight:500;">教师模式下，请到「学习反馈」页面查看和批改学生提交的作业</p>' +
+      '<button class="btn btn-primary" onclick="navigate(\'feedback\')">📋 去批改作业</button></div>';
+    return;
+  }
+
+  // 学生/家长模式：上传作业
+  var studentName = role === 'parent' ? (appData.parentStudentName || '') : (appData.userName || '');
+  section.innerHTML = '<div class="hw-upload-zone">' +
+    '<h3 style="margin-bottom:16px;">📝 提交作业</h3>' +
+    '<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">拍照上传你的数学作业，AI 会自动批改并给出反馈，老师还会复核哦！</p>' +
+    '<form id="hwUploadForm" onsubmit="submitHwUpload(event)">' +
+    '<div class="form-group"><label>姓名</label><input type="text" id="hwStudentName" value="' + studentName + '" required placeholder="输入你的姓名"></div>' +
+    '<div class="form-group"><label>作业标题</label><input type="text" id="hwTitle" placeholder="如：分数练习第3页"></div>' +
+    '<div class="hw-upload-area" id="hwDropZone" onclick="document.getElementById(\'hwFileInput\').click()">' +
+    '<div style="font-size:36px;margin-bottom:8px;">📷</div>' +
+    '<p style="font-size:14px;font-weight:500;color:var(--text-secondary);">点击拍照或选择图片</p>' +
+    '<p style="font-size:12px;color:var(--text-muted);">支持 JPG/PNG，建议横拍清晰照片</p>' +
+    '</div>' +
+    '<input type="file" id="hwFileInput" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="previewHwImage(this)">' +
+    '<img id="hwPreview" class="hw-preview" style="display:none;">' +
+    '<div id="hwUploadStatus" style="text-align:center;margin-top:8px;"></div>' +
+    '<button type="submit" class="btn btn-primary" style="width:100%;margin-top:16px;" id="hwSubmitBtn">📤 提交作业</button>' +
+    '</form></div>' +
+    // 已提交的作业列表
+    '<div id="hwMyList" style="margin-top:20px;"></div>';
+
+  // 拖拽上传支持
+  var dropZone = document.getElementById('hwDropZone');
+  if (dropZone) {
+    dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('active'); });
+    dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('active'); });
+    dropZone.addEventListener('drop', function(e) { e.preventDefault(); dropZone.classList.remove('active'); var files = e.dataTransfer.files; if (files.length) { document.getElementById('hwFileInput').files = files; previewHwImage(document.getElementById('hwFileInput')); } });
+  }
+  loadHwMyList();
+}
+
+function previewHwImage(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var preview = document.getElementById('hwPreview');
+  var dropZone = document.getElementById('hwDropZone');
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
+    if (dropZone) dropZone.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function submitHwUpload(e) {
+  e.preventDefault();
+  var name = document.getElementById('hwStudentName').value.trim();
+  var title = document.getElementById('hwTitle').value.trim();
+  var fileInput = document.getElementById('hwFileInput');
+  var file = fileInput.files[0];
+  if (!name) { showToast('请输入姓名'); return; }
+  if (!file) { showToast('请选择作业图片'); return; }
+
+  var btn = document.getElementById('hwSubmitBtn');
+  var status = document.getElementById('hwUploadStatus');
+
+  // 检查云端登录状态，避免未登录时发送请求
+  var token = getCloudToken();
+  if (!token) {
+    showToast('请先登录云端账号', 'error');
+    if (status) status.innerHTML = '<p style="color:var(--danger);font-size:13px;">请先登录云端账号后再上传作业</p>';
+    return;
+  }
+
+  btn.textContent = '⏳ 上传中...'; btn.disabled = true;
+  if (status) status.innerHTML = '<p style="color:var(--primary);font-size:13px;">正在上传作业图片...</p>';
+
+  var formData = new FormData();
+  formData.append('file', file);
+  formData.append('student_name', name);
+  formData.append('title', title);
+
+  try {
+    var resp = await fetch(API_BASE + '/homework/upload', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: formData,
+    });
+    if (!resp.ok) {
+      var errData = await resp.json().catch(function() { return {detail:'上传失败 (HTTP ' + resp.status + ')'}; });
+      var errMsg = extractErrorDetail(errData) || '上传失败';
+      throw new Error(errMsg);
+    }
+    var result = await resp.json();
+    showToast('作业上传成功！AI正在批改中...');
+    if (status) status.innerHTML = '<p style="color:var(--success);font-size:13px;">✅ 上传成功，AI正在自动批改，稍后可查看结果</p>';
+    btn.textContent = '📤 提交作业'; btn.disabled = false;
+    // 清空表单
+    fileInput.value = '';
+    var preview = document.getElementById('hwPreview');
+    var dropZone = document.getElementById('hwDropZone');
+    if (preview) preview.style.display = 'none';
+    if (dropZone) dropZone.style.display = '';
+    loadHwMyList();
+  } catch (err) {
+    var msg = extractErrorDetail(err) || '上传失败';
+    showToast('上传失败：' + msg, 'error');
+    if (status) status.innerHTML = '<p style="color:var(--danger);font-size:13px;">上传失败：' + msg + '</p>';
+    btn.textContent = '📤 提交作业'; btn.disabled = false;
+  }
+}
+
+// 加载我提交的作业列表（学生/家长视角）
+async function loadHwMyList() {
+  var container = document.getElementById('hwMyList');
+  if (!container) return;
+  if (!isCloudLoggedIn()) { container.innerHTML = ''; return; }
+
+  try {
+    var resp = await fetchWithAuth('/homework/list?status=all');
+    if (!resp.ok) return;
+    var items = await resp.json();
+    if (items.length === 0) {
+      container.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px;">还没有提交过作业，快来试试吧！</p>';
+      return;
+    }
+    // 只显示 reviewed 状态的作业（学生/家长只能看已复核的）
+    var reviewed = items.filter(function(h) { return h.status === 'reviewed'; });
+    if (reviewed.length === 0) {
+      container.innerHTML = '<h4 style="margin-bottom:12px;">📦 我的作业</h4>' +
+        '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px;">作业已提交，老师正在批改中，稍后可查看反馈</p>';
+      return;
+    }
+    container.innerHTML = '<h4 style="margin-bottom:12px;">📦 我的作业反馈</h4>' +
+      reviewed.map(function(h) {
+        return '<div class="hw-list-item">' +
+          '<img class="hw-thumb" src="' + h.image_url + '" alt="作业">' +
+          '<div class="hw-info">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+          '<span style="font-weight:500;font-size:14px;">' + (h.title || '数学作业') + '</span>' +
+          '<span class="hw-status reviewed">' + hwStatusIcon[h.status] + ' ' + hwStatusLabel[h.status] + '</span></div>' +
+          '<p style="font-size:13px;color:var(--text-secondary);">正确率：<strong style="color:var(--success);">' + h.accuracy + '%</strong> (' + h.total_correct + '/' + h.total_count + ')</p>' +
+          '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0,10) + '</p>' +
+          '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;margin-top:4px;" onclick="viewHwFeedback(' + h.id + ')">查看详细反馈</button>' +
+          '</div></div>';
+      }).join('');
+  } catch (e) {
+    container.innerHTML = '';
+  }
+}
+
+// 查看作业详细反馈
+async function viewHwFeedback(hwId) {
+  try {
+    var resp = await fetchWithAuth('/homework/' + hwId);
+    if (!resp.ok) throw new Error('获取详情失败');
+    var hw = await resp.json();
+    var grade = {};
+    try { grade = JSON.parse(hw.grade_result); } catch(e) {}
+
+    var finalResult = hw.teacher_reviewed ? JSON.parse(hw.teacher_reviewed) : grade;
+    var problemsHtml = '';
+    if (finalResult.problems && finalResult.problems.length > 0) {
+      problemsHtml = finalResult.problems.map(function(p) {
+        var cls = p.is_correct ? 'correct' : 'wrong';
+        var icon = p.is_correct ? '✅' : '❌';
+        return '<div class="hw-problem ' + cls + '">' +
+          '<div class="hw-problem-label">' + icon + ' ' + p.question + ' = ' + p.student_answer + '</div>' +
+          (p.is_correct ? '' : '<div class="hw-problem-detail">正确答案：<strong>' + p.correct_answer + '</strong> | ' + p.error_type + ': ' + p.error_reason + '</div>') +
+          (p.hint ? '<div class="hw-problem-detail">💡 ' + p.hint + '</div>' : '') +
+          '</div>';
+      }).join('');
+    }
+
+    var html = '<div class="hw-detail">' +
+      '<div style="text-align:center;margin-bottom:16px;"><img src="' + hw.image_url + '" style="max-width:300px;border-radius:var(--radius);"></div>' +
+      '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;text-align:center;">' +
+      '<p style="font-size:18px;font-weight:600;">正确率：' + finalResult.accuracy + '% (' + finalResult.total_correct + '/' + finalResult.total_count + ')</p>' +
+      '</div>' +
+      (problemsHtml ? '<h4 style="margin-bottom:12px;">逐题批改</h4>' + problemsHtml : '') +
+      '<div style="background:var(--bg);border-radius:var(--radius);padding:16px;margin-top:16px;">' +
+      '<h4>📝 评语</h4>' +
+      '<p style="font-size:14px;color:var(--text);line-height:1.8;">' + (hw.teacher_comment || finalResult.summary || '老师暂未添加评语') + '</p>' +
+      '</div></div>';
+
+    document.getElementById('modalContent').innerHTML = html;
+    document.getElementById('modal').classList.add('open');
+  } catch (e) {
+    showToast('查看反馈失败：' + e.message);
+  }
+}
+
+// 渲染学习反馈页的作业批改区域
+function renderHwGrading() {
+  var section = document.getElementById('hwGradingSection');
+  if (!section) return;
+  var role = getCurrentRole();
+
+  if (role === 'teacher') {
+    // 教师模式：批改工作台
+    section.innerHTML = '<h3 style="margin-bottom:16px;">📋 作业批改工作台</h3>' +
+      '<div class="hw-filter-bar" id="hwFilterBar">' +
+      '<button class="hw-filter-btn active" onclick="filterHw(\'all\',this)">全部</button>' +
+      '<button class="hw-filter-btn" onclick="filterHw(\'graded\',this)">待复核</button>' +
+      '<button class="hw-filter-btn" onclick="filterHw(\'reviewed\',this)">已完成</button>' +
+      '<button class="hw-filter-btn" onclick="filterHw(\'grading\',this)">批改中</button>' +
+      '<button class="hw-filter-btn" onclick="filterHw(\'pending\',this)">待批改</button>' +
+      '</div>' +
+      '<div id="hwTeacherList"></div>';
+    loadHwTeacherList('all');
+  } else {
+    // 学生/家长模式：已复核的作业反馈列表
+    section.innerHTML = '';
+    // 汇总显示已复核的作业
+    if (isCloudLoggedIn()) {
+      section.innerHTML = '<h3 style="margin-bottom:16px;">📝 作业反馈</h3><div id="hwFeedbackList"></div>';
+      loadHwFeedbackList();
+    }
+  }
+}
+
+var hwCurrentFilter = 'all';
+function filterHw(filter, btn) {
+  hwCurrentFilter = filter;
+  document.querySelectorAll('#hwFilterBar .hw-filter-btn').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  loadHwTeacherList(filter);
+}
+
+async function loadHwTeacherList(filter) {
+  var list = document.getElementById('hwTeacherList');
+  if (!list) return;
+  if (!isCloudLoggedIn()) { list.innerHTML = '<p style="text-align:center;color:var(--text-muted);">请先登录云端账号</p>'; return; }
+
+  try {
+    var statusParam = filter === 'all' ? 'all' : filter;
+    var resp = await fetchWithAuth('/homework/list?status=' + statusParam);
+    if (!resp.ok) throw new Error('获取列表失败');
+    var items = await resp.json();
+
+    if (items.length === 0) {
+      list.innerHTML = '<div style="text-align:center;padding:48px;color:var(--text-muted);">' +
+        '<div style="font-size:36px;margin-bottom:8px;">📭</div>' +
+        '<p>暂无' + (filter === 'all' ? '' : hwStatusLabel[filter] + '状态的') + '作业</p></div>';
+      return;
+    }
+
+    list.innerHTML = items.map(function(h) {
+      return '<div class="hw-list-item">' +
+        '<img class="hw-thumb" src="' + h.image_url + '" alt="作业">' +
+        '<div class="hw-info">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+        '<span style="font-weight:500;font-size:14px;">' + h.student_name + ' — ' + (h.title || '数学作业') + '</span>' +
+        '<span class="hw-status ' + h.status + '">' + hwStatusIcon[h.status] + ' ' + hwStatusLabel[h.status] + '</span></div>' +
+        (h.status === 'graded' || h.status === 'reviewed' ?
+          '<p style="font-size:13px;color:var(--text-secondary);">正确率：<strong style="color:var(--success);">' + h.accuracy + '%</strong> (' + h.total_correct + '/' + h.total_count + ')</p>' : '') +
+        '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0,10) + (h.reviewed_at ? ' · 复核于 ' + h.reviewed_at.slice(0,10) : '') + '</p>' +
+        '<div style="display:flex;gap:8px;margin-top:8px;">' +
+        (h.status === 'graded' ? '<button class="btn btn-primary" style="padding:6px 14px;font-size:13px;" onclick="reviewHw(' + h.id + ')">📝 复核确认</button>' : '') +
+        (h.status === 'graded' || h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="viewHwDetail(' + h.id + ')">👁️ 查看详情</button>' : '') +
+        '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--danger);" onclick="deleteHw(' + h.id + ')">🗑️ 删除</button>' +
+        '</div></div></div>';
+    }).join('');
+  } catch (e) {
+    list.innerHTML = '<p style="text-align:center;color:var(--danger);">加载失败：' + e.message + '</p>';
+  }
+}
+
+async function loadHwFeedbackList() {
+  var list = document.getElementById('hwFeedbackList');
+  if (!list) return;
+  try {
+    var resp = await fetchWithAuth('/homework/list?status=reviewed');
+    if (!resp.ok) return;
+    var items = await resp.json();
+    if (items.length === 0) {
+      list.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px;">暂无已批改的作业反馈</p>';
+      return;
+    }
+    list.innerHTML = items.map(function(h) {
+      return '<div class="hw-list-item">' +
+        '<img class="hw-thumb" src="' + h.image_url + '" alt="作业">' +
+        '<div class="hw-info">' +
+        '<span style="font-weight:500;font-size:14px;">' + (h.title || '数学作业') + '</span>' +
+        '<span class="hw-status reviewed" style="margin-left:8px;">✅ 已批改</span>' +
+        '<p style="font-size:13px;color:var(--text-secondary);">正确率：' + h.accuracy + '% (' + h.total_correct + '/' + h.total_count + ')</p>' +
+        '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0,10) + '</p>' +
+        '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;" onclick="viewHwFeedback(' + h.id + ')">查看反馈</button>' +
+        '</div></div>';
+    }).join('');
+  } catch (e) { list.innerHTML = ''; }
+}
+
+// 教师查看作业详情
+async function viewHwDetail(hwId) {
+  try {
+    var resp = await fetchWithAuth('/homework/' + hwId);
+    if (!resp.ok) throw new Error('获取详情失败');
+    var hw = await resp.json();
+    var grade = {};
+    try { grade = JSON.parse(hw.grade_result); } catch(e) {}
+
+    var problemsHtml = '';
+    if (grade.problems && grade.problems.length > 0) {
+      problemsHtml = grade.problems.map(function(p) {
+        var cls = p.is_correct ? 'correct' : 'wrong';
+        var icon = p.is_correct ? '✅' : '❌';
+        return '<div class="hw-problem ' + cls + '">' +
+          '<div class="hw-problem-label">' + icon + ' ' + p.question + ' = ' + p.student_answer +
+          (p.is_correct ? '' : ' (正确: ' + p.correct_answer + ')') + '</div>' +
+          (p.is_correct ? '' : '<div class="hw-problem-detail">' + p.error_type + ': ' + p.error_reason + '</div>') +
+          (p.hint ? '<div class="hw-problem-detail">💡 ' + p.hint + '</div>' : '') +
+          '</div>';
+      }).join('');
+    }
+
+    var html = '<div class="hw-detail">' +
+      '<div style="text-align:center;margin-bottom:16px;"><img src="' + hw.image_url + '" style="max-width:300px;border-radius:var(--radius);"></div>' +
+      '<h4 style="margin-bottom:4px;">' + hw.student_name + ' — ' + (hw.title || '数学作业') + '</h4>' +
+      '<p style="font-size:12px;color:var(--text-muted);">提交时间：' + hw.created_at.slice(0,10) + ' · 状态：' + hwStatusLabel[hw.status] + '</p>' +
+      (grade.accuracy ? '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:12px;margin:12px 0;text-align:center;font-size:16px;font-weight:600;">正确率：' + grade.accuracy + '%</div>' : '') +
+      (problemsHtml ? '<h4 style="margin-bottom:8px;">逐题批改</h4>' + problemsHtml : '') +
+      (grade.summary ? '<div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-top:12px;"><strong>AI评语：</strong>' + grade.summary + '</div>' : '') +
+      (grade.suggestions ? '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">💡 建议：' + grade.suggestions.join('、') + '</div>' : '') +
+      (hw.teacher_comment ? '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:12px;margin-top:12px;"><strong>教师评语：</strong>' + hw.teacher_comment + '</div>' : '') +
+      '</div>';
+
+    document.getElementById('modalContent').innerHTML = html;
+    document.getElementById('modal').classList.add('open');
+  } catch (e) {
+    showToast('查看详情失败：' + e.message);
+  }
+}
+
+// 教师复核批改结果
+async function reviewHw(hwId) {
+  try {
+    var resp = await fetchWithAuth('/homework/' + hwId);
+    if (!resp.ok) throw new Error('获取详情失败');
+    var hw = await resp.json();
+    var grade = {};
+    try { grade = JSON.parse(hw.grade_result); } catch(e) {}
+
+    var problemsHtml = '';
+    if (grade.problems && grade.problems.length > 0) {
+      problemsHtml = grade.problems.map(function(p) {
+        var cls = p.is_correct ? 'correct' : 'wrong';
+        var icon = p.is_correct ? '✅' : '❌';
+        return '<div class="hw-problem ' + cls + '">' +
+          '<div class="hw-problem-label">' + icon + ' ' + p.question + ' = ' + p.student_answer + '</div>' +
+          '</div>';
+      }).join('');
+    }
+
+    var html = '<div class="hw-detail">' +
+      '<h3 style="margin-bottom:16px;">📝 复核批改结果</h3>' +
+      '<div style="text-align:center;margin-bottom:16px;"><img src="' + hw.image_url + '" style="max-width:240px;border-radius:var(--radius);"></div>' +
+      '<p style="font-size:14px;"><strong>' + hw.student_name + '</strong> — ' + (hw.title || '数学作业') + '</p>' +
+      (grade.accuracy ? '<p style="font-size:16px;font-weight:600;margin:8px 0;">AI批改正确率：' + grade.accuracy + '% (' + grade.total_correct + '/' + grade.total_count + ')</p>' : '') +
+      (problemsHtml ? '<h4 style="margin:12px 0 8px;">AI逐题结果</h4>' + problemsHtml : '') +
+      (grade.summary ? '<div style="background:var(--bg);border-radius:8px;padding:12px;margin:12px 0;"><strong>AI评语：</strong>' + grade.summary + '</div>' : '') +
+      '<form onsubmit="submitHwReview(event,' + hwId + ')">' +
+      '<div class="form-group"><label>教师补充评语（可选）</label>' +
+      '<textarea id="hwReviewComment" placeholder="可以补充或修改AI的评语..." style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;min-height:80px;resize:vertical;">' + (hw.teacher_comment || '') + '</textarea></div>' +
+      '<div style="display:flex;gap:10px;margin-top:16px;">' +
+      '<button type="submit" class="btn btn-primary" style="flex:1;">✅ 确认发布</button>' +
+      '<button type="button" onclick="closeModalDirect()" class="btn btn-outline" style="flex:1;">取消</button>' +
+      '</div></form></div>';
+
+    document.getElementById('modalContent').innerHTML = html;
+    document.getElementById('modal').classList.add('open');
+  } catch (e) {
+    showToast('加载复核页面失败：' + e.message);
+  }
+}
+
+async function submitHwReview(e, hwId) {
+  e.preventDefault();
+  var comment = document.getElementById('hwReviewComment').value.trim();
+
+  try {
+    var resp = await fetchWithAuth('/homework/' + hwId + '/review', {
+      method: 'PUT',
+      body: JSON.stringify({ teacher_comment: comment, teacher_reviewed: '' }),
+    });
+    if (!resp.ok) {
+      var err = await resp.json().catch(function() { return {detail:'复核失败'}; });
+      throw new Error(err.detail || '复核失败');
+    }
+    closeModalDirect();
+    showToast('批改结果已复核发布，学生可以查看反馈了');
+    loadHwTeacherList(hwCurrentFilter);
+  } catch (e) {
+    showToast('复核失败：' + e.message);
+  }
+}
+
+async function deleteHw(hwId) {
+  if (!confirm('确定删除这份作业吗？')) return;
+  try {
+    var resp = await fetchWithAuth('/homework/' + hwId, { method: 'DELETE' });
+    if (!resp.ok) throw new Error('删除失败');
+    showToast('作业已删除');
+    loadHwTeacherList(hwCurrentFilter);
+  } catch (e) {
+    showToast('删除失败：' + e.message);
+  }
 }
 
 // ===== MASCOT BUBBLE =====
@@ -2647,7 +3927,7 @@ async function init() {
     setSyncStatus("syncing");
     const cloudData = await loadFromCloud();
     if (cloudData && Object.keys(cloudData).length > 0) {
-      appData = cloudData;
+      appData = migrateData(cloudData);
       localStorage.setItem(DATA_KEY, encryptData(appData));
     }
     setSyncStatus("synced");
@@ -2660,6 +3940,11 @@ async function init() {
     document.querySelectorAll('.mode-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.mode === 'parent');
     });
+  }
+  // 页面加载时一致性校验：非教师模式下不应保留教师认证
+  if ((appData.mode === 'student' || appData.mode === 'parent') && isAuthenticated()) {
+    sessionStorage.removeItem(SESSION_KEY);
+    updateAuthUI();
   }
   updateRoleUI();
   document.querySelectorAll('#exerciseList .exercise-item').forEach((el, i) => {
