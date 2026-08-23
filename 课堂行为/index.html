@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>课堂行为检测系统 - 青花微课</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>课堂行为检测系统 - 青花微课 v3</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" onerror="console.warn('Chart.js CDN 加载失败，使用纯 CSS 统计图')"></script>
     <style>
         body { background: #f0f2f5; }
         .navbar-brand { font-weight: 600; }
-        .mode-selector-card { border: none; border-radius: 12px; }
-        .mode-btn { border-radius: 8px; font-size: 14px; }
         .stats-card { border: none; border-radius: 12px; overflow: hidden; }
         .stats-card .card-header { border: none; }
         .stats-body { padding: 16px; }
@@ -23,19 +24,102 @@
         }
         .small-stat-list .stat-row .stat-label { display: flex; align-items: center; gap: 6px; }
         .small-stat-list .stat-row .stat-value { font-weight: 600; }
-        .upload-area {
-            border: 2px dashed #ced4da; border-radius: 12px; cursor: pointer;
-            transition: border-color 0.2s, background 0.2s;
+
+        /* 连接状态栏 */
+        .conn-bar {
+            background: #fff; border-radius: 12px; padding: 12px 20px;
+            margin-bottom: 16px; display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06); flex-wrap: wrap;
         }
-        .upload-area:hover { border-color: #0d6efd; background: #f8f9ff; }
-        .demo-banner {
-            background: linear-gradient(135deg, #fff3cd, #ffe4ce);
-            border: 1px solid #ffc107; border-radius: 10px;
-            padding: 12px 16px; margin-bottom: 16px;
-            display: flex; align-items: center; gap: 10px;
+        .conn-status {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 14px; font-weight: 600; padding: 4px 12px; border-radius: 20px;
         }
-        .demo-banner i { font-size: 20px; color: #e69500; }
-        .demo-banner span { font-size: 14px; color: #856404; }
+        .conn-status.online { background: #d4edda; color: #155724; }
+        .conn-status.offline { background: #f8d7da; color: #721c24; }
+        .conn-status.connecting { background: #fff3cd; color: #856404; }
+        .conn-dot {
+            width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+        }
+        .conn-dot.online { background: #28a745; animation: pulse 2s infinite; }
+        .conn-dot.offline { background: #dc3545; }
+        .conn-dot.connecting { background: #ffc107; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        .conn-input {
+            flex: 1; min-width: 200px; padding: 8px 12px;
+            border: 1.5px solid #dee2e6; border-radius: 8px; font-size: 14px;
+        }
+        .conn-input:focus { outline: none; border-color: #0d6efd; }
+
+        /* 视频区域 */
+        .video-area {
+            background: #1a1a2e; border-radius: 12px; overflow: hidden;
+            position: relative; aspect-ratio: 16/9; display: flex;
+            align-items: center; justify-content: center;
+        }
+        .video-area img {
+            width: 100%; height: 100%; object-fit: contain;
+        }
+        .video-placeholder {
+            text-align: center; color: rgba(255,255,255,0.5); padding: 40px;
+        }
+        .video-placeholder i { font-size: 48px; margin-bottom: 12px; }
+
+        /* 信息条 */
+        .info-bar {
+            display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap;
+        }
+        .info-pill {
+            background: #f8f9fa; border-radius: 8px; padding: 8px 14px;
+            font-size: 13px; display: flex; align-items: center; gap: 6px;
+        }
+        .info-pill i { color: #0d6efd; }
+        .info-pill .val { font-weight: 700; color: #0d6efd; }
+
+        /* 事件流 */
+        .event-list {
+            max-height: 400px; overflow-y: auto;
+        }
+        .event-item {
+            padding: 8px 12px; margin-bottom: 6px; border-radius: 8px;
+            background: #f8f9fa; border-left: 3px solid #0d6efd;
+            font-size: 13px;
+        }
+        .event-item .event-time { color: #6c757d; font-size: 12px; }
+        .event-item .event-label { font-weight: 600; color: #333; }
+        .event-item .event-duration { color: #0d6efd; }
+
+        /* 未连接提示 */
+        .disconnected-notice {
+            background: linear-gradient(135deg, #e3f2fd, #fce4ec);
+            border-radius: 12px; padding: 32px; text-align: center; margin: 20px 0;
+        }
+        .disconnected-notice h5 { color: #1565c0; margin-bottom: 16px; }
+        .disconnected-notice .step {
+            text-align: left; background: #fff; border-radius: 8px;
+            padding: 12px 16px; margin-bottom: 8px; font-size: 14px;
+        }
+        .disconnected-notice .step-num {
+            display: inline-flex; width: 24px; height: 24px; border-radius: 50%;
+            background: #0d6efd; color: #fff; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700; margin-right: 8px;
+        }
+        .disconnected-notice code {
+            background: #e8eaf6; padding: 2px 8px; border-radius: 4px;
+            font-size: 13px; color: #1a237e;
+        }
+
+        /* 协议警告（file:// 或 HTTPS） */
+        .protocol-warning {
+            background: #fff3cd; border: 1px solid #ffc107; border-radius: 10px;
+            padding: 12px 16px; margin-bottom: 16px; display: flex;
+            align-items: flex-start; gap: 10px;
+        }
+        .protocol-warning i { color: #e69500; font-size: 18px; margin-top: 2px; }
+        .protocol-warning span { font-size: 13px; color: #856404; }
+        .protocol-warning a { color: #0d6efd; text-decoration: underline; font-weight: 600; }
+
         .back-link {
             position: fixed; bottom: 20px; right: 20px; z-index: 999;
             background: #fff; border-radius: 50px; padding: 8px 20px;
@@ -46,27 +130,46 @@
         .equal-height-row { display: flex; flex-wrap: wrap; }
         .h-100-col { display: flex; flex-direction: column; }
         .h-100-col > .card { flex: 1; }
-        .info-item {
-            display: flex; align-items: center; gap: 10px;
-            padding: 10px 12px; margin-bottom: 6px; border-radius: 8px; background: #f8f9fa;
-        }
-        .info-item span { font-size: 14px; }
         .settings-card { padding: 16px; background: #f8f9fa; border-radius: 10px; }
-        .detection-info-box {
-            background: #f8f9fa; border-radius: 8px; padding: 12px;
-            font-size: 13px; color: #495057;
+
+        /* 输入源选择栏 */
+        .source-bar {
+            background: #fff; border-radius: 12px; padding: 12px 16px;
+            margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            display: none;
         }
-        .detection-filter-list .filter-item {
-            display: flex; align-items: center; gap: 8px;
-            padding: 6px 8px; margin-bottom: 4px; border-radius: 6px; background: #f8f9fa;
-            font-size: 13px;
+        .source-bar.show { display: block; }
+        .source-tabs {
+            display: flex; gap: 4px; margin-bottom: 10px;
+            border-bottom: 2px solid #e9ecef; padding-bottom: 8px;
         }
-        .history-list .history-item {
-            padding: 12px; margin-bottom: 8px; border-radius: 8px;
-            background: #f8f9fa; border-left: 3px solid #0d6efd;
+        .source-tab {
+            padding: 6px 16px; border: none; background: none;
+            font-size: 14px; font-weight: 500; color: #6c757d;
+            cursor: pointer; border-radius: 8px 8px 0 0;
+            transition: all 0.2s; border-bottom: 2px solid transparent;
+            margin-bottom: -10px;
         }
-        .history-item .meta { font-size: 12px; color: #6c757d; }
-        .history-item .summary { font-size: 14px; margin-top: 4px; }
+        .source-tab:hover { background: #f0f2f5; }
+        .source-tab.active {
+            color: #0d6efd; border-bottom-color: #0d6efd; font-weight: 600;
+        }
+        .source-content { display: none; }
+        .source-content.active { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .source-current {
+            font-size: 13px; color: #6c757d; margin-left: auto;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .source-current .badge {
+            font-size: 12px; padding: 4px 10px;
+        }
+        .file-upload-btn {
+            position: relative; overflow: hidden; display: inline-block;
+        }
+        .file-upload-btn input[type=file] {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0; cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -86,11 +189,6 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#" id="navHistory" data-bs-toggle="modal" data-bs-target="#historyModal">
-                            <i class="fas fa-history"></i> 历史记录
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link" href="#" id="navSettings" data-bs-toggle="modal" data-bs-target="#settingsModal">
                             <i class="fas fa-cog"></i> 设置
                         </a>
@@ -101,110 +199,213 @@
     </nav>
 
     <div class="container-fluid mt-3">
-        <div class="demo-banner">
-            <i class="fas fa-info-circle"></i>
-            <span>演示模式 — 此页面为系统界面展示，AI检测功能需连接后端服务后启用。完整版支持图片/视频/实时摄像头的行为识别与统计。</span>
+        <!-- 协议警告（file:// 或 HTTPS 页面显示） -->
+        <div class="protocol-warning" id="fileWarning" style="display:none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>
+                当前是直接用浏览器打开本地文件（地址以 <code>file:///</code> 开头），浏览器会阻止访问教室服务器。
+                请改为在浏览器输入 <a href="http://localhost:5000" target="_blank"><code>http://localhost:5000</code></a> 访问。
+            </span>
+        </div>
+        <div class="protocol-warning" id="httpsWarning" style="display:none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>
+                当前页面为 HTTPS，连接 HTTP 的教室服务器会被浏览器拦截。
+                请改用 <a href="#" id="httpLink">HTTP 访问本页</a>，
+                或在浏览器地址栏点击锁图标 → 网站设置 → 允许"不安全内容"。
+            </span>
         </div>
 
-        <div class="row mb-3">
-            <div class="col-12">
-                <div class="card shadow-sm mode-selector-card">
+        <!-- 连接状态栏 -->
+        <div class="conn-bar">
+            <span class="conn-status offline" id="connStatus">
+                <span class="conn-dot offline"></span>
+                <span id="connStatusText">未连接</span>
+            </span>
+            <input type="text" class="conn-input" id="serverUrlInput" placeholder="http://192.168.x.x:5000" value="">
+            <button class="btn btn-primary btn-sm" id="connectBtn" onclick="toggleConnection()">
+                <i class="fas fa-plug"></i> 连接
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="resetCounter()">
+                <i class="fas fa-redo"></i> 重置统计
+            </button>
+            <button class="btn btn-outline-success btn-sm" id="exportBtn" onclick="exportReport()" disabled>
+                <i class="fas fa-file-download"></i> 导出报告
+            </button>
+            <button class="btn btn-success btn-sm" id="pushBtn" onclick="pushToEval()" disabled>
+                <i class="fas fa-share-square"></i> 推送到五维评价
+            </button>
+        </div>
+
+        <!-- 输入源选择栏（连接后显示） -->
+        <div class="source-bar" id="sourceBar">
+            <div class="source-tabs">
+                <button class="source-tab active" data-src="camera" onclick="switchSourceTab('camera')">
+                    <i class="fas fa-video"></i> 摄像头
+                </button>
+                <button class="source-tab" data-src="video" onclick="switchSourceTab('video')">
+                    <i class="fas fa-film"></i> 视频文件
+                </button>
+                <button class="source-tab" data-src="image" onclick="switchSourceTab('image')">
+                    <i class="fas fa-image"></i> 图片分析
+                </button>
+                <div class="source-current">
+                    <span>当前输入源:</span>
+                    <span class="badge bg-primary" id="sourceInfo">--</span>
+                </div>
+            </div>
+
+            <!-- 摄像头选择 -->
+            <div class="source-content active" id="srcCamera">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <select class="form-select form-select-sm" id="cameraSelect" style="width:auto;min-width:160px;">
+                        <option value="0">摄像头 0</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm" onclick="switchCamera()">
+                        <i class="fas fa-sync-alt"></i> 切换摄像头
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="refreshCameras()">
+                        <i class="fas fa-search"></i> 检测摄像头
+                    </button>
+                    <div class="input-group input-group-sm" style="width:160px;">
+                        <span class="input-group-text">索引</span>
+                        <input type="number" class="form-control" id="manualCameraIdx" value="1" min="0" max="9">
+                        <button class="btn btn-outline-primary" type="button" onclick="addManualCamera()">
+                            <i class="fas fa-plus"></i> 添加
+                        </button>
+                    </div>
+                </div>
+                <div id="cameraHelp" class="text-muted small mt-1" style="display:none;">
+                    <i class="fas fa-info-circle"></i>
+                    未检测到摄像头。请关闭微信/钉钉/腾讯会议/相机应用等可能占用摄像头的程序后，点击"检测摄像头"。
+                    也可直接输入索引（如 1）点击"添加"强制尝试。
+                </div>
+                <small class="text-muted d-block mt-1">切换画面不影响其他摄像头监测，所有摄像头同时记录数据</small>
+            </div>
+
+            <!-- 视频文件上传 -->
+            <div class="source-content" id="srcVideo">
+                <div class="file-upload-btn">
+                    <button class="btn btn-primary btn-sm">
+                        <i class="fas fa-upload"></i> 选择视频文件
+                    </button>
+                    <input type="file" id="videoFileInput" accept=".mp4,.avi,.mov,.mkv,.flv,.wmv" onchange="uploadVideo(this)">
+                </div>
+                <span id="videoFileName" class="text-muted small">支持 mp4/avi/mov 等格式</span>
+            </div>
+
+            <!-- 图片文件上传 -->
+            <div class="source-content" id="srcImage">
+                <div class="file-upload-btn">
+                    <button class="btn btn-primary btn-sm">
+                        <i class="fas fa-upload"></i> 选择图片文件
+                    </button>
+                    <input type="file" id="imageFileInput" accept=".jpg,.jpeg,.png,.bmp,.webp" onchange="uploadImage(this)">
+                </div>
+                <span id="imageFileName" class="text-muted small">支持 jpg/png/bmp 等格式，单帧分析</span>
+            </div>
+        </div>
+
+        <!-- 未连接时的提示 -->
+        <div class="disconnected-notice" id="disconnectedNotice">
+            <h5><i class="fas fa-info-circle"></i> 系统未连接 — 请按以下步骤启动</h5>
+            <div class="step">
+                <span class="step-num">1</span>
+                在教室电脑上打开 <code>课堂行为评价系统\课堂行为\</code> 目录
+            </div>
+            <div class="step">
+                <span class="step-num">2</span>
+                双击运行 <code>run_web.bat</code>（首次使用需先运行 <code>install.bat</code> 安装依赖）
+            </div>
+            <div class="step">
+                <span class="step-num">3</span>
+                等待命令行显示 <code>Running on http://0.0.0.0:5000</code>
+            </div>
+            <div class="step">
+                <span class="step-num">4</span>
+                在本机浏览器输入 <code>http://localhost:5000</code> 打开本页；在教室/办公室其他设备则用教室电脑局域网 IP（如 <code>http://192.168.1.100:5000</code>）
+            </div>
+            <div class="step">
+                <span class="step-num">5</span>
+                确保手机/电脑与教室电脑在<strong>同一 WiFi 网络</strong>
+            </div>
+            <div class="step" style="background:#fff3cd;">
+                <span class="step-num" style="background:#e69500;">!</span>
+                <strong>不要</strong>直接双击打开 <code>课堂行为\index.html</code> 文件，否则会出现"连接失败：Failed to fetch"。
+            </div>
+        </div>
+
+        <!-- 实时仪表盘 -->
+        <div class="row equal-height-row mb-3" id="dashboard" style="display:none;">
+            <!-- 左列：行为统计 -->
+            <div class="col-lg-4 h-100-col">
+                <div class="card shadow-sm h-100 stats-card">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="fas fa-chart-pie"></i> 行为统计</h6>
+                    </div>
+                    <div class="card-body stats-body d-flex flex-column">
+                        <div id="behaviorChart" style="min-height:120px;"><div style="text-align:center;color:#adb5bd;padding:20px 0;font-size:13px;">点击「连接」后显示统计</div></div>
+                        <div id="behaviorStats" class="mt-3 small-stat-list flex-grow-1"><div style="text-align:center;color:#adb5bd;padding:10px 0;font-size:13px;">等待统计数据...</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 中列：实时画面 -->
+            <div class="col-lg-5 h-100-col">
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-dark text-white">
+                        <h6 class="mb-0"><i class="fas fa-video"></i> 实时画面</h6>
+                    </div>
                     <div class="card-body p-2">
-                        <div class="mode-btn-group d-flex flex-wrap gap-2" role="group" aria-label="检测模式">
-                            <button class="btn btn-outline-primary mode-btn active flex-fill" data-mode="image">
-                                <i class="fas fa-image"></i> 单张图片
-                            </button>
-                            <button class="btn btn-outline-primary mode-btn flex-fill" data-mode="batch">
-                                <i class="fas fa-images"></i> 批量图片
-                            </button>
-                            <button class="btn btn-outline-primary mode-btn flex-fill" data-mode="video">
-                                <i class="fas fa-video"></i> 视频文件
-                            </button>
-                            <button class="btn btn-outline-primary mode-btn flex-fill" data-mode="webcam">
-                                <i class="fas fa-camera"></i> 实时摄像头
-                            </button>
-                            <button class="btn btn-outline-primary mode-btn flex-fill" data-mode="dual-webcam">
-                                <i class="fas fa-users"></i> 双摄像头
-                            </button>
+                        <div class="video-area" id="videoArea">
+                            <div class="video-placeholder">
+                                <i class="fas fa-video-slash"></i>
+                                <p>等待视频画面...</p>
+                            </div>
+                        </div>
+                        <div class="info-bar">
+                            <div class="info-pill">
+                                <i class="fas fa-tachometer-alt"></i>
+                                FPS: <span class="val" id="fpsValue">--</span>
+                            </div>
+                            <div class="info-pill">
+                                <i class="fas fa-users"></i>
+                                人数: <span class="val" id="personCount">--</span>
+                            </div>
+                            <div class="info-pill">
+                                <i class="fas fa-clock"></i>
+                                <span id="timestamp">--</span>
+                            </div>
+                            <div class="info-pill">
+                                <i class="fas fa-eye"></i>
+                                当前: <span class="val" id="currentBehaviors">--</span>
+                            </div>
+                            <div class="info-pill" style="background:#e7f5ff;border:1px solid #74c0fc;">
+                                <i class="fas fa-video"></i>
+                                监测中: <span class="val" id="activeCameras" style="color:#1971c2;font-weight:bold;">--</span> 个摄像头
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="row main-dashboard equal-height-row mb-3">
-            <div class="col-lg-3 dashboard-col h-100-col">
-                <div class="card shadow-sm h-100 stats-card">
-                    <div class="card-header bg-primary text-white">
-                        <h6 class="mb-0"><i class="fas fa-chart-pie"></i> 学生行为统计</h6>
+            <!-- 右列：事件流 -->
+            <div class="col-lg-3 h-100-col">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0"><i class="fas fa-stream"></i> 事件流</h6>
                     </div>
-                    <div class="card-body stats-body d-flex flex-column">
-                        <canvas id="studentChart" height="160"></canvas>
-                        <div id="studentStats" class="mt-3 small-stat-list flex-grow-1"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-6 dashboard-col h-100-col">
-                <div class="card shadow-sm mb-3 h-100" id="uploadCard">
-                    <div class="card-header bg-primary text-white">
-                        <h6 class="mb-0"><i class="fas fa-upload"></i> 上传文件</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="upload-area text-center p-4" id="uploadArea">
-                            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-2"></i>
-                            <h6>拖拽文件到此处或点击上传</h6>
-                            <p class="text-muted small mb-3">支持 JPG, PNG, MP4, AVI 等格式</p>
-                            <button class="btn btn-primary" id="selectFileBtn" onclick="alert('演示模式：AI检测功能需部署后端服务后启用。\\n\\n完整版功能包括：\\n- YOLOv8 双模型行为识别\\n- 学生/教师行为实时统计\\n- 检测结果可视化标注\\n- HTML/Excel 报告导出')">
-                                <i class="fas fa-folder-open"></i> 选择文件
-                            </button>
+                    <div class="card-body p-2">
+                        <div class="event-list" id="eventList">
+                            <div class="text-center text-muted small py-3">暂无事件</div>
                         </div>
-                        <div id="fileList" class="mt-3"></div>
-                    </div>
-                </div>
-
-                <div class="card shadow-sm h-100" id="resultCard" style="display: none;">
-                    <div class="card-header bg-success text-white">
-                        <h6 class="mb-0"><i class="fas fa-check-circle"></i> 检测结果</h6>
-                    </div>
-                    <div class="card-body">
-                        <div id="resultContent"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-3 dashboard-col h-100-col">
-                <div class="card shadow-sm h-100 stats-card">
-                    <div class="card-header bg-success text-white">
-                        <h6 class="mb-0"><i class="fas fa-chart-pie"></i> 教师行为统计</h6>
-                    </div>
-                    <div class="card-body stats-body d-flex flex-column">
-                        <canvas id="teacherChart" height="160"></canvas>
-                        <div id="teacherStats" class="mt-3 small-stat-list flex-grow-1"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="modal fade" id="historyModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header bg-info text-white">
-                    <h5 class="modal-title"><i class="fas fa-history"></i> 历史记录</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="text-center py-5 text-muted">
-                        <i class="fas fa-database fa-3x mb-3"></i>
-                        <p>演示模式下无历史记录数据</p>
-                        <p class="small">完整版会自动保存每次检测的详细记录</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    <!-- 设置弹窗 -->
     <div class="modal fade" id="settingsModal" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
@@ -213,72 +414,90 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <ul class="nav nav-tabs" id="settingsTab" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-params" type="button" role="tab">
-                                <i class="fas fa-sliders-h"></i> 检测参数
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-system" type="button" role="tab">
-                                <i class="fas fa-info-circle"></i> 系统信息
-                            </button>
-                        </li>
-                    </ul>
-                    <div class="tab-content pt-3">
-                        <div class="tab-pane fade show active" id="tab-params" role="tabpanel">
-                            <div class="settings-card">
-                                <h6 class="text-primary mb-3"><i class="fas fa-sliders-h"></i> 当前检测参数</h6>
-                                <div class="mb-3">
-                                    <label class="form-label">置信度阈值</label>
-                                    <input type="range" class="form-range" min="0.1" max="0.9" step="0.05" value="0.25" oninput="document.getElementById('confidenceValue').innerText=this.value">
-                                    <div class="d-flex justify-content-between small text-muted">
-                                        <span>0.1</span>
-                                        <strong id="confidenceValue" class="text-dark">0.25</strong>
-                                        <span>0.9</span>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">IOU阈值</label>
-                                    <input type="range" class="form-range" min="0.1" max="0.9" step="0.05" value="0.45" oninput="document.getElementById('iouValue').innerText=this.value">
-                                    <div class="d-flex justify-content-between small text-muted">
-                                        <span>0.1</span>
-                                        <strong id="iouValue" class="text-dark">0.45</strong>
-                                        <span>0.9</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="form-label">视频跳帧</label>
-                                    <input type="number" class="form-control" value="2" min="0" max="10" readonly>
-                                    <small class="text-muted">跳过N帧处理一次（提高速度）</small>
-                                </div>
-                            </div>
+                    <div class="settings-card mb-3">
+                        <h6 class="text-primary mb-3"><i class="fas fa-server"></i> 服务器配置</h6>
+                        <div class="mb-3">
+                            <label class="form-label">Flask 服务器地址</label>
+                            <input type="text" class="form-control" id="settingsServerUrl" placeholder="http://192.168.1.100:5000">
+                            <small class="text-muted">教室电脑的局域网 IP + 端口 5000</small>
                         </div>
-                        <div class="tab-pane fade" id="tab-system" role="tabpanel">
-                            <div class="settings-card">
-                                <h6 class="text-secondary mb-3"><i class="fas fa-info-circle"></i> 系统信息</h6>
-                                <div class="info-item">
-                                    <i class="fas fa-robot text-primary"></i>
-                                    <span>YOLOv8 双模型（学生行为 + 教师行为）</span>
-                                </div>
-                                <div class="info-item">
-                                    <i class="fas fa-microchip text-success"></i>
-                                    <span>完整版支持 GPU 加速</span>
-                                </div>
-                                <div class="info-item">
-                                    <i class="fas fa-tachometer-alt text-warning"></i>
-                                    <span>实时检测帧率：取决于硬件配置</span>
-                                </div>
-                                <div class="info-item">
-                                    <i class="fas fa-database text-info"></i>
-                                    <span>当前模式：演示展示</span>
-                                </div>
-                            </div>
+                        <div class="mb-3">
+                            <label class="form-label">数据刷新间隔（秒）</label>
+                            <input type="number" class="form-control" id="settingsRefreshInterval" min="1" max="10" value="2">
+                            <small class="text-muted">统计和事件数据的轮询间隔</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">画面刷新间隔（秒）</label>
+                            <input type="number" class="form-control" id="settingsVideoInterval" min="0.5" max="5" step="0.5" value="1">
+                            <small class="text-muted">视频截图的刷新间隔（越小越流畅，但流量越大）</small>
+                        </div>
+                        <button class="btn btn-primary" onclick="saveSettings()">
+                            <i class="fas fa-save"></i> 保存设置
+                        </button>
+                    </div>
+                    <div class="settings-card">
+                        <h6 class="text-secondary mb-3"><i class="fas fa-info-circle"></i> 系统信息</h6>
+                        <div class="mb-2">
+                            <span class="text-muted">AI 模型：</span> YOLOv11 (ultralytics)
+                        </div>
+                        <div class="mb-2">
+                            <span class="text-muted">推理设备：</span> CPU（如需 GPU 加速需安装 CUDA 版 ultralytics）
+                        </div>
+                        <div class="mb-2">
+                            <span class="text-muted">摄像头：</span> USB 摄像头 (1280x720)
+                        </div>
+                        <div class="mb-2">
+                            <span class="text-muted">行为类别：</span> 15 种课堂行为自动识别
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 推送到五维评价弹窗 -->
+    <div class="modal fade" id="pushModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="fas fa-share-square"></i> 推送到五维评价</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <div style="font-size:14px;color:#6c757d;">课堂表现得分</div>
+                        <div style="font-size:48px;font-weight:700;color:#28a745;" id="pushScore">--</div>
+                        <div style="font-size:16px;" id="pushLevel">--</div>
+                    </div>
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <small class="text-muted d-block">时长(分)</small>
+                            <strong id="pushDuration">--</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">总行为</small>
+                            <strong id="pushTotal">--</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">主要行为</small>
+                            <strong id="pushTopBehavior" style="font-size:13px;">--</strong>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold">复制下方数据，粘贴到五维评价看板的「课堂表现」导入栏</label>
+                        <textarea class="form-control" id="pushJson" rows="6" readonly style="font-size:11px;font-family:monospace;"></textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary btn-sm flex-fill" onclick="copyPushJson()">
+                            <i class="fas fa-copy"></i> 复制数据
+                        </button>
+                        <a href="/五维评价/class-dashboard.html" target="_blank" class="btn btn-primary btn-sm flex-fill" style="text-decoration:none;">
+                            <i class="fas fa-external-link-alt"></i> 打开五维看板
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -290,68 +509,554 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    document.querySelectorAll('.mode-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.mode-btn').forEach(function(b) { b.classList.remove('active'); });
-            this.classList.add('active');
+    // ===== 全局状态 =====
+    var SERVER_URL = localStorage.getItem('behaviorServerUrl') || 'http://localhost:5000';
+    var REFRESH_INTERVAL = parseInt(localStorage.getItem('behaviorRefreshInterval') || '2');
+    var VIDEO_INTERVAL = parseFloat(localStorage.getItem('behaviorVideoInterval') || '1');
+    var isConnected = false;
+    var statsTimer = null;
+    var videoTimer = null;
+    var retryTimer = null;
+
+    // 行为类别颜色映射
+    var BEHAVIOR_COLORS = {
+        '举手': '#0d6efd', '听讲': '#198754', '阅读/书写': '#6f42c1',
+        '书写': '#6610f2', '趴桌子': '#dc3545', '站立': '#fd7e14',
+        '转头': '#0dcaf0', '交头接耳': '#ffc107', '玩手机': '#e83e8c',
+        '喝水': '#20c997', '抬头': '#6c757d', '低头': '#adb5bd',
+        '使用手机': '#e83e8c', '侧身': '#17a2b8', '其他': '#999999',
+        '学生存在': '#17a2b8'
+    };
+    var BEHAVIOR_ICONS = {
+        '举手': 'fa-hand-paper', '听讲': 'fa-book-reader', '阅读/书写': 'fa-book',
+        '书写': 'fa-pen', '趴桌子': 'fa-bed', '站立': 'fa-person-standing',
+        '转头': 'fa-arrows-rotate', '交头接耳': 'fa-comments', '玩手机': 'fa-mobile',
+        '喝水': 'fa-mug-hot', '抬头': 'fa-arrow-up', '低头': 'fa-arrow-down',
+        '使用手机': 'fa-mobile-screen', '侧身': 'fa-person', '其他': 'fa-circle',
+        '学生存在': 'fa-user-check'
+    };
+
+    // ===== 初始化 =====
+    document.getElementById('serverUrlInput').value = SERVER_URL;
+    document.getElementById('settingsServerUrl').value = SERVER_URL;
+    document.getElementById('settingsRefreshInterval').value = REFRESH_INTERVAL;
+    document.getElementById('settingsVideoInterval').value = VIDEO_INTERVAL;
+
+    // 协议检测：file:// 或 HTTPS 都会拦截 HTTP 请求
+    if (location.protocol === 'file:') {
+        document.getElementById('fileWarning').style.display = 'flex';
+    }
+    if (location.protocol === 'https:') {
+        document.getElementById('httpsWarning').style.display = 'flex';
+        document.getElementById('httpLink').href = location.href.replace('https://', 'http://');
+    }
+
+    // 图表（纯 CSS 实现，不依赖 Chart.js CDN）
+    var behaviorChart = null;
+    function initChart() {
+        var container = document.getElementById('behaviorChart');
+        if (!container) { console.warn('[initChart] 容器不存在'); return; }
+        container.innerHTML = '<div style="text-align:center;color:#adb5bd;padding:20px 0;font-size:13px;">等待统计数据...</div>';
+        behaviorChart = container; // 标记已初始化
+        console.log('[initChart] 统计容器已初始化（纯CSS模式）');
+    }
+
+    // ===== 连接管理 =====
+    function setConnStatus(state, text) {
+        var el = document.getElementById('connStatus');
+        var dot = el.querySelector('.conn-dot');
+        var txt = document.getElementById('connStatusText');
+        el.className = 'conn-status ' + state;
+        dot.className = 'conn-dot ' + state;
+        txt.textContent = text;
+        isConnected = (state === 'online');
+    }
+
+    function toggleConnection() {
+        var url = document.getElementById('serverUrlInput').value.trim().replace(/\/+$/, '');
+        if (!url) { alert('请输入服务器地址'); return; }
+        SERVER_URL = url;
+        localStorage.setItem('behaviorServerUrl', url);
+
+        if (isConnected) {
+            disconnect();
+        } else {
+            connect();
+        }
+    }
+
+    function connect() {
+        setConnStatus('connecting', '连接中...');
+        document.getElementById('connectBtn').disabled = true;
+
+        fetch(SERVER_URL + '/api/stats', { method: 'GET', mode: 'cors' })
+            .then(function(res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })
+            .then(function(data) {
+                setConnStatus('online', '已连接');
+                document.getElementById('connectBtn').innerHTML = '<i class="fas fa-plug"></i> 断开';
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('exportBtn').disabled = false;
+                document.getElementById('pushBtn').disabled = false;
+                document.getElementById('disconnectedNotice').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'flex';
+                document.getElementById('sourceBar').classList.add('show');
+                initChart(); // dashboard 显示后再初始化图表
+                refreshCameras();
+                fetchSourceInfo();
+                startPolling();
+            })
+            .catch(function(err) {
+                setConnStatus('offline', '连接失败');
+                document.getElementById('connectBtn').disabled = false;
+                var msg = '连接失败：' + err.message;
+                if (location.protocol === 'https:' && SERVER_URL.startsWith('http://')) {
+                    msg += '\n\n当前页面是 HTTPS，连接 HTTP 服务器会被浏览器拦截。\n请改用 HTTP 访问本页，或在浏览器设置中允许不安全内容。';
+                }
+                alert(msg);
+                scheduleRetry();
+            });
+    }
+
+    function disconnect() {
+        stopPolling();
+        setConnStatus('offline', '未连接');
+        document.getElementById('connectBtn').innerHTML = '<i class="fas fa-plug"></i> 连接';
+        document.getElementById('exportBtn').disabled = true;
+        document.getElementById('pushBtn').disabled = true;
+        document.getElementById('disconnectedNotice').style.display = 'block';
+        document.getElementById('dashboard').style.display = 'none';
+        document.getElementById('sourceBar').classList.remove('show');
+    }
+
+    function scheduleRetry() {
+        if (retryTimer) clearTimeout(retryTimer);
+        retryTimer = setTimeout(function() {
+            if (!isConnected) {
+                setConnStatus('connecting', '重试中...');
+                connect();
+            }
+        }, 10000);
+    }
+
+    // ===== 轮询 =====
+    function startPolling() {
+        stopPolling();
+        fetchStats();
+        fetchEvents();
+        updateVideo();
+        statsTimer = setInterval(function() {
+            fetchStats();
+            fetchEvents();
+        }, REFRESH_INTERVAL * 1000);
+        // 不再轮询单帧截图，改用 MJPEG 连续流（由 updateVideo 设置一次即可）
+    }
+
+    function stopPolling() {
+        if (statsTimer) { clearInterval(statsTimer); statsTimer = null; }
+        if (videoTimer) { clearInterval(videoTimer); videoTimer = null; }
+    }
+
+    // ===== 数据获取 =====
+    function fetchStats() {
+        fetch(SERVER_URL + '/api/stats')
+            .then(function(res) { return res.json(); })
+            .then(function(data) { updateStats(data); })
+            .catch(function(err) {
+                console.error('stats error:', err);
+                setConnStatus('offline', '连接断开');
+                document.getElementById('connectBtn').innerHTML = '<i class="fas fa-plug"></i> 连接';
+                scheduleRetry();
+            });
+    }
+
+    function fetchEvents() {
+        fetch(SERVER_URL + '/api/events')
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                console.log('[fetchEvents] 收到数据:', JSON.stringify(data).slice(0, 500));
+                updateEvents(data.events || []);
+            })
+            .catch(function(err) { console.error('events error:', err); });
+    }
+
+    function updateVideo() {
+        var area = document.getElementById('videoArea');
+        // 使用 MJPEG 连续视频流，加时间戳防止缓存
+        var img = document.createElement('img');
+        img.src = SERVER_URL + '/video_feed?t=' + Date.now();
+        img.alt = '实时画面';
+        img.onerror = function() {
+            this.style.opacity = '0.3';
+            var self = this;
+            setTimeout(function() {
+                self.src = SERVER_URL + '/video_feed?t=' + Date.now();
+                self.style.opacity = '1';
+            }, 2000);
+        };
+        area.innerHTML = '';
+        area.appendChild(img);
+    }
+
+    function updateStats(data) {
+        console.log('[updateStats] 收到数据:', JSON.stringify(data));
+        try {
+        // 信息条
+        document.getElementById('fpsValue').textContent = data.fps || '--';
+        document.getElementById('personCount').textContent = data.person_count || 0;
+        document.getElementById('timestamp').textContent = data.timestamp || '--';
+        document.getElementById('currentBehaviors').textContent = (data.current_behaviors || []).join('、') || '无';
+
+        // 多摄像头状态
+        var camInfo = document.getElementById('activeCameras');
+        if (camInfo && data.active_cameras !== undefined) {
+            camInfo.textContent = data.active_cameras;
+            var sourceInfo = document.getElementById('activeSources');
+            if (sourceInfo && data.active_sources) {
+                sourceInfo.textContent = data.active_sources.map(function(s) { return s.info; }).join(' + ');
+            }
+        }
+
+        // 统计列表 + 纯 CSS 条形图（完全不依赖 Chart.js）
+        var counts = data.total_counts || {};
+        var labels = Object.keys(counts);
+        var values = labels.map(function(k) { return counts[k]; });
+
+        var sorted = labels.map(function(l, i) {
+            return { label: l, value: values[i] };
+        }).sort(function(a, b) { return b.value - a.value; });
+
+        var total = values.reduce(function(a, b) { return a + b; }, 0) || 1;
+
+        // 1) 纯 CSS 条形图（替代 Chart.js 甜甜圈图）
+        var chartContainer = document.getElementById('behaviorChart');
+        if (chartContainer) {
+            if (sorted.length === 0) {
+                chartContainer.innerHTML = '<div style="text-align:center;color:#adb5bd;padding:20px 0;font-size:13px;">暂无统计数据<br><span style="font-size:11px;">（需要检测到行为才会出现）</span></div>';
+            } else {
+                var chartHtml = sorted.map(function(s) {
+                    var pct = Math.round(s.value / total * 100);
+                    var color = BEHAVIOR_COLORS[s.label] || '#999999';
+                    var icon = BEHAVIOR_ICONS[s.label] || 'fa-circle';
+                    return '<div style="margin-bottom:10px;">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;font-size:12px;">' +
+                        '<span><i class="fas ' + icon + '" style="color:' + color + ';margin-right:4px;"></i>' + s.label + '</span>' +
+                        '<span style="color:' + color + ';font-weight:600;">' + s.value + '次 (' + pct + '%)</span>' +
+                        '</div>' +
+                        '<div style="background:#e9ecef;border-radius:4px;height:8px;overflow:hidden;">' +
+                        '<div style="background:' + color + ';height:100%;width:' + pct + '%;border-radius:4px;transition:width 0.5s ease;"></div>' +
+                        '</div>' +
+                        '</div>';
+                }).join('');
+                chartContainer.innerHTML = chartHtml;
+            }
+        }
+
+        // 2) 统计列表
+        var listHtml = sorted.length > 0 ? sorted.map(function(s) {
+            var pct = Math.round(s.value / total * 100);
+            var color = BEHAVIOR_COLORS[s.label] || '#999999';
+            var icon = BEHAVIOR_ICONS[s.label] || 'fa-circle';
+            return '<div class="stat-row">' +
+                '<span class="stat-label"><i class="fas ' + icon + '" style="color:' + color + '"></i>' + s.label + '</span>' +
+                '<span class="stat-value" style="color:' + color + '">' + s.value + '次 (' + pct + '%)</span>' +
+                '</div>';
+        }).join('') : '<div style="text-align:center;color:#adb5bd;padding:10px 0;font-size:13px;">暂无统计数据</div>';
+        document.getElementById('behaviorStats').innerHTML = listHtml;
+        console.log('[updateStats] 统计已更新（纯CSS模式），条目数:', sorted.length, '总计数:', JSON.stringify(counts));
+        } catch(e) {
+            console.error('[updateStats] 出错:', e.message, e.stack);
+            var errDiv = document.getElementById('behaviorStats');
+            if (errDiv) errDiv.innerHTML = '<div style="color:#dc3545;padding:10px;font-size:12px;"><b>统计更新出错:</b><br>' + e.message + '</div>';
+        }
+    }
+
+    function updateEvents(events) {
+        console.log('[updateEvents] 事件数:', events ? events.length : 0);
+        if (!events || events.length === 0) {
+            document.getElementById('eventList').innerHTML = '<div class="text-center text-muted small py-3">暂无事件</div>';
+            return;
+        }
+        var html = events.slice(0, 30).map(function(e) {
+            return '<div class="event-item">' +
+                '<div><span class="event-time">' + (e.time || '--') + '</span></div>' +
+                '<div><span class="event-label">' + (e.label || '未知') + '</span>' +
+                ' <span class="event-duration">(' + (e.duration || 0) + 's)</span></div>' +
+                '</div>';
+        }).join('');
+        document.getElementById('eventList').innerHTML = html;
+        console.log('[updateEvents] 事件列表 HTML 已更新');
+    }
+
+    function resetCounter() {
+        if (!isConnected) { alert('请先连接服务器'); return; }
+        if (!confirm('确定重置统计数据？')) return;
+        fetch(SERVER_URL + '/api/reset', { method: 'POST', mode: 'cors' })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                alert('统计已重置');
+                fetchStats();
+            })
+            .catch(function(err) { alert('重置失败：' + err.message); });
+    }
+
+    // ===== 输入源管理 =====
+    function switchSourceTab(tab) {
+        document.querySelectorAll('.source-tab').forEach(function(t) {
+            t.classList.toggle('active', t.dataset.src === tab);
         });
-    });
+        document.querySelectorAll('.source-content').forEach(function(c) {
+            c.classList.remove('active');
+        });
+        var target = document.getElementById('src' + tab.charAt(0).toUpperCase() + tab.slice(1));
+        if (target) target.classList.add('active');
+    }
 
-    var studentChart = new Chart(document.getElementById('studentChart'), {
-        type: 'doughnut',
-        data: {
-            labels: ['专注听讲', '举手发言', '低头写字', '转头讨论', '趴桌/走神'],
-            datasets: [{
-                data: [42, 8, 25, 15, 10],
-                backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#0dcaf0', '#dc3545'],
-                borderWidth: 2, borderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 8 } } }
+    function refreshCameras() {
+        fetch(SERVER_URL + '/api/cameras', { mode: 'cors' })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                var sel = document.getElementById('cameraSelect');
+                var cams = data.cameras || [];
+                var activeCams = data.active_cameras || [];
+                sel.innerHTML = cams.map(function(c) {
+                    var isActive = activeCams.indexOf('cam_' + c) >= 0;
+                    return '<option value="' + c + '">摄像头 ' + c + (isActive ? ' (监测中)' : '') + '</option>';
+                }).join('');
+                if (cams.length === 0) {
+                    sel.innerHTML = '<option value="-1">未检测到摄像头</option>';
+                    document.getElementById('cameraHelp').style.display = 'block';
+                } else {
+                    document.getElementById('cameraHelp').style.display = 'none';
+                }
+            })
+            .catch(function(err) { console.error('cameras error:', err); });
+    }
+
+    function addManualCamera() {
+        var idxInput = document.getElementById('manualCameraIdx');
+        var idx = parseInt(idxInput.value);
+        if (isNaN(idx) || idx < 0 || idx > 9) {
+            alert('请输入 0-9 之间的摄像头索引');
+            return;
         }
-    });
+        var btn = event.target.closest('button');
+        var orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-    var teacherChart = new Chart(document.getElementById('teacherChart'), {
-        type: 'doughnut',
-        data: {
-            labels: ['板书讲解', '巡视指导', '多媒体演示', '提问互动', '站立观察'],
-            datasets: [{
-                data: [30, 25, 15, 20, 10],
-                backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#0dcaf0', '#6c757d'],
-                borderWidth: 2, borderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 8 } } }
+        fetch(SERVER_URL + '/api/source/camera', {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ index: idx })
+        })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.error) { alert('添加失败：' + data.error); return; }
+                updateSourceInfo(data.source_info);
+                updateVideo();
+                refreshCameras();
+                alert('已添加并切换到摄像头 ' + idx + '（所有摄像头仍在监测）');
+            })
+            .catch(function(err) { alert('添加失败：' + err.message); })
+            .finally(function() {
+                btn.disabled = false;
+                btn.innerHTML = orig;
+            });
+    }
+
+    function switchCamera() {
+        var idx = parseInt(document.getElementById('cameraSelect').value);
+        if (isNaN(idx) || idx < 0) { alert('请先检测可用摄像头'); return; }
+        var btn = event.target.closest('button');
+        var orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 切换中...';
+        fetch(SERVER_URL + '/api/source/camera', {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ index: idx })
+        })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.error) { alert('切换失败：' + data.error); return; }
+                updateSourceInfo(data.source_info);
+                updateVideo();
+                alert('已切换显示到摄像头 ' + idx + '（所有摄像头仍在监测）');
+            })
+            .catch(function(err) { alert('切换失败：' + err.message); })
+            .finally(function() {
+                btn.disabled = false;
+                btn.innerHTML = orig;
+            });
+    }
+
+    function uploadVideo(input) {
+        var file = input.files[0];
+        if (!file) return;
+        document.getElementById('videoFileName').textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + 'MB)';
+        var formData = new FormData();
+        formData.append('file', file);
+        var span = document.getElementById('videoFileName');
+        span.textContent = '上传中... ' + file.name;
+        fetch(SERVER_URL + '/api/source/video', {
+            method: 'POST',
+            mode: 'cors',
+            body: formData
+        })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.error) { alert('上传失败：' + data.error); span.textContent = '上传失败'; return; }
+                updateSourceInfo(data.source_info);
+                span.textContent = '已加载: ' + file.name;
+                alert('视频已加载，开始分析');
+            })
+            .catch(function(err) { alert('上传失败：' + err.message); span.textContent = '上传失败'; });
+    }
+
+    function uploadImage(input) {
+        var file = input.files[0];
+        if (!file) return;
+        document.getElementById('imageFileName').textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + 'MB)';
+        var formData = new FormData();
+        formData.append('file', file);
+        var span = document.getElementById('imageFileName');
+        span.textContent = '上传中... ' + file.name;
+        fetch(SERVER_URL + '/api/source/image', {
+            method: 'POST',
+            mode: 'cors',
+            body: formData
+        })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.error) { alert('上传失败：' + data.error); span.textContent = '上传失败'; return; }
+                updateSourceInfo(data.source_info);
+                span.textContent = '已加载: ' + file.name;
+                alert('图片已加载，开始分析');
+            })
+            .catch(function(err) { alert('上传失败：' + err.message); span.textContent = '上传失败'; });
+    }
+
+    function updateSourceInfo(info) {
+        document.getElementById('sourceInfo').textContent = info || '--';
+    }
+
+    function fetchSourceInfo() {
+        fetch(SERVER_URL + '/api/source/info', { mode: 'cors' })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.sources) {
+                    var viewing = data.sources.find(function(s) { return s.is_viewing; });
+                    if (viewing) {
+                        updateSourceInfo(viewing.info);
+                    }
+                    var allInfo = data.sources.map(function(s) { return s.info; }).join(' + ');
+                    var el = document.getElementById('activeSources');
+                    if (el) el.textContent = allInfo;
+                } else {
+                    updateSourceInfo(data.source_info);
+                }
+            })
+            .catch(function(err) { console.error('source info error:', err); });
+    }
+
+    // ===== 设置 =====
+    function saveSettings() {
+        var url = document.getElementById('settingsServerUrl').value.trim().replace(/\/+$/, '');
+        var interval = parseInt(document.getElementById('settingsRefreshInterval').value) || 2;
+        var vInterval = parseFloat(document.getElementById('settingsVideoInterval').value) || 1;
+
+        localStorage.setItem('behaviorServerUrl', url);
+        localStorage.setItem('behaviorRefreshInterval', interval);
+        localStorage.setItem('behaviorVideoInterval', vInterval);
+
+        SERVER_URL = url;
+        REFRESH_INTERVAL = interval;
+        VIDEO_INTERVAL = vInterval;
+        document.getElementById('serverUrlInput').value = url;
+
+        if (isConnected) {
+            startPolling(); // 重新启动轮询
         }
-    });
 
-    var studentBehaviors = [
-        { label: '专注听讲', value: '42次', color: '#0d6efd', icon: 'fa-book-reader' },
-        { label: '举手发言', value: '8次', color: '#198754', icon: 'fa-hand-paper' },
-        { label: '低头写字', value: '25次', color: '#ffc107', icon: 'fa-pen' },
-        { label: '转头讨论', value: '15次', color: '#0dcaf0', icon: 'fa-comments' },
-        { label: '趴桌/走神', value: '10次', color: '#dc3545', icon: 'fa-bed' }
-    ];
-    var studentStatsEl = document.getElementById('studentStats');
-    studentStatsEl.innerHTML = studentBehaviors.map(function(s) {
-        return '<div class="stat-row"><span class="stat-label"><i class="fas ' + s.icon + '" style="color:' + s.color + '"></i>' + s.label + '</span><span class="stat-value" style="color:' + s.color + '">' + s.value + '</span></div>';
-    }).join('');
+        alert('设置已保存');
+    }
 
-    var teacherBehaviors = [
-        { label: '板书讲解', value: '30次', color: '#0d6efd', icon: 'fa-chalkboard' },
-        { label: '巡视指导', value: '25次', color: '#198754', icon: 'fa-walking' },
-        { label: '多媒体演示', value: '15次', color: '#ffc107', icon: 'fa-desktop' },
-        { label: '提问互动', value: '20次', color: '#0dcaf0', icon: 'fa-question' },
-        { label: '站立观察', value: '10次', color: '#6c757d', icon: 'fa-eye' }
-    ];
-    var teacherStatsEl = document.getElementById('teacherStats');
-    teacherStatsEl.innerHTML = teacherBehaviors.map(function(s) {
-        return '<div class="stat-row"><span class="stat-label"><i class="fas ' + s.icon + '" style="color:' + s.color + '"></i>' + s.label + '</span><span class="stat-value" style="color:' + s.color + '">' + s.value + '</span></div>';
-    }).join('');
+    // ===== 导出报告 =====
+    function exportReport() {
+        if (!isConnected) { alert('请先连接服务器'); return; }
+        window.open(SERVER_URL + '/api/export', '_blank');
+    }
+
+    // ===== 推送到五维评价 =====
+    var pushReportData = null;
+    function pushToEval() {
+        if (!isConnected) { alert('请先连接服务器'); return; }
+        var btn = document.getElementById('pushBtn');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 获取...';
+        btn.disabled = true;
+        fetch(SERVER_URL + '/api/report', { method: 'GET', mode: 'cors' })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                pushReportData = data;
+                document.getElementById('pushScore').textContent = data.classroom_performance_score;
+                document.getElementById('pushLevel').textContent = data.score_level;
+                document.getElementById('pushDuration').textContent = data.duration_minutes;
+                document.getElementById('pushTotal').textContent = data.total_behaviors;
+                var topBehavior = '--';
+                if (data.top_behaviors && data.top_behaviors.length > 0) {
+                    topBehavior = data.top_behaviors[0].name + '(' + data.top_behaviors[0].count + ')';
+                }
+                document.getElementById('pushTopBehavior').textContent = topBehavior;
+                // 生成简洁的推送 JSON（只包含五维看板需要的字段）
+                var pushData = {
+                    type: 'classroom_behavior',
+                    score: data.classroom_performance_score,
+                    level: data.score_level,
+                    session_start: data.session_start,
+                    session_end: data.session_end,
+                    duration_minutes: data.duration_minutes,
+                    total_behaviors: data.total_behaviors,
+                    behavior_counts: data.behavior_counts,
+                    behavior_percentages: data.behavior_percentages,
+                    top_behaviors: data.top_behaviors,
+                    generated_at: data.generated_at
+                };
+                document.getElementById('pushJson').value = JSON.stringify(pushData, null, 2);
+                new bootstrap.Modal(document.getElementById('pushModal')).show();
+            })
+            .catch(function(err) { alert('获取报告失败：' + err.message); })
+            .finally(function() {
+                btn.innerHTML = '<i class="fas fa-share-square"></i> 推送到五维评价';
+                btn.disabled = false;
+            });
+    }
+
+    function copyPushJson() {
+        var textarea = document.getElementById('pushJson');
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            alert('数据已复制到剪贴板！\n\n请打开五维评价看板，点击「导入数据」，选择「课堂表现」标签页，粘贴数据。');
+        } catch(e) {
+            alert('复制失败，请手动选择文本复制。');
+        }
+    }
+
+    // ===== 自动连接 =====
+    // 页面加载后尝试自动连接
+    setTimeout(function() {
+        if (SERVER_URL && SERVER_URL !== 'http://localhost:5000') {
+            connect();
+        } else if (SERVER_URL === 'http://localhost:5000') {
+            // 本地地址，尝试连接（如果在本机运行）
+            connect();
+        }
+    }, 500);
     </script>
 </body>
 </html>

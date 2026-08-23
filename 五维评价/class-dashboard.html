@@ -289,8 +289,11 @@ a{text-decoration:none;color:inherit}
   font-size:20px;font-weight:800;color:#fff;flex-shrink:0;
 }
 .student-meta{flex:1;min-width:120px}
-.student-meta .name{font-size:18px;font-weight:700;color:var(--slate-800)}
+.student-meta .name{font-size:18px;font-weight:700;color:var(--slate-800);display:flex;align-items:center;gap:8px}
 .student-meta .id{font-size:12px;color:var(--slate-400);margin-top:2px}
+.level-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;vertical-align:middle}
+.level-badge.level-top{color:#8b5cf6;background:#ede9fe}
+.level-badge.level-normal{color:#06b6d4;background:#cffafe}
 .student-stat{display:flex;flex-direction:column;align-items:center;gap:2px;padding:0 16px;border-left:1px solid var(--slate-100)}
 .student-stat .val{font-size:20px;font-weight:800;color:var(--slate-800)}
 .student-stat .lbl{font-size:11px;color:var(--slate-400)}
@@ -313,7 +316,8 @@ a{text-decoration:none;color:inherit}
   display:flex;align-items:center;justify-content:center;
 }
 .dim-card .dim-icon svg{width:20px;height:20px}
-.dim-card .dim-name{font-size:11px;color:var(--slate-500);font-weight:600;margin-bottom:6px}
+.dim-card .dim-name{font-size:11px;color:var(--slate-500);font-weight:600;margin-bottom:2px}
+.dim-card .dim-desc{font-size:10px;color:var(--slate-300);margin-bottom:6px;line-height:1.4}
 .dim-card .dim-score{font-size:24px;font-weight:800;color:var(--slate-800)}
 .dim-card .dim-score .max{font-size:12px;color:var(--slate-300);font-weight:600}
 .dim-card .dim-delta{font-size:11px;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:2px}
@@ -406,6 +410,7 @@ a{text-decoration:none;color:inherit}
 /* SVG text */
 svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -450,6 +455,14 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3m0 0l4 4m-4-4l-4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
         <span>导出CSV</span>
       </div>
+      <div class="nav-item" id="navDimSettings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 005.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        <span>维度设置</span>
+      </div>
+      <div class="nav-item" id="navStudents">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <span>学生账号</span>
+      </div>
       <div class="nav-section-label">统计信息</div>
       <div class="nav-item" style="cursor:default">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -463,8 +476,8 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
       </div>
     </nav>
     <div class="sidebar-footer">
-      <strong>五维评价体系</strong><br>
-      作业 · 眼神 · 金点子 · 书写 · 善上
+      <strong>真实五维评价</strong><br>
+      兴趣 · 效果 · 思维 · 态度 · 习惯
     </div>
   </aside>
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -484,15 +497,9 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
           </div>
           <select id="selWeek">
-            <option value="4">第4周</option>
-            <option value="3">第3周</option>
-            <option value="2">第2周</option>
-            <option value="1">第1周</option>
+            <option value="22">第22周</option>
           </select>
-          <select id="selTerm">
-            <option>2025秋季学期</option>
-            <option>2025春季学期</option>
-          </select>
+          <select id="selTerm"></select>
         </div>
         <!-- View Toggle -->
         <div class="view-toggle">
@@ -505,6 +512,10 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
             学生
           </button>
         </div>
+        <button class="btn-ghost" id="btnCloudSync" title="云端同步五维评价数据">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19a4.5 4.5 0 00.9-8.9 6 6 0 00-11.6-1.6A4 4 0 006 19h11.5z"/><path d="M12 13v6m0 0l-2.5-2.5M12 19l2.5-2.5"/></svg>
+          云同步
+        </button>
         <button class="btn-import" id="btnImport">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
           导入数据
@@ -586,21 +597,167 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
       <div class="modal-tabs">
         <button class="modal-tab active" data-tab="csv">CSV 格式</button>
         <button class="modal-tab" data-tab="json">JSON 格式</button>
+        <button class="modal-tab" data-tab="behavior">课堂表现</button>
+        <button class="modal-tab" data-tab="excel">Excel 导入</button>
       </div>
       <textarea class="modal-textarea" id="importTextarea" placeholder="粘贴数据..."></textarea>
-      <div class="modal-format">
+      <div id="excelSection" style="display:none;margin-bottom:14px;">
+        <div style="border:2px dashed var(--slate-300);border-radius:12px;padding:28px;text-align:center;background:var(--slate-50);cursor:pointer;transition:all .2s;" id="excelDropZone" ondragover="event.preventDefault();" ondrop="handleExcelDrop(event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:40px;height:40px;color:var(--blue);margin:0 auto 10px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg>
+          <div style="font-size:15px;font-weight:600;color:var(--slate-700);">点击或拖拽上传 Excel 文件</div>
+          <div style="font-size:12px;color:var(--slate-500);margin-top:6px;">支持 .xlsx / .xls，表头第 2 行：姓名、作业、课堂、周末、书写、善上</div>
+          <input type="file" id="excelFileInput" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style="display:none;" onchange="handleExcelFile(this)">
+        </div>
+        <div id="excelFileName" style="font-size:13px;color:var(--slate-600);margin-top:10px;display:none;"></div>
+      </div>
+      <div class="modal-format" id="modalFormat">
         <h4>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
           格式说明
         </h4>
-        <code id="formatDesc">每行格式：姓名,周次,作业守卫者,眼神小雷达,金点子大王,书写小标兵,善上小天使</code>
+        <code id="formatDesc">每行格式：姓名,周次,作业完成,课堂表现,周末自律,书写标兵,善上少年</code>
         <div class="fmt-example" id="formatExample">张小明,4,9,8,7,9,10
 李小红,4,10,9,8,9,10</div>
+      </div>
+      <div id="behaviorSection" style="display:none;margin-top:14px;">
+        <div id="behaviorPreview" style="background:var(--slate-50);border:1px solid var(--slate-200);border-radius:10px;padding:14px;min-height:60px;">
+          <span style="font-size:12px;color:var(--slate-400);">粘贴课堂行为 JSON 数据后此处显示预览</span>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:12px;">
+          <div style="flex:1;">
+            <label style="font-size:12px;font-weight:600;color:var(--slate-600);display:block;margin-bottom:4px;">填入维度</label>
+            <select id="behaviorDimSelect" style="width:100%;padding:8px 10px;border:1px solid var(--slate-200);border-radius:8px;font-size:13px;background:#fff;"></select>
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:12px;font-weight:600;color:var(--slate-600);display:block;margin-bottom:4px;">目标周次</label>
+            <select id="behaviorWeekSelect" style="width:100%;padding:8px 10px;border:1px solid var(--slate-200);border-radius:8px;font-size:13px;background:#fff;"></select>
+          </div>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="modal-btn modal-btn-cancel" id="modalCancel">取消</button>
       <button class="modal-btn modal-btn-primary" id="modalConfirm">确认导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cloud Sync Modal -->
+<div class="modal-overlay" id="cloudModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>☁️ 云端同步</h2>
+      <button class="modal-close" id="cloudModalClose">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="cloudLoginSection">
+        <p style="font-size:12px;color:var(--slate-500);margin-bottom:16px;line-height:1.7;">将老师三维评分（思维品质/学习态度/学习习惯）上传到云端，可跨设备恢复、供学生端查询。<br>请使用教师账号登录（与主站"☁️ 云端同步"同一账号）。</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <input id="cloudUsername" placeholder="教师账号" style="flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;">
+          <input id="cloudPassword" type="password" placeholder="密码" style="flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;">
+          <button id="cloudLoginBtn" class="modal-btn modal-btn-primary" style="padding:9px 18px;">登录</button>
+        </div>
+        <div id="cloudLoginMsg" style="font-size:12px;color:var(--red,#ef4444);margin-top:10px;display:none;"></div>
+      </div>
+      <div id="cloudMainSection" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--slate-50);border:1px solid var(--slate-200);border-radius:10px;padding:10px 14px;margin-bottom:14px;">
+          <span style="font-size:13px;color:var(--slate-600);">✅ 已登录：<strong id="cloudUserLabel" style="color:var(--slate-800);"></strong></span>
+          <button id="cloudLogoutBtn" class="modal-btn modal-btn-cancel" style="padding:6px 12px;">退出</button>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+          <label style="font-size:12px;font-weight:600;color:var(--slate-600);">班级</label>
+          <input id="cloudClassName" placeholder="如：303班" style="flex:1;min-width:120px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;" value="">
+          <span style="font-size:12px;color:var(--slate-500);">上传/下载：<strong id="cloudTermLabel" style="color:var(--slate-700);"></strong> · 第 <strong id="cloudWeekLabel" style="color:var(--slate-700);"></strong> 周</span>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button id="cloudUploadBtn" class="modal-btn modal-btn-primary" style="flex:1;padding:10px;">⬆ 上传本周评分</button>
+          <button id="cloudDownloadBtn" class="modal-btn modal-btn-cancel" style="flex:1;padding:10px;">⬇ 下载云端评分</button>
+        </div>
+        <div id="cloudHint" style="font-size:12px;color:var(--slate-500);margin-top:12px;line-height:1.7;">
+          上传：把当前班级本周学生的老师三维评分（思维/态度/习惯）保存到云端（重复上传覆盖该周三维，不影响系统自动的"兴趣/效果"分）。<br>
+          下载：拉取云端该班级全部周次的<b>完整五维</b>（含系统自动的学习兴趣/学习效果）并合并到本地。
+        </div>
+        <div id="cloudSyncStatus" style="display:none;margin-top:12px;padding:10px 12px;border-radius:9px;background:var(--slate-50);border:1px solid var(--slate-200);font-size:12px;color:var(--slate-600);line-height:1.6;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" id="cloudModalClose2">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- Student Account Modal -->
+<div class="modal-overlay" id="studentModal">
+  <div class="modal" style="max-width:760px;">
+    <div class="modal-header">
+      <h2>👥 学生账号管理</h2>
+      <button class="modal-close" id="studentModalClose">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="studentLoginHint" style="display:none;">
+        <p id="studentLoginHintText" style="font-size:12px;color:var(--slate-500);margin-bottom:16px;line-height:1.7;">
+          学生账号管理需要教师身份。请先点击上方"☁️ 云同步"登录教师账号，再进行操作。
+        </p>
+        <button id="studentGotoLogin" class="modal-btn modal-btn-primary" style="padding:9px 18px;">去登录</button>
+      </div>
+      <div id="studentMainSection" style="display:none;">
+        <!-- 班级与操作 -->
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+          <label style="font-size:12px;font-weight:600;color:var(--slate-600);">班级</label>
+          <input id="stuClassName" placeholder="如：303班" style="flex:1;min-width:120px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;">
+          <button id="stuRefreshBtn" class="modal-btn modal-btn-cancel" style="padding:9px 14px;">刷新列表</button>
+          <button id="stuCreateBtn" class="modal-btn modal-btn-primary" style="padding:9px 16px;">批量创建账号</button>
+          <button id="stuExcelBtn" class="modal-btn modal-btn-primary" style="padding:9px 16px;background:var(--green-d);">Excel 导入</button>
+          <input type="file" id="stuExcelFileInput" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style="display:none;">
+        </div>
+        <!-- 批量创建 -->
+        <div style="background:var(--slate-50);border:1px solid var(--slate-200);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:600;color:var(--slate-600);margin-bottom:8px;">批量创建学生账号 <span style="font-weight:400;color:var(--slate-400);">（每行「姓名 账号」可带学校正式账号，如「张三 S29301ZHS」；不带账号则用户名=姓名）</span></div>
+          <textarea id="stuNamesInput" rows="3" placeholder="每行一个学生，姓名与账号用空格分隔，如：&#10;叶兆熹 S29301YZX&#10;荣维汐 S29302RWX&#10;张三（无账号，用户名=姓名）" style="width:100%;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;box-sizing:border-box;resize:vertical;"></textarea>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+            <label style="font-size:12px;color:var(--slate-500);">默认密码</label>
+            <input id="stuDefaultPwd" type="text" value="123456" style="width:110px;padding:8px 10px;border:1px solid var(--slate-200);border-radius:8px;font-size:13px;">
+            <span style="font-size:11px;color:var(--slate-400);">建议用统一密码，学生首次登录后可改</span>
+          </div>
+          <div id="stuCreateMsg" style="font-size:12px;margin-top:8px;display:none;"></div>
+        </div>
+        <!-- Excel 导入提示 -->
+        <div id="stuExcelHint" style="display:none;background:var(--green-xl);border:1px solid var(--green);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green-d);line-height:1.6;">
+          <b>Excel 导入</b>：支持学校学生帐号表（.xls / .xlsx），自动识别「姓名、帐号、备注（优生/中等生）」列，按分层自动导入。<br>
+          <span style="color:var(--slate-500);">优生 → 推送培优微课；中等生 → 推送同步课堂；已有账号自动跳过。</span>
+        </div>
+        <!-- 学生列表 -->
+        <div style="font-size:12px;font-weight:600;color:var(--slate-600);margin-bottom:8px;">学生列表 <span id="stuListCount" style="font-weight:400;color:var(--slate-400);"></span></div>
+        <div id="stuList" style="max-height:320px;overflow-y:auto;border:1px solid var(--slate-200);border-radius:10px;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" id="studentModalClose2">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dimension Settings Modal -->
+<div class="modal-overlay" id="dimSettingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>维度设置</h2>
+      <button class="modal-close" id="dimModalClose">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--slate-500);margin-bottom:16px;">编辑评价维度的名称、简称和颜色。维度数量 3-8 个。</p>
+      <div id="dimSettingsList"></div>
+      <button id="addDimBtn" style="margin-top:12px;padding:8px 16px;font-size:13px;font-weight:600;border:1px dashed var(--slate-300);border-radius:9px;background:var(--slate-50);color:var(--slate-600);cursor:pointer;transition:all .2s;width:100%;">+ 添加维度</button>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" id="dimModalCancel">取消</button>
+      <button class="modal-btn modal-btn-primary" id="dimModalSave">保存设置</button>
     </div>
   </div>
 </div>
@@ -613,21 +770,66 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
 //  班级周评价数据看板 - JavaScript
 // ============================================================
 
-// ===== 五维配置 =====
-const DIMS = [
-  { key:'homework', name:'作业守卫者', short:'作业', color:'#2563eb', bg:'#dbeafe',
-    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>' },
-  { key:'focus', name:'眼神小雷达', short:'眼神', color:'#06b6d4', bg:'#cffafe',
-    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>' },
-  { key:'ideas', name:'金点子大王', short:'金点子', color:'#f59e0b', bg:'#fef3c7',
-    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7c.6.5 1 1.3 1 2.1V18h6v-1.2c0-.8.4-1.6 1-2.1A7 7 0 0012 2z"/></svg>' },
-  { key:'writing', name:'书写小标兵', short:'书写', color:'#10b981', bg:'#d1fae5',
-    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>' },
-  { key:'kindness', name:'善上小天使', short:'善上', color:'#8b5cf6', bg:'#ede9fe',
-    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>' },
+// ===== 五维评价维度配置 =====
+// 完整五维 = 学习兴趣(系统自动) + 学习效果(系统自动) + 思维品质(老师) + 学习态度(老师) + 学习习惯(老师)
+// 老师端编辑/导入的是 think/attitude/habit；interest/effect 由主站学生端自动采集后云端下发
+const DEFAULT_DIMS = [
+  { key:'think', name:'思维品质', short:'思维', color:'#2563eb', bg:'#dbeafe',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>',
+    desc:'课堂举手+回答问题+小组合作' },
+  { key:'attitude', name:'学习态度', short:'态度', color:'#f59e0b', bg:'#fef3c7',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7c.6.5 1 1.3 1 2.1V18h6v-1.2c0-.8.4-1.6 1-2.1A7 7 0 0012 2z"/></svg>',
+    desc:'作业完成' },
+  { key:'habit', name:'学习习惯', short:'习惯', color:'#10b981', bg:'#d1fae5',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>',
+    desc:'草稿及作业书写' },
 ];
 
-const DIM_KEYS = DIMS.map(d=>d.key);
+const AUTO_DIMS = [
+  { key:'interest', name:'学习兴趣', short:'兴趣', color:'#8b5cf6', bg:'#ede9fe',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+    desc:'系统自动 · 完整观看视频' },
+  { key:'effect', name:'学习效果', short:'效果', color:'#06b6d4', bg:'#cffafe',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>',
+    desc:'系统自动 · 作业正确率+订正' },
+];
+
+// 旧五维 key → 新三维映射（真实评价重构，旧数据自动迁移）
+const LEGACY_DIM_MAP = { homework:'attitude', focus:'think', writing:'habit' };
+
+let DIMS = (function(){
+  const saved = JSON.parse(localStorage.getItem('classDash_dims')) || null;
+  if(!saved) return DEFAULT_DIMS;
+  // 旧五维（作业/课堂/周末/书写/善上）→ 整体切换到新三维（真实评价体系重构）
+  const oldKeys = Object.keys(LEGACY_DIM_MAP).concat(['ideas','kindness']);
+  if(saved.some(function(d){ return oldKeys.indexOf(d.key) !== -1; })){
+    localStorage.removeItem('classDash_dims');
+    return DEFAULT_DIMS;
+  }
+  // 新键：按位置合并默认样式，保留用户自定义名称/简称
+  let upgraded = false;
+  const merged = saved.map(function(d, i){
+    const def = DEFAULT_DIMS[i];
+    if(def && d.key === def.key && (d.name !== def.name || d.short !== def.short)){
+      upgraded = true;
+      return Object.assign({}, def, {key:d.key});
+    }
+    return d;
+  });
+  if(upgraded){
+    localStorage.setItem('classDash_dims', JSON.stringify(merged));
+  }
+  return merged;
+})();
+
+let DIM_KEYS = DIMS.map(d=>d.key);
+let ALL_DIMS = [...AUTO_DIMS, ...DIMS];
+
+function saveDims() {
+  localStorage.setItem('classDash_dims', JSON.stringify(DIMS));
+  DIM_KEYS = DIMS.map(d=>d.key);
+  ALL_DIMS = [...AUTO_DIMS, ...DIMS];
+}
 
 // ===== 学生名字 =====
 const STUDENT_NAMES = [
@@ -649,7 +851,7 @@ function rint(min,max){return Math.floor(srand()*(max-min+1))+min;}
 // ===== 数据生成 =====
 function generateData(){
   const students = [];
-  const totalWeeks = 4;
+  const totalWeeks = MAX_WEEKS;
   for(let i=0;i<STUDENT_NAMES.length;i++){
     const name = STUDENT_NAMES[i];
     // 每个学生有一个基础水平和进步趋势
@@ -661,9 +863,6 @@ function generateData(){
       for(const dim of DIMS){
         // 基础 + 趋势*周次 + 随机波动
         let score = baseLevel + trend*w + (srand()-0.3)*1.8;
-        // 个别维度有偏好
-        if(dim.key==='kindness') score += 0.5; // 善上普遍偏高
-        if(dim.key==='ideas') score -= 0.3;    // 金点子偏低
         score = Math.max(5, Math.min(10, Math.round(score)));
         wkData[dim.key] = score;
       }
@@ -683,20 +882,146 @@ function generateData(){
     const p3 = students[14];
     for(const w of p3.weeks){ for(const k of DIM_KEYS) w[k] = Math.min(10, 7 + w.week*0.6 + (srand()-0.5)); }
   }
+  // 标记为演示数据，防止未导入真实数据时误上传到云端
+  students.forEach(function(s){ s._demo = true; });
   return students;
 }
 
+// ===== 状态持久化 =====
+const STATE_KEY = 'classDash_state';
+const MAX_WEEKS = 22; // 一个学期最多22周
+function saveState(){
+  const toSave = {
+    students: STATE.students,
+    currentWeek: STATE.currentWeek,
+    totalWeeks: STATE.totalWeeks,
+    selectedTerm: STATE.selectedTerm,
+    className: STATE.className,
+    view: STATE.view,
+    selectedStudent: STATE.selectedStudent,
+    lastCloudUpload: STATE.lastCloudUpload || null,
+    savedAt: Date.now()
+  };
+  localStorage.setItem(STATE_KEY, JSON.stringify(toSave));
+}
+function migrateWeekData(wk){
+  // 旧五维数据 → 新三维（真实评价重构）：homework→态度 focus→思维 writing→习惯；ideas/kindness 丢弃
+  // interest/effect（云端系统自动分）原样保留
+  let changed = false;
+  Object.keys(LEGACY_DIM_MAP).forEach(function(oldK){
+    if(wk[oldK] !== undefined){
+      if(wk[LEGACY_DIM_MAP[oldK]] === undefined){
+        wk[LEGACY_DIM_MAP[oldK]] = wk[oldK];
+      }
+      delete wk[oldK];
+      changed = true;
+    }
+  });
+  if(wk.ideas !== undefined){ delete wk.ideas; changed = true; }
+  if(wk.kindness !== undefined){ delete wk.kindness; changed = true; }
+  return changed;
+}
+
+// 获取 ISO 周数（自然周，仅参考，教学周见 getTeachWeek）
+function getISOWeek(d){
+  const date = new Date(d.getTime());
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + 4 - (date.getDay() || 7));
+  const yearStart = new Date(date.getFullYear(), 0, 1);
+  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+}
+
+// 教学周起点：第1周的周一（例：2026-08-10 → 8/10-8/16 为第1周）
+// 云端 eval_records 按教学周存取，与后端 _teach_week()、主站 getTeachWeek() 一致
+const TEACH_WEEK_START = '2026-08-10';
+function getTeachWeek(d){
+  const start = new Date(TEACH_WEEK_START + 'T00:00:00');
+  const cur = new Date(d.getTime()); cur.setHours(0, 0, 0, 0);
+  const w = Math.floor((cur - start) / 86400000 / 7) + 1;
+  return w < 1 ? 1 : w;
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STATE_KEY);
+    if(!raw) return null;
+    const obj = JSON.parse(raw);
+    if(!obj || !Array.isArray(obj.students) || obj.students.length===0) return null;
+    // 旧五维 → 新三维迁移（迁移后写回，避免每次加载重复迁移）
+    let changed = false;
+    obj.students.forEach(function(s){
+      if(s && Array.isArray(s.weeks)){
+        s.weeks.forEach(function(w){
+          if(w && migrateWeekData(w)) changed = true;
+        });
+      }
+    });
+    // 每次打开页面，默认选中"上一周"（本周若未评完，教师通常先看已评完的上周数据）
+    // 如果用户之前手动选过某一周，则尊重用户选择，不再强制跳回本周；仅在数据异常时回退默认值
+    const nowWeek = getTeachWeek(new Date());
+    const defaultWeek = Math.min(Math.max(1, nowWeek - 1), MAX_WEEKS);
+    let cw = obj.currentWeek || 0;
+    if(!cw || cw < 1 || cw > MAX_WEEKS){
+      cw = defaultWeek;
+      changed = true;
+    }
+    obj.currentWeek = cw;
+    // totalWeeks 保证覆盖到当前实际 ISO 周，但不超过 22
+    obj.totalWeeks = Math.max(obj.totalWeeks || 0, nowWeek);
+    obj.totalWeeks = Math.min(obj.totalWeeks, MAX_WEEKS);
+    changed = true;
+    // 旧测试班级 403班 已统一为真实班级 303班，做一次性迁移
+    if(obj.className === '403班'){
+      obj.className = '303班';
+      changed = true;
+    }
+    if(changed){
+      localStorage.setItem(STATE_KEY, JSON.stringify(obj));
+    }
+    return obj;
+  }catch(e){
+    return null;
+  }
+}
+function clearSavedState(){
+  localStorage.removeItem(STATE_KEY);
+}
+
 // ===== 全局状态 =====
-let STATE = {
-  students: generateData(),
-  currentWeek: 4,
-  totalWeeks: 4,
-  view: 'class',
-  selectedStudent: 0,
-  sortKey: 'avg',
-  sortDir: 'desc',
-  searchText: '',
-};
+let STATE = (function(){
+  const nowWeek = getTeachWeek(new Date());
+  const defaultWeek = Math.min(Math.max(1, nowWeek - 1), MAX_WEEKS);
+  const saved = loadState();
+  if(saved){
+    const cw = Math.min(Math.max(1, saved.currentWeek || defaultWeek), MAX_WEEKS);
+    return {
+      students: saved.students,
+      currentWeek: cw,
+      totalWeeks: Math.min(saved.totalWeeks || cw, MAX_WEEKS),
+      selectedTerm: saved.selectedTerm || '',
+      className: saved.className || '303班',
+      view: saved.view || 'class',
+      selectedStudent: saved.selectedStudent || 0,
+      sortKey: 'avg',
+      sortDir: 'desc',
+      searchText: '',
+      lastCloudUpload: saved.lastCloudUpload || null,
+    };
+  }
+  return {
+    students: generateData(),
+    currentWeek: defaultWeek,
+    totalWeeks: Math.min(Math.max(nowWeek, 1), MAX_WEEKS),
+    selectedTerm: '',
+    className: '303班',
+    view: 'class',
+    selectedStudent: 0,
+    sortKey: 'avg',
+    sortDir: 'desc',
+    searchText: '',
+    lastCloudUpload: null,
+  };
+})();
 
 // ===== 工具函数 =====
 function $(sel){return document.querySelector(sel);}
@@ -712,13 +1037,14 @@ function getWeekData(student, week){
 }
 // 学生某周五维均分
 function studentWeekAvg(student, week){
-  const d = getWeekData(student, week);
-  return avg(DIM_KEYS.map(k=>d[k]));
+  const d = getWeekData(student, week) || {};
+  const vals = DIM_KEYS.map(k=>d[k]||0);
+  return avg(vals);
 }
 // 学生某周是否五星全能（全≥9）
 function isAllStar(student, week){
-  const d = getWeekData(student, week);
-  return DIM_KEYS.every(k=>d[k]>=9);
+  const d = getWeekData(student, week) || {};
+  return DIM_KEYS.every(k=>(d[k]||0)>=9);
 }
 
 // ===== KPI 计算 =====
@@ -729,16 +1055,16 @@ function calcKPIs(week){
   // KPI1: 班级综合均分
   const allScores = [];
   sts.forEach(s=>{
-    const d = getWeekData(s, week);
-    DIM_KEYS.forEach(k=>allScores.push(d[k]));
+    const d = getWeekData(s, week) || {};
+    DIM_KEYS.forEach(k=>allScores.push(d[k]||0));
   });
   const classAvg = avg(allScores);
   let prevClassAvg = null;
   if(prevWeek){
     const prevScores = [];
     sts.forEach(s=>{
-      const d = getWeekData(s, prevWeek);
-      DIM_KEYS.forEach(k=>prevScores.push(d[k]));
+      const d = getWeekData(s, prevWeek) || {};
+      DIM_KEYS.forEach(k=>prevScores.push(d[k]||0));
     });
     prevClassAvg = avg(prevScores);
   }
@@ -760,10 +1086,10 @@ function calcKPIs(week){
   progressions.sort((a,b)=>b.delta-a.delta);
   const topProgress = progressions.slice(0,5);
 
-  // KPI4: 最强风气标 - 全班得分最高维度
+  // KPI4: 最强风气标 - 全班得分最高维度（按完整五维取最高）
   const dimAvgs = {};
   DIMS.forEach(dim=>{
-    const scores = sts.map(s=>getWeekData(s,week)[dim.key]);
+    const scores = sts.map(s=>(getWeekData(s,week)||{})[dim.key]||0);
     dimAvgs[dim.key] = avg(scores);
   });
   let bestDim = DIMS[0], bestAvg = 0;
@@ -840,15 +1166,14 @@ function renderRadar(container, data, opts={}){
     const x2 = cx + Math.cos(a)*maxR;
     const y2 = cy + Math.sin(a)*maxR;
     axesSVG += `<line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="#e2e8f0" stroke-width="1"/>`;
-    // 标签
+    // 标签与数值上下对齐显示
     const lx = cx + Math.cos(a)*(maxR+28);
     const ly = cy + Math.sin(a)*(maxR+28);
     const labelColor = data[i].color || '#64748b';
-    labelsSVG += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="600" fill="${labelColor}">${data[i].label}</text>`;
-    // 数值标签
-    const vx = cx + Math.cos(a)*(maxR+16);
-    const vy = cy + Math.sin(a)*(maxR+16);
-    labelsSVG += `<text x="${vx}" y="${vy}" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="#94a3b8">${data[i].value.toFixed(1)}</text>`;
+    labelsSVG += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle">
+      <tspan x="${lx}" dy="-7" font-size="11" font-weight="600" fill="${labelColor}">${data[i].label}</tspan>
+      <tspan x="${lx}" dy="14" font-size="10" fill="#94a3b8">${data[i].value.toFixed(1)}</tspan>
+    </text>`;
   }
 
   // 数据多边形
@@ -1075,12 +1400,12 @@ function renderKPIs(){
     });
     weekAvgs.push(avg(scores));
   }
-  // KPI2: 迷你雷达 - 本周5维均分
+  // KPI2: 迷你雷达 - 本周三维均分
   const radarData = DIMS.map(d=>k.dimAvgs[d.key]);
   // KPI3: 迷你折线 - top1学生的进步趋势
   const top1Student = k.topProgress.length>0 ? STATE.students.find(s=>s.name===k.topProgress[0].name) : null;
   const top1Trend = top1Student ? STATE.totalWeeks>0 ? Array.from({length:STATE.totalWeeks},(_,i)=>studentWeekAvg(top1Student,i+1)) : [] : [];
-  // KPI4: 迷你柱状 - 5维均分
+  // KPI4: 迷你柱状 - 三维均分
   const barData = DIMS.map(d=>k.dimAvgs[d.key]);
 
   container.innerHTML = `
@@ -1157,7 +1482,7 @@ function renderKPIs(){
       </div>
       <div class="kpi-body">
         <div class="kpi-main">
-          <div class="kpi-value" style="font-size:22px">${k.bestDim.name}</div>
+          <div class="kpi-value" style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${k.bestDim.name}</div>
           <div class="kpi-sub"><span class="delta-up">均分 ${fmt(k.bestAvg)}分</span></div>
         </div>
         <div class="kpi-mini" id="miniBar4"></div>
@@ -1176,29 +1501,30 @@ function renderKPIs(){
 function renderClassCharts(){
   const k = calcKPIs(STATE.currentWeek);
 
-  // 1. 雷达图
-  const radarData = DIMS.map(d=>({ label:d.short, value:k.dimAvgs[d.key], color:d.color }));
+  // 1. 雷达图 - 三维
+  const chartDims = DIMS;
+  const radarData = chartDims.map(d=>({ label:d.short, value:k.dimAvgs[d.key], color:d.color }));
   renderRadar($('#classRadarChart'), radarData, { fill:'rgba(37,99,235,.1)', stroke:'#2563eb' });
 
-  // 2. 柱状图
+  // 2. 柱状图 - 三维
   const prevDimAvgs = STATE.currentWeek>1 ? {} : null;
   if(prevDimAvgs){
-    DIMS.forEach(d=>{
-      const scores = STATE.students.map(s=>getWeekData(s,STATE.currentWeek-1)[d.key]);
+    chartDims.forEach(d=>{
+      const scores = STATE.students.map(s=>(getWeekData(s,STATE.currentWeek-1)||{})[d.key]||0);
       prevDimAvgs[d.key] = avg(scores);
     });
   }
-  const barData = DIMS.map(d=>({
+  const barData = chartDims.map(d=>({
     label:d.short, value:k.dimAvgs[d.key], color:d.color,
     prev: prevDimAvgs ? prevDimAvgs[d.key] : undefined
   }));
   renderBarChart($('#classBarChart'), barData, { maxVal:10 });
 
-  // 3. 折线图
-  const lineSeries = DIMS.map(d=>{
+  // 3. 折线图 - 三维
+  const lineSeries = chartDims.map(d=>{
     const data = [];
     for(let w=1;w<=STATE.totalWeeks;w++){
-      const scores = STATE.students.map(s=>getWeekData(s,w)[d.key]);
+      const scores = STATE.students.map(s=>(getWeekData(s,w)||{})[d.key]||0);
       data.push({ x:w, y:avg(scores) });
     }
     return { name:d.name, color:d.color, data };
@@ -1207,7 +1533,7 @@ function renderClassCharts(){
   renderLineChart($('#classLineChart'), lineSeries, { xLabels, maxVal:10, minVal:5 });
 
   // Legend
-  $('#lineLegend').innerHTML = DIMS.map(d=>`
+  $('#lineLegend').innerHTML = chartDims.map(d=>`
     <div class="legend-item"><div class="legend-dot" style="background:${d.color}"></div>${d.short}</div>
   `).join('');
 }
@@ -1279,7 +1605,7 @@ function renderTable(){
     const rank = i+1;
     const rankClass = rank<=3 ? `rank-${rank}` : '';
     const dimCells = DIMS.map(d=>{
-      const v = r.data[d.key];
+      const v = r.data[d.key] || 0;
       const cls = v>=9?'score-high':v>=7?'score-mid':'score-low';
       return `<td class="score-cell ${cls}">${v}</td>`;
     }).join('');
@@ -1322,10 +1648,19 @@ function renderStudentDetail(){
   const avatarColors = ['#2563eb','#06b6d4','#10b981','#f59e0b','#8b5cf6'];
   const avColor = avatarColors[s.id % avatarColors.length];
 
+  // 分层标签（云端学生账号同步后可用）：top=优生(培优) normal=中后等(同步课堂) unset=未分层
+  const levelBadge = s.level === 'top'
+    ? '<span class="level-badge level-top">优生 · 培优</span>'
+    : s.level === 'normal'
+      ? '<span class="level-badge level-normal">中后等 · 同步</span>'
+      : s.level === 'unset'
+        ? '<span class="level-badge" style="color:#94a3b8;background:#f1f5f9;">未分层</span>'
+        : '';
+
   // 维度卡片
   const dimCardsHTML = DIMS.map((dim,i)=>{
-    const v = d[dim.key];
-    const prevV = prevD ? prevD[dim.key] : null;
+    const v = d[dim.key] || 0;
+    const prevV = prevD ? (prevD[dim.key] || 0) : null;
     const dd = prevV!==null ? v - prevV : null;
     let deltaHTML = '<div class="dim-delta" style="color:#94a3b8">— 较上周</div>';
     if(dd!==null){
@@ -1336,20 +1671,23 @@ function renderStudentDetail(){
     return `<div class="dim-card" style="animation-delay:${i*0.08}s">
       <div class="dim-icon" style="background:${dim.bg};color:${dim.color}">${dim.icon}</div>
       <div class="dim-name">${dim.name}</div>
+      <div class="dim-desc">${dim.desc || '老师评分'}</div>
       <div class="dim-score">${v}<span class="max">/10</span></div>
       ${deltaHTML}
       <div class="dim-bar"><div class="dim-bar-fill" style="background:${dim.color};width:${v*10}%;animation-delay:${0.3+i*0.08}s"></div></div>
     </div>`;
   }).join('');
 
-  // 个人雷达图数据
-  const radarData = DIMS.map(dim=>({ label:dim.short, value:d[dim.key], color:dim.color }));
-  // 上周雷达数据（叠加）
+  // 完整五维雷达图数据：云端已下载系统自动分（兴趣/效果）时展示完整五维，否则展示老师三维
+  const hasAuto = d && d.interest !== undefined && d.effect !== undefined;
+  const radarDims = hasAuto ? AUTO_DIMS.concat(DIMS) : DIMS;
+  const radarData = radarDims.map(dim=>({ label:dim.short, value:Number(d[dim.key]||0), color:dim.color }));
+  // 上周雷达数据（叠加，仅老师三维可比）
   const prevRadarData = prevD ? DIMS.map(dim=>({ label:dim.short, value:prevD[dim.key], color:'#cbd5e1' })) : null;
 
   // 趋势折线数据
   const trendSeries = DIMS.map(dim=>{
-    const data = s.weeks.map(w=>({ x:w.week, y:w[dim.key] }));
+    const data = s.weeks.map(w=>({ x:w.week, y:w[dim.key]||0 }));
     return { name:dim.name, color:dim.color, data };
   });
   const xLabels = s.weeks.map(w=>`第${w.week}周`);
@@ -1362,7 +1700,7 @@ function renderStudentDetail(){
     <div class="student-info-bar">
       <div class="student-avatar" style="background:${avColor}">${s.name.charAt(0)}</div>
       <div class="student-meta">
-        <div class="name">${s.name}</div>
+        <div class="name">${s.name}${levelBadge}</div>
         <div class="id">学号 #${String(s.id).padStart(2,'0')}</div>
       </div>
       <div class="student-stat"><div class="val blue">${fmt(avgScore)}</div><div class="lbl">本周均分</div></div>
@@ -1378,7 +1716,7 @@ function renderStudentDetail(){
     <div class="student-charts-grid" style="margin-top:16px">
       <div class="chart-card">
         <div class="chart-header">
-          <div class="chart-title">个人五维雷达图<span class="sub">本周 vs 上周</span></div>
+          <div class="chart-title">个人${hasAuto?'五维':'三维'}雷达图<span class="sub">${hasAuto?'兴趣/效果为系统自动分 · 思维/态度/习惯为老师评分':'下载云端数据后可看完整五维（含系统自动分）'}</span></div>
         </div>
         <div class="chart-body" id="stuRadar"></div>
       </div>
@@ -1428,21 +1766,683 @@ function switchView(view){
   }
 }
 
+// ===== Excel 导入数据缓存 =====
+let pendingExcelData = null;
+
+// ===== 云端同步 =====
+const CLOUD_TOKEN_KEY = 'qhwk_cloud_token';
+const CLOUD_ROLE_KEY = 'qhwk_cloud_role';
+const CLOUD_API_BASE = 'https://api.qhwk2016.com/api';
+
+function getCloudToken(){ try{ return localStorage.getItem(CLOUD_TOKEN_KEY) || ''; }catch(e){ return ''; } }
+function setCloudToken(t){ try{ localStorage.setItem(CLOUD_TOKEN_KEY, t); }catch(e){} }
+function getCloudRole(){ try{ return localStorage.getItem(CLOUD_ROLE_KEY) || ''; }catch(e){ return ''; } }
+function setCloudRole(r){ try{ localStorage.setItem(CLOUD_ROLE_KEY, r || ''); }catch(e){} }
+function clearCloudRole(){ try{ localStorage.removeItem(CLOUD_ROLE_KEY); }catch(e){} }
+function clearCloudToken(){ try{ localStorage.removeItem(CLOUD_TOKEN_KEY); }catch(e){} }
+function isCloudLoggedIn(){ return !!getCloudToken(); }
+
+function openCloudSync(){
+  $('#cloudModal').classList.add('show');
+  updateCloudUI();
+}
+function closeCloudSync(){
+  $('#cloudModal').classList.remove('show');
+}
+function showCloudLoginMsg(msg){
+  const el = $('#cloudLoginMsg');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function updateCloudUI(){
+  const logged = isCloudLoggedIn();
+  $('#cloudLoginSection').style.display = logged ? 'none' : 'block';
+  $('#cloudMainSection').style.display = logged ? 'block' : 'none';
+  if(logged){
+    // 从 JWT payload 解出用户名
+    var username = '';
+    try{
+      var payload = JSON.parse(atob(getCloudToken().split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+      username = payload.username || '教师';
+    }catch(e){ username = '教师'; }
+    $('#cloudUserLabel').textContent = username;
+  }
+  $('#cloudClassName').value = STATE.className || '303班';
+  $('#cloudTermLabel').textContent = STATE.selectedTerm || '未选择学期';
+  $('#cloudWeekLabel').textContent = STATE.currentWeek || '—';
+  // 渲染上次同步状态
+  const statusBox = $('#cloudSyncStatus');
+  if(statusBox && STATE.lastCloudUpload){
+    const info = STATE.lastCloudUpload;
+    const dt = new Date(info.at);
+    const timeStr = isNaN(dt.getTime()) ? '' : dt.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    statusBox.style.display = 'block';
+    statusBox.style.background = '#f0fdf4';
+    statusBox.style.borderColor = '#bbf7d0';
+    statusBox.style.color = '#166534';
+    statusBox.innerHTML = '<b>上次同步：</b>' + timeStr + ' 上传了 ' + info.className + ' 第 ' + info.week + ' 周评分，共 ' + info.total + ' 人（云端更新 ' + info.upserted + ' 条）。';
+  } else if(statusBox){
+    statusBox.style.display = 'none';
+    statusBox.innerHTML = '';
+  }
+}
+
+async function cloudLogin(){
+  const username = $('#cloudUsername').value.trim();
+  const password = $('#cloudPassword').value;
+  if(!username || !password){
+    showCloudLoginMsg('请输入教师账号和密码');
+    return;
+  }
+  $('#cloudLoginMsg').style.display = 'none';
+  try{
+    const resp = await fetch(CLOUD_API_BASE + '/auth/login', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username: username, password: password})
+    });
+    const data = await resp.json().catch(function(){ return {}; });
+    if(!resp.ok){
+      showCloudLoginMsg(data.detail || '登录失败，请检查账号密码');
+      return;
+    }
+    setCloudToken(data.access_token);
+    setCloudRole(data.role || '');
+    $('#cloudPassword').value = '';
+    updateCloudUI();
+    showToast('云端登录成功','success');
+  }catch(e){
+    showCloudLoginMsg('网络错误：' + (e.message || '无法连接服务器'));
+  }
+}
+
+function cloudLogout(){
+  clearCloudToken();
+  clearCloudRole();
+  updateCloudUI();
+  showToast('已退出云端登录','info');
+}
+
+async function cloudUpload(){
+  if(!isCloudLoggedIn()){ showToast('请先登录云端','error'); return; }
+  const term = STATE.selectedTerm;
+  const className = $('#cloudClassName').value.trim() || STATE.className || '';
+  const week = STATE.currentWeek || 1;
+  if(!term){ showToast('请先选择学期','error'); return; }
+  if(!className){ showToast('请填写班级名称','error'); return; }
+  STATE.className = className;
+  saveState();
+  // 收集当前周所有学生评分（服务器固定 3 键：思维/态度/习惯；兴趣/效果为系统自动分，不在此上传）
+  const records = [];
+  STATE.students.forEach(function(s){
+    const wk = getWeekData(s, week) || {};
+    records.push({
+      student_name: s.name,
+      think: wk.think !== undefined ? wk.think : (wk.focus || 0),
+      attitude: wk.attitude !== undefined ? wk.attitude : (wk.homework || 0),
+      habit: wk.habit !== undefined ? wk.habit : (wk.writing || 0)
+    });
+  });
+  const statusBox = $('#cloudSyncStatus');
+  function setStatus(html, type){
+    if(!statusBox) return;
+    statusBox.style.display = 'block';
+    if(type === 'error'){
+      statusBox.style.background = '#fef2f2';
+      statusBox.style.borderColor = '#fecaca';
+      statusBox.style.color = '#991b1b';
+    } else if(type === 'success'){
+      statusBox.style.background = '#f0fdf4';
+      statusBox.style.borderColor = '#bbf7d0';
+      statusBox.style.color = '#166534';
+    } else {
+      statusBox.style.background = 'var(--slate-50)';
+      statusBox.style.borderColor = 'var(--slate-200)';
+      statusBox.style.color = 'var(--slate-600)';
+    }
+    statusBox.innerHTML = html;
+  }
+  if(!records.length){
+    setStatus('当前没有学生数据，无法上传。请先通过「导入」或「下载云端评分」加载学生名单。','error');
+    showToast('当前没有学生数据','error');
+    return;
+  }
+  if(STATE.students.some(function(s){ return s._demo; })){
+    setStatus('当前为演示数据（未导入真实学生），为防止覆盖云端真实评分，请先导入学生名单或下载云端评分后再上传。','error');
+    showToast('当前为演示数据，无法上传','error');
+    return;
+  }
+  const nonZero = records.filter(r=>r.think>0 || r.attitude>0 || r.habit>0).length;
+  if(!nonZero){
+    setStatus('当前本周评分全为 0 分，无法上传。请先导入或填写本周评分。','error');
+    showToast('当前本周评分全为 0 分，无法上传','error');
+    return;
+  }
+  const btn = $('#cloudUploadBtn');
+  const originalText = btn ? btn.innerHTML : '⬆ 上传本周评分';
+  if(btn){
+    btn.disabled = true;
+    btn.innerHTML = '⟳ 上传中…';
+  }
+  try{
+    const resp = await fetch(CLOUD_API_BASE + '/eval/records', {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer ' + getCloudToken()},
+      body: JSON.stringify({term: term, class_name: className, week: week, records: records})
+    });
+    const data = await resp.json().catch(function(){ return {}; });
+    if(!resp.ok){
+      const msg = data.detail || ('上传失败，HTTP ' + resp.status);
+      setStatus(msg,'error');
+      showToast(msg,'error');
+      if(resp.status===401){ clearCloudToken(); updateCloudUI(); }
+      return;
+    }
+    const info = {
+      at: Date.now(),
+      term: term,
+      className: className,
+      week: week,
+      upserted: data.upserted || 0,
+      total: records.length
+    };
+    STATE.lastCloudUpload = info;
+    saveState();
+    const timeStr = new Date().toLocaleString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    setStatus(
+      '<b>✅ 上传成功</b> ' + timeStr + '<br>' +
+      '第 ' + week + ' 周 · ' + className + ' · 共 ' + records.length + ' 名学生，' +
+      '云端更新/覆盖 ' + (data.upserted || 0) + ' 条。',
+      'success'
+    );
+    showToast('已上传第' + week + '周评分（' + (data.upserted || 0) + ' 名学生）','success');
+  }catch(e){
+    setStatus('网络错误：' + (e.message || '无法连接服务器') + '<br>请检查 iPhone 热点是否已断开，稍后重试。','error');
+    showToast('网络错误：' + e.message,'error');
+  }finally{
+    if(btn){
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  }
+}
+
+async function cloudDownload(){
+  if(!isCloudLoggedIn()){ showToast('请先登录云端','error'); return; }
+  const className = $('#cloudClassName').value.trim() || STATE.className || '';
+  const term = STATE.selectedTerm;
+  if(!className){ showToast('请填写班级名称','error'); return; }
+  try{
+    let url = '/eval/records?class_name=' + encodeURIComponent(className);
+    if(term) url += '&term=' + encodeURIComponent(term);
+    const resp = await fetch(CLOUD_API_BASE + url, {
+      headers:{'Authorization':'Bearer ' + getCloudToken()}
+    });
+    if(!resp.ok){
+      const data = await resp.json().catch(function(){ return {}; });
+      showToast(data.detail || '下载失败','error');
+      if(resp.status===401){ clearCloudToken(); updateCloudUI(); }
+      return;
+    }
+    const rows = await resp.json();
+    if(!rows || !rows.length){ showToast('云端暂无该班级评分数据','info'); return; }
+    // 合并到本地（云端同周同学生覆盖本地）
+    var newCount = 0;
+    rows.forEach(function(r){
+      var st = STATE.students.find(function(s){ return s.name === r.student_name; });
+      if(!st){
+        st = { id: STATE.students.length + newCount + 1, name: r.student_name, weeks: [] };
+        STATE.students.push(st);
+        newCount++;
+      }
+      var wk = st.weeks.find(function(w){ return w.week === r.week; });
+      if(!wk){
+        wk = { week: r.week };
+        st.weeks.push(wk);
+      }
+      // 完整五维合并：interest/effect 系统自动（只读展示），think/attitude/habit 老师导入（可编辑）
+      wk.interest = r.interest;
+      wk.effect = r.effect;
+      wk.think = r.think;
+      wk.attitude = r.attitude;
+      wk.habit = r.habit;
+    });
+    // 按 id 稳定排序
+    STATE.students.sort(function(a,b){ return (a.id||0) - (b.id||0); });
+    // 重新计算最大周次（一个学期最多22周）
+    var maxWeek = 1;
+    STATE.students.forEach(function(s){
+      s.weeks.forEach(function(w){ if(w.week > maxWeek) maxWeek = w.week; });
+    });
+    if(maxWeek > STATE.totalWeeks) STATE.totalWeeks = Math.min(maxWeek, MAX_WEEKS);
+    STATE.className = className;
+    saveState();
+    refreshAll();
+    showToast('已下载并合并 ' + rows.length + ' 条评分记录','success');
+  }catch(e){
+    showToast('网络错误：' + e.message,'error');
+  }
+}
+
+// ===== 学生账号管理 =====
+let _stuListRows = []; // 当前列表缓存
+
+function openStudentManager(){
+  $('#studentModal').classList.add('show');
+  $('#stuClassName').value = STATE.className || '303班';
+  $('#stuNamesInput').value = '';
+  $('#stuCreateMsg').style.display = 'none';
+  $('#stuExcelHint').style.display = 'none';
+  updateStudentUI();
+}
+function closeStudentManager(){
+  $('#studentModal').classList.remove('show');
+}
+async function updateStudentUI(){
+  const logged = isCloudLoggedIn();
+  let role = getCloudRole();
+  // 兼容旧登录：有 token 但没有 role 时，查一下 /auth/status
+  if(logged && !role){
+    try{
+      const resp = await fetch(CLOUD_API_BASE + '/auth/status', {
+        headers:{'Authorization':'Bearer ' + getCloudToken()}
+      });
+      const data = await resp.json().catch(function(){ return {}; });
+      if(resp.ok && data.role){
+        role = data.role;
+        setCloudRole(role);
+      } else if(!resp.ok && resp.status===401){
+        clearCloudToken();
+      }
+    }catch(e){/* 网络失败，继续按无角色处理 */}
+  }
+  const isTeacher = logged && role === 'teacher';
+  const hintText = $('#studentLoginHintText');
+  if(hintText){
+    if(logged && !isTeacher){
+      // 已登录但不是教师，显示当前账号并引导重新登录
+      var username = '';
+      try{
+        var payload = JSON.parse(atob(getCloudToken().split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+        username = payload.username || '当前账号';
+      }catch(e){ username = '当前账号'; }
+      hintText.innerHTML = '当前登录账号 <b>' + username + '</b> 不是教师身份，无法管理学生账号。<br>请退出后重新用教师账号登录。';
+    } else {
+      hintText.innerHTML = '学生账号管理需要教师身份。请先点击上方"☁️ 云同步"登录教师账号，再进行操作。';
+    }
+  }
+  $('#studentLoginHint').style.display = isTeacher ? 'none' : 'block';
+  $('#studentMainSection').style.display = isTeacher ? 'block' : 'none';
+  if(isTeacher) loadStudentList();
+}
+
+async function loadStudentList(){
+  const className = $('#stuClassName').value.trim() || STATE.className || '';
+  if(!className){ renderStudentList([]); return; }
+  const box = $('#stuList');
+  box.innerHTML = '<div style="padding:24px;text-align:center;font-size:13px;color:var(--slate-400);">加载中…</div>';
+  try{
+    const resp = await fetch(CLOUD_API_BASE + '/students?class_name=' + encodeURIComponent(className), {
+      headers:{'Authorization':'Bearer ' + getCloudToken()}
+    });
+    const data = await resp.json().catch(function(){ return []; });
+    if(!resp.ok){
+      box.innerHTML = '<div style="padding:24px;text-align:center;font-size:13px;color:var(--red,#ef4444);">' + (data.detail || '加载失败') + '</div>';
+      if(resp.status===401){ clearCloudToken(); clearCloudRole(); updateStudentUI(); }
+      if(resp.status===403){ setCloudRole(''); updateStudentUI(); }
+      return;
+    }
+    _stuListRows = data || [];
+    renderStudentList(_stuListRows);
+    syncLevelToLocal(_stuListRows);
+  }catch(e){
+    box.innerHTML = '<div style="padding:24px;text-align:center;font-size:13px;color:var(--red,#ef4444);">网络错误：' + e.message + '</div>';
+  }
+}
+
+// 把云端账号分层同步到本地学生数据（详情页显示优生/中后等标签）
+function syncLevelToLocal(rows){
+  let changed = false;
+  rows.forEach(function(r){
+    const st = STATE.students.find(function(s){ return s.name === r.display_name; });
+    if(st && st.level !== r.level){
+      st.level = r.level;
+      changed = true;
+    }
+  });
+  if(changed) saveState();
+}
+
+function renderStudentList(rows){
+  const box = $('#stuList');
+  $('#stuListCount').textContent = rows.length ? '（共 ' + rows.length + ' 人）' : '';
+  if(!rows.length){
+    box.innerHTML = '<div style="padding:24px;text-align:center;font-size:13px;color:var(--slate-400);">该班级暂无学生账号，请在上方批量创建。</div>';
+    return;
+  }
+  const rowsHTML = rows.map(function(r){
+  const levelOpts = [
+    '<option value="unset"' + (r.level==='unset'?' selected':'') + '>未分层</option>',
+    '<option value="top"' + (r.level==='top'?' selected':'') + '>优生 · 培优</option>',
+    '<option value="normal"' + (r.level==='normal'?' selected':'') + '>中后等 · 同步</option>'
+  ].join('');
+    const activeLabel = r.active ? '停用' : '启用';
+    const toggleStyle = r.active
+      ? 'border:1px solid #fecaca;background:#fef2f2;color:#dc2626;'
+      : 'border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;';
+    return `<div class="stu-row" data-sid="${r.id}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--slate-100);flex-wrap:wrap;">
+      <div style="flex:1;min-width:110px;">
+        <div style="font-size:13px;font-weight:700;color:var(--slate-800);">${r.display_name}${r.active?'':' <span style="font-size:10px;color:#ef4444;font-weight:600;">已停用</span>'}</div>
+        <div style="font-size:11px;color:var(--slate-400);">@${r.account || r.username}</div>
+      </div>
+      <label style="font-size:11px;color:var(--slate-500);">分层</label>
+      <select class="stu-level" data-sid="${r.id}" style="padding:6px 8px;border:1px solid var(--slate-200);border-radius:8px;font-size:12px;background:#fff;">${levelOpts}</select>
+      <button class="stu-resetpwd" data-sid="${r.id}" data-name="${r.display_name}" style="padding:6px 12px;font-size:12px;border:1px solid var(--slate-200);border-radius:8px;background:var(--slate-50);color:var(--slate-600);cursor:pointer;">重置密码</button>
+      <button class="stu-toggle" data-sid="${r.id}" style="padding:6px 12px;font-size:12px;cursor:pointer;border-radius:8px;${toggleStyle}">${activeLabel}</button>
+    </div>`;
+  }).join('');
+  box.innerHTML = rowsHTML;
+}
+
+async function batchCreateStudents(){
+  if(!isCloudLoggedIn()){ showToast('请先登录云端','error'); return; }
+  const className = $('#stuClassName').value.trim() || STATE.className || '';
+  const pwd = $('#stuDefaultPwd').value.trim() || '123456';
+  const lines = $('#stuNamesInput').value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
+  // 每行「姓名 账号」（空格分隔）；账号形如 S29301YZX 视为正式账号
+  const students = [];
+  lines.forEach(function(line){
+    const parts = line.split(/\s+/);
+    const name = parts[0];
+    if(!name) return;
+    let account = '';
+    if(parts.length > 1 && /^[A-Za-z][A-Za-z0-9_-]*$/.test(parts[1])){
+      account = parts[1];
+    }
+    students.push({name: name, account: account});
+  });
+  if(!className){ showToast('请填写班级名称','error'); return; }
+  if(!students.length){ showToast('请至少输入一个学生姓名','error'); return; }
+  const msg = $('#stuCreateMsg');
+  msg.style.display = 'block';
+  msg.style.color = 'var(--slate-500)';
+  msg.textContent = '正在创建 ' + students.length + ' 个账号…';
+  try{
+    const resp = await fetch(CLOUD_API_BASE + '/students/batch', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer ' + getCloudToken()},
+      body: JSON.stringify({class_name: className, students: students, default_password: pwd, default_level: 'unset'})
+    });
+    const data = await resp.json().catch(function(){ return {}; });
+    if(!resp.ok){
+      msg.style.color = '#ef4444';
+      const detail = data.detail || '创建失败';
+      msg.textContent = detail;
+      if(resp.status===401){ clearCloudToken(); clearCloudRole(); updateStudentUI(); }
+      if(resp.status===403){
+        // 权限不足：刷新角色状态并给出明确引导
+        setCloudRole('');
+        updateStudentUI();
+        msg.textContent = detail + '，请退出后用教师账号重新登录';
+      }
+      return;
+    }
+    msg.style.color = '#059669';
+    msg.textContent = data.message || '创建成功';
+    $('#stuNamesInput').value = '';
+    loadStudentList();
+  }catch(e){
+    msg.style.color = '#ef4444';
+    msg.textContent = '网络错误：' + e.message;
+  }
+}
+
+// ===== Excel 批量导入学生账号 =====
+function handleStudentExcelFile(input){
+  var file = input.files && input.files[0];
+  if(!file){ return; }
+  if(!/\.(xlsx|xls)$/i.test(file.name)){
+    showToast('请选择 .xlsx 或 .xls 格式的 Excel 文件','error');
+    input.value = '';
+    return;
+  }
+  if(typeof XLSX === 'undefined'){
+    showToast('Excel 解析库尚未加载，请稍后重试','error');
+    input.value = '';
+    return;
+  }
+  var msg = $('#stuCreateMsg');
+  msg.style.display = 'block';
+  msg.style.color = 'var(--slate-500)';
+  msg.textContent = '正在解析 Excel…';
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var data = new Uint8Array(e.target.result);
+      var wb = XLSX.read(data, {type:'array', cellText:true, cellDates:false});
+      var sheet = wb.Sheets[wb.SheetNames[0]];
+      if(!sheet) throw new Error('Excel 工作表为空');
+      // 读取为二维数组
+      var range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+      var rows = [];
+      for(var r = range.s.r; r <= range.e.r; r++){
+        var row = [];
+        for(var c = range.s.c; c <= range.e.c; c++){
+          var cell = sheet[XLSX.utils.encode_cell({r:r, c:c})];
+          row.push(cell ? cell.v : null);
+        }
+        rows.push(row);
+      }
+      // 定位表头行：包含「帐号」或「账号」的行
+      var headerIdx = -1, accountCol = -1, nameCol = -1, classCol = -1, remarkCol = -1, pwdCol = -1;
+      for(var i = 0; i < Math.min(rows.length, 10); i++){
+        var rowText = rows[i].map(function(v){ return (v||'').toString(); }).join(',');
+        if(/帐号|账号/.test(rowText)){
+          headerIdx = i;
+          for(var j = 0; j < rows[i].length; j++){
+            var h = (rows[i][j]||'').toString().trim();
+            if(/班级/.test(h)) classCol = j;
+            else if(/姓名/.test(h)) nameCol = j;
+            else if(/帐号|账号/.test(h)) accountCol = j;
+            else if(/密码/.test(h)) pwdCol = j;
+            else if(/备注|分层|类别/.test(h)) remarkCol = j;
+          }
+          break;
+        }
+      }
+      if(headerIdx === -1 || accountCol === -1) throw new Error('未找到包含「帐号/账号」的表头行');
+      if(nameCol === -1) nameCol = accountCol > 0 ? accountCol - 1 : 1; // 猜测姓名在帐号前一列
+      // 提取数据行
+      var students = [];
+      var className = '';
+      for(var i = headerIdx + 1; i < rows.length; i++){
+        var row = rows[i];
+        var account = (row[accountCol]||'').toString().trim();
+        if(!account || !/^[A-Za-z]/.test(account)) continue; // 跳过空行和非字母开头
+        var name = (row[nameCol]||'').toString().trim();
+        if(!name) continue;
+        var pwd = pwdCol >= 0 ? (row[pwdCol]||'').toString().trim().replace(/\.0$/,'') : '123456';
+        if(!pwd || pwd === '0') pwd = '123456';
+        var remark = remarkCol >= 0 ? (row[remarkCol]||'').toString().trim() : '';
+        var level = 'unset';
+        if(/优生|培优/.test(remark)) level = 'top';
+        else if(/中等|普通|同步/.test(remark)) level = 'normal';
+        if(!className && classCol >= 0){
+          var cVal = (row[classCol]||'').toString().trim().replace(/\.0$/,'');
+          if(cVal) className = cVal + '班';
+        }
+        students.push({name:name, account:account, level:level, pwd:pwd});
+      }
+      if(!students.length) throw new Error('Excel 中未找到有效学生数据行');
+      // 自动填入班级名
+      if(className && !$('#stuClassName').value.trim()){
+        $('#stuClassName').value = className;
+      }
+      // 显示解析结果
+      var topCount = students.filter(function(s){ return s.level==='top'; }).length;
+      var normalCount = students.filter(function(s){ return s.level==='normal'; }).length;
+      var unsetCount = students.filter(function(s){ return s.level==='unset'; }).length;
+      msg.style.color = 'var(--slate-700)';
+      msg.innerHTML = 'Excel 解析成功：共 <b>' + students.length + '</b> 人' +
+        (topCount ? '（优生 ' + topCount : '') + (normalCount ? '、中等生 ' + normalCount : '') +
+        (unsetCount ? '、未分层 ' + unsetCount : '') + '）。正在导入…';
+      // 按分层分组，分批调用 API
+      importStudentsByBatch(students, $('#stuClassName').value.trim() || STATE.className || '303班');
+    }catch(err){
+      msg.style.color = '#ef4444';
+      msg.textContent = 'Excel 解析失败：' + err.message;
+      showToast('Excel 解析失败：' + err.message,'error');
+    }
+    input.value = ''; // 允许重复选择同一文件
+  };
+  reader.onerror = function(){ showToast('读取 Excel 文件失败','error'); input.value=''; };
+  reader.readAsArrayBuffer(file);
+}
+
+async function importStudentsByBatch(students, className){
+  var msg = $('#stuCreateMsg');
+  // 按分层+密码分组
+  var groups = {};
+  students.forEach(function(s){
+    var key = s.level + '|' + s.pwd;
+    if(!groups[key]) groups[key] = {level:s.level, pwd:s.pwd, list:[]};
+    groups[key].list.push({name:s.name, account:s.account});
+  });
+  var totalCreated = 0, totalSkipped = 0, errors = [];
+  var groupKeys = Object.keys(groups);
+  for(var gi = 0; gi < groupKeys.length; gi++){
+    var g = groups[groupKeys[gi]];
+    try{
+      var resp = await fetch(CLOUD_API_BASE + '/students/batch', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer ' + getCloudToken()},
+        body: JSON.stringify({class_name:className, students:g.list, default_password:g.pwd, default_level:g.level})
+      });
+      var data = await resp.json().catch(function(){ return {}; });
+      if(!resp.ok){
+        var detail = data.detail || ('第' + (gi+1) + '批导入失败');
+        if(resp.status===403){
+          setCloudRole('');
+          updateStudentUI();
+          detail += '（请用教师账号登录）';
+        }
+        errors.push(detail);
+      } else {
+        totalCreated += (data.created || 0);
+        totalSkipped += (data.failed || []).length;
+      }
+    }catch(e){
+      errors.push(e.message);
+    }
+  }
+  if(errors.length){
+    msg.style.color = '#ef4444';
+    msg.innerHTML = '导入完成（部分失败）：成功 ' + totalCreated + ' 人，跳过 ' + totalSkipped + ' 人，失败 ' + errors.length + ' 批。' + errors.join('；');
+    showToast('部分导入失败，请查看详情','error');
+  } else {
+    msg.style.color = '#059669';
+    msg.innerHTML = '导入成功：新建 ' + totalCreated + ' 人，跳过（已存在）' + totalSkipped + ' 人。';
+    showToast('Excel 导入完成：新建 ' + totalCreated + ' 人','success');
+  }
+  loadStudentList();
+}
+
+async function updateStudentApi(sid, payload){
+  try{
+    const resp = await fetch(CLOUD_API_BASE + '/students/' + sid, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer ' + getCloudToken()},
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json().catch(function(){ return {}; });
+    if(!resp.ok){
+      showToast(data.detail || '更新失败','error');
+      if(resp.status===401){ clearCloudToken(); clearCloudRole(); updateStudentUI(); }
+      if(resp.status===403){ setCloudRole(''); updateStudentUI(); }
+      return false;
+    }
+    return data;
+  }catch(e){
+    showToast('网络错误：' + e.message,'error');
+    return false;
+  }
+}
+
+async function changeStudentLevel(sid, level){
+  const ok = await updateStudentApi(sid, {level: level});
+  if(ok){
+    showToast(level==='top' ? '已标注为优生（推送培优微课）' : level==='normal' ? '已标注为中后等生（推送同步课堂）' : '已设为未分层（暂不推送任务）','success');
+    syncLevelToLocal([ok]);
+    if(STATE.view==='student') renderStudentDetail();
+  } else {
+    loadStudentList();
+  }
+}
+
+async function toggleStudentActive(sid){
+  const row = _stuListRows.find(function(r){ return r.id === sid; });
+  if(!row) return;
+  const target = row.active ? 0 : 1;
+  const ok = await updateStudentApi(sid, {active: target});
+  if(ok){
+    showToast(target ? '已启用该学生账号' : '已停用该学生账号','success');
+    loadStudentList();
+  } else {
+    loadStudentList();
+  }
+}
+
+async function resetStudentPassword(sid, name){
+  const pwd = prompt('为学生「' + name + '」设置新密码（至少4位）：', '123456');
+  if(pwd === null) return;
+  if(!pwd || pwd.length < 4){ showToast('密码至少 4 位','error'); return; }
+  const ok = await updateStudentApi(sid, {password: pwd});
+  if(ok) showToast('已重置「' + name + '」的密码','success');
+}
+
 // ===== 导入数据 =====
 function openImportModal(){
   $('#importModal').classList.add('show');
   $('#importTextarea').value = '';
+  $('#importTextarea').style.display = 'block';
+  $('#modalFormat').style.display = 'block';
+  $('#behaviorSection').style.display = 'none';
+  $('#excelSection').style.display = 'none';
+  $('#importTextarea').oninput = null;
+  pendingExcelData = null;
+  $('#excelFileName').style.display = 'none';
+  $('#excelFileName').textContent = '';
+  $$('.modal-tab').forEach(function(t){ t.classList.remove('active'); });
+  var csvTab = $('.modal-tab[data-tab="csv"]');
+  if(csvTab) csvTab.classList.add('active');
+  var csvFormat = '每行格式：姓名,周次,' + DIMS.map(function(d){return d.name;}).join(',');
+  $('#formatDesc').textContent = csvFormat;
+  $('#formatExample').textContent = '张小明,4,' + DIM_KEYS.map(function(){return Math.floor(Math.random()*5)+6;}).join(',') + '\n李小红,4,' + DIM_KEYS.map(function(){return Math.floor(Math.random()*5)+6;}).join(',');
+  $('#importTextarea').placeholder = '粘贴CSV数据...';
 }
 function closeImportModal(){
   $('#importModal').classList.remove('show');
 }
 function doImport(){
+  const activeTab = $('.modal-tab.active').dataset.tab;
+  if(activeTab==='excel'){
+    if(!pendingExcelData){ showToast('请先上传 Excel 文件','error'); return; }
+    try{
+      applyExcelData(pendingExcelData);
+    }catch(e){
+      showToast('导入失败：'+e.message,'error');
+    }
+    return;
+  }
   const text = $('#importTextarea').value.trim();
   if(!text){ showToast('请粘贴数据','error'); return; }
-  const activeTab = $('.modal-tab.active').dataset.tab;
   try{
     if(activeTab==='csv'){
       parseCSV(text);
+    } else if(activeTab==='behavior'){
+      parseBehaviorData(text);
     } else {
       parseJSON(text);
     }
@@ -1459,12 +2459,12 @@ function parseCSV(text){
   let maxWeek = 0;
   lines.forEach(line=>{
     const parts = line.split(',').map(p=>p.trim());
-    if(parts.length<7) throw new Error(`数据列数不足：${line}`);
+    if(parts.length< 2 + DIMS.length) throw new Error(`数据列数不足（需${2+DIMS.length}列）：${line}`);
     const [name, weekStr, ...scores] = parts;
     const week = parseInt(weekStr);
     if(isNaN(week) || week<1) throw new Error(`无效周次：${weekStr}`);
-    if(scores.length<5) throw new Error(`分数列数不足，需5个维度`);
-    const nums = scores.slice(0,5).map(s=>parseInt(s));
+    if(scores.length<DIMS.length) throw new Error(`分数列数不足，需${DIMS.length}个维度`);
+    const nums = scores.slice(0,DIMS.length).map(s=>parseInt(s));
     if(nums.some(n=>isNaN(n)||n<0||n>10)) throw new Error(`分数无效（需0-10）：${scores.slice(0,5).join(',')}`);
     if(!weekMap[week]) weekMap[week] = [];
     weekMap[week].push({ name, scores:nums });
@@ -1488,19 +2488,20 @@ function parseCSV(text){
   });
 
   STATE.students = newStudents;
-  STATE.totalWeeks = maxWeek;
-  STATE.currentWeek = maxWeek;
+  STATE.totalWeeks = Math.min(maxWeek, MAX_WEEKS);
+  STATE.currentWeek = STATE.totalWeeks;
+  saveState();
   // 更新周次选择器
   updateWeekSelector();
   refreshAll();
   closeImportModal();
-  showToast(`成功导入 ${newStudents.length} 名学生 · ${maxWeek} 周数据`,'success');
+  showToast(`成功导入 ${newStudents.length} 名学生 · ${STATE.totalWeeks} 周数据`,'success');
 }
 
 function parseJSON(text){
   const data = JSON.parse(text);
   if(!Array.isArray(data)) throw new Error('JSON应为数组格式');
-  // 期望格式: [{name, weeks:[{week, homework, focus, ideas, writing, kindness}]}]
+  // 期望格式: [{name, weeks:[{week, think, attitude, habit}]}]
   let maxWeek = 0;
   const newStudents = data.map((s,idx)=>{
     if(!s.name) throw new Error(`第${idx+1}条记录缺少name`);
@@ -1514,12 +2515,314 @@ function parseJSON(text){
     return { id:idx+1, name:s.name, weeks };
   });
   STATE.students = newStudents;
-  STATE.totalWeeks = maxWeek;
-  STATE.currentWeek = maxWeek;
+  STATE.totalWeeks = Math.min(maxWeek, MAX_WEEKS);
+  STATE.currentWeek = STATE.totalWeeks;
+  saveState();
   updateWeekSelector();
   refreshAll();
   closeImportModal();
-  showToast(`成功导入 ${newStudents.length} 名学生 · ${maxWeek} 周数据`,'success');
+  showToast(`成功导入 ${newStudents.length} 名学生 · ${STATE.totalWeeks} 周数据`,'success');
+}
+
+// ===== Excel 导入 =====
+function handleExcelDrop(e){
+  e.preventDefault();
+  var files = e.dataTransfer.files;
+  if(files && files.length > 0){
+    processExcelFile(files[0]);
+  }
+}
+function handleExcelFile(input){
+  if(input.files && input.files.length > 0){
+    processExcelFile(input.files[0]);
+  }
+}
+function processExcelFile(file){
+  if(!file) return;
+  if(!/\.(xlsx|xls)$/i.test(file.name)){
+    showToast('请选择 .xlsx 或 .xls 格式的 Excel 文件','error');
+    return;
+  }
+  if(typeof XLSX === 'undefined'){
+    showToast('Excel 解析库尚未加载，请稍后重试','error');
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var data = new Uint8Array(e.target.result);
+      var workbook = XLSX.read(data, {type: 'array', cellText: true, cellDates: false});
+      pendingExcelData = parseExcelWorkbook(workbook);
+      $('#excelFileName').textContent = '已选择：' + file.name + '（' + pendingExcelData.students.length + ' 名学生）';
+      $('#excelFileName').style.display = 'block';
+      showToast('Excel 解析成功，共 ' + pendingExcelData.students.length + ' 名学生','success');
+    }catch(err){
+      pendingExcelData = null;
+      $('#excelFileName').style.display = 'none';
+      $('#excelFileName').textContent = '';
+      showToast('Excel 解析失败：' + err.message,'error');
+    }
+  };
+  reader.onerror = function(){
+    showToast('读取 Excel 文件失败','error');
+  };
+  reader.readAsArrayBuffer(file);
+}
+function parseExcelWorkbook(workbook){
+  var sheetName = workbook.SheetNames[0];
+  var worksheet = workbook.Sheets[sheetName];
+  if(!worksheet) throw new Error('Excel 文件为空');
+  // 读取为二维数组（含空单元格）
+  var range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+  var rows = [];
+  for(var r = range.s.r; r <= range.e.r; r++){
+    var row = [];
+    for(var c = range.s.c; c <= range.e.c; c++){
+      var cell = worksheet[XLSX.utils.encode_cell({r:r, c:c})];
+      row.push(cell ? cell.v : null);
+    }
+    rows.push(row);
+  }
+  if(rows.length < 2) throw new Error('Excel 数据行数不足，至少需要表头和一行数据');
+  // 定位表头：跳过前面的标题/合并行，找包含"姓名"的行
+  var headerIdx = -1;
+  for(var i = 0; i < Math.min(rows.length, 5); i++){
+    var rowText = rows[i].map(function(v){ return (v || '').toString(); }).join(',');
+    if(/姓名/.test(rowText)){
+      headerIdx = i;
+      break;
+    }
+  }
+  if(headerIdx === -1) throw new Error('未找到包含"姓名"的表头行');
+  var headers = rows[headerIdx].map(function(v){ return (v || '').toString().trim(); });
+  // 列映射：根据表���中文名匹配到系统维度 key
+  // 默认映射：思维->think 态度->attitude 习惯->habit（兼容旧表头：作业->态度 课堂->思维 书写->习惯）
+  var colMap = [];
+  var nameCol = -1;
+  var ignoreCols = [];
+  var headerWords = {
+    'think': ['思维', '课堂', '专注', '举手', '回答', '合作', '表现'],
+    'attitude': ['态度', '作业'],
+    'habit': ['习惯', '书写', '草稿', '卷面']
+  };
+  headers.forEach(function(h, idx){
+    var key = null;
+    if(/姓名/.test(h)){ nameCol = idx; return; }
+    if(/^(序号|排名|学号|总分|总评|合计|备注)/.test(h)){ ignoreCols.push(idx); return; }
+    var lower = h.toLowerCase();
+    if(lower === 'think') key = 'think';
+    else if(lower === 'attitude') key = 'attitude';
+    else if(lower === 'habit') key = 'habit';
+    // 兼容旧英文键：homework->态度  focus->思维  writing->习惯
+    else if(lower === 'homework') key = 'attitude';
+    else if(lower === 'focus') key = 'think';
+    else if(lower === 'writing') key = 'habit';
+    else {
+      Object.keys(headerWords).forEach(function(dimKey){
+        if(key) return;
+        headerWords[dimKey].forEach(function(word){
+          if(!key && lower.indexOf(word) !== -1) key = dimKey;
+        });
+      });
+    }
+    if(key){
+      colMap.push({ col: idx, key: key });
+    } else {
+      ignoreCols.push(idx);
+    }
+  });
+  if(nameCol === -1) throw new Error('未找到"姓名"列');
+  // 检查当前 DIMS 包含的维度是否都匹配到了
+  var matchedKeys = colMap.map(function(m){ return m.key; });
+  var missing = [];
+  DIMS.forEach(function(d){
+    if(matchedKeys.indexOf(d.key) === -1) missing.push(d.key);
+  });
+  if(colMap.length === 0) throw new Error('未识别到任何维度列（思维品质/学习态度/学习习惯）');
+  var missingNames = [];
+  DIMS.forEach(function(d){
+    if(matchedKeys.indexOf(d.key) === -1) missingNames.push(d.name);
+  });
+  if(missingNames.length > 0){
+    // 缺失的维度自动补 0 分，但不阻断导入
+    console.warn('Excel 缺少维度：' + missingNames.join('，'));
+  }
+  // 读取数据行：从表头下一行开始
+  var weekRecords = {}; // {weekNum: [{name, scores}]}
+  var maxWeek = 0;
+  var seenNames = [];
+  for(var i = headerIdx + 1; i < rows.length; i++){
+    var row = rows[i];
+    var name = row[nameCol];
+    if(name === null || name === undefined || String(name).trim() === '') continue;
+    name = String(name).trim();
+    seenNames.push(name);
+    var scores = {};
+    colMap.forEach(function(m){
+      var raw = row[m.col];
+      var val = 0;
+      if(raw !== null && raw !== undefined && raw !== ''){
+        var n = Number(String(raw).trim());
+        val = isNaN(n) ? 0 : clamp(Math.round(n), 0, 10);
+      }
+      scores[m.key] = val;
+    });
+    // 缺失的维度补 0
+    missing.forEach(function(dimKey){
+      if(!scores.hasOwnProperty(dimKey)) scores[dimKey] = 0;
+    });
+    // Excel 模板没有"周次"列，默认当作"当前所选周次"
+    var week = STATE.currentWeek || 1;
+    if(!weekRecords[week]) weekRecords[week] = [];
+    weekRecords[week].push({ name: name, scores: scores });
+    maxWeek = Math.max(maxWeek, week);
+  }
+  if(seenNames.length === 0) throw new Error('未读取到任何学生数据');
+  // 去重姓名，保留第一次出现的记录
+  var uniqueNames = [];
+  var nameSet = {};
+  seenNames.forEach(function(n){
+    if(!nameSet[n]){
+      nameSet[n] = true;
+      uniqueNames.push(n);
+    }
+  });
+  var students = uniqueNames.map(function(name, idx){
+    var weeks = [];
+    for(var w = 1; w <= maxWeek; w++){
+      var rec = (weekRecords[w] || []).find(function(r){ return r.name === name; });
+      if(rec){
+        var wk = { week: w };
+        DIM_KEYS.forEach(function(k){ wk[k] = rec.scores.hasOwnProperty(k) ? rec.scores[k] : 0; });
+        weeks.push(wk);
+      }
+    }
+    return { id: idx + 1, name: name, weeks: weeks };
+  });
+  return { students: students, maxWeek: maxWeek };
+}
+function applyExcelData(result){
+  if(!result || !Array.isArray(result.students)) throw new Error('Excel 数据无效');
+  STATE.students = result.students;
+  STATE.totalWeeks = Math.min(result.maxWeek, MAX_WEEKS);
+  STATE.currentWeek = STATE.totalWeeks;
+  saveState();
+  updateWeekSelector();
+  refreshAll();
+  closeImportModal();
+  pendingExcelData = null;
+  $('#excelFileName').style.display = 'none';
+  $('#excelFileName').textContent = '';
+  showToast(`成功导入 ${result.students.length} 名学生`,'success');
+}
+
+// ===== 课堂表现数据导入 =====
+function populateBehaviorSelects(){
+  var dimSel = $('#behaviorDimSelect');
+  if(dimSel){
+    dimSel.innerHTML = DIMS.map(function(d){
+      return '<option value="' + d.key + '">' + d.name + '</option>';
+    }).join('');
+    var matched = DIMS.find(function(d){
+      return /课堂|表现|行为/.test(d.name);
+    });
+    if(matched) dimSel.value = matched.key;
+  }
+  var weekSel = $('#behaviorWeekSelect');
+  if(weekSel){
+    var opts = [];
+    for(var w = STATE.totalWeeks; w >= 1; w--){
+      opts.push('<option value="' + w + '"' + (w===STATE.currentWeek?' selected':'') + '>第' + w + '周</option>');
+    }
+    var nextW = STATE.totalWeeks + 1;
+    opts.push('<option value="' + nextW + '">新建第' + nextW + '周</option>');
+    weekSel.innerHTML = opts.join('');
+  }
+}
+
+function previewBehaviorData(){
+  var text = $('#importTextarea').value.trim();
+  var preview = $('#behaviorPreview');
+  if(!text){
+    preview.innerHTML = '<span style="font-size:12px;color:var(--slate-400);">粘贴课堂行为 JSON 数据后此处显示预览</span>';
+    return;
+  }
+  try{
+    var data = JSON.parse(text);
+    if(data.type !== 'classroom_behavior'){
+      preview.innerHTML = '<span style="color:var(--red);font-size:12px;">数据格式不正确（缺少 type: "classroom_behavior"）</span>';
+      return;
+    }
+    var scoreColor = data.score >= 8 ? '#16a34a' : data.score >= 6 ? '#2563eb' : data.score >= 4 ? '#ca8a04' : '#dc2626';
+    var behaviorHtml = '';
+    var counts = data.behavior_counts || {};
+    var sortedKeys = Object.keys(counts).sort(function(a,b){ return counts[b]-counts[a]; });
+    sortedKeys.slice(0,5).forEach(function(k){
+      var pct = (data.behavior_percentages || {})[k] || 0;
+      behaviorHtml += '<span style="background:#fff;border:1px solid var(--slate-200);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--slate-600);">' + k + ' ' + counts[k] + '次 (' + pct + '%)</span> ';
+    });
+    preview.innerHTML =
+      '<div style="display:flex;align-items:center;gap:16px;">' +
+        '<div style="text-align:center;min-width:70px;">' +
+          '<div style="font-size:32px;font-weight:700;color:' + scoreColor + ';">' + data.score + '</div>' +
+          '<div style="font-size:12px;color:' + scoreColor + ';font-weight:600;">' + (data.level||'') + '</div>' +
+        '</div>' +
+        '<div style="flex:1;">' +
+          '<div style="font-size:12px;color:var(--slate-500);margin-bottom:6px;">' +
+            '时长 ' + (data.duration_minutes||0) + ' 分钟 · 总行为 ' + (data.total_behaviors||0) + ' 次' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:4px;">' + behaviorHtml + '</div>' +
+        '</div>' +
+      '</div>';
+  }catch(e){
+    preview.innerHTML = '<span style="color:var(--red);font-size:12px;">JSON 解析失败：' + e.message + '</span>';
+  }
+}
+
+function parseBehaviorData(text){
+  var data = JSON.parse(text);
+  if(data.type !== 'classroom_behavior'){
+    throw new Error('数据类型不正确，需要 type: "classroom_behavior"');
+  }
+  var score = data.score;
+  if(typeof score !== 'number' || score < 0 || score > 10){
+    throw new Error('分数无效：' + score);
+  }
+  var dimKey = $('#behaviorDimSelect').value;
+  var week = parseInt($('#behaviorWeekSelect').value);
+  if(!dimKey) throw new Error('请选择目标维度');
+  if(isNaN(week) || week < 1) throw new Error('请选择目标周次');
+
+  if(STATE.students.length === 0){
+    throw new Error('当前没有学生数据。请先用 CSV 或 JSON 导入学生名单，再导入课堂表现分数。');
+  }
+
+  var dimName = (DIMS.find(function(d){ return d.key===dimKey; })||{}).name || dimKey;
+
+  STATE.students.forEach(function(s){
+    var weekData = null;
+    for(var i=0; i<s.weeks.length; i++){
+      if(s.weeks[i].week === week){ weekData = s.weeks[i]; break; }
+    }
+    if(!weekData){
+      weekData = { week: week };
+      DIM_KEYS.forEach(function(k){ weekData[k] = 0; });
+      s.weeks.push(weekData);
+      s.weeks.sort(function(a,b){ return a.week - b.week; });
+    }
+    weekData[dimKey] = score;
+  });
+
+  if(week > STATE.totalWeeks){
+    STATE.totalWeeks = Math.min(week, MAX_WEEKS);
+  }
+  STATE.currentWeek = Math.min(week, STATE.totalWeeks);
+  saveState();
+
+  updateWeekSelector();
+  refreshAll();
+  closeImportModal();
+  showToast('已将课堂表现 ' + score + ' 分应用到 ' + STATE.students.length + ' 名学生（' + dimName + ' · 第' + week + '周）', 'success');
 }
 
 function updateWeekSelector(){
@@ -1531,18 +2834,45 @@ function updateWeekSelector(){
   sel.innerHTML = opts.join('');
   // 更新学生选择器
   const stuSel = $('#selStudent');
-  stuSel.innerHTML = STATE.students.map((s,i)=>`<option value="${i}" ${i===STATE.selectedStudent?'selected':''}>${s.name}</option>`).join('');
+  if(stuSel) stuSel.innerHTML = STATE.students.map((s,i)=>`<option value="${i}" ${i===STATE.selectedStudent?'selected':''}>${s.name}</option>`).join('');
+}
+
+function buildTermOptions(){
+  const sel = $('#selTerm');
+  const opts = [];
+  const currentYear = new Date().getFullYear();
+  const startYear = 2026, endYear = 2046;
+  for(let y=endYear; y>=startYear; y--){
+    opts.push(`<option value="${y}秋季学期">${y}秋季学期</option>`);
+    opts.push(`<option value="${y}春季学期">${y}春季学期</option>`);
+  }
+  sel.innerHTML = opts.join('');
+  // 默认选中当前学年：9月及以后为秋季学期，否则为春季学期
+  let defaultTerm = '';
+  const now = new Date();
+  if(now.getMonth() >= 8){
+    defaultTerm = currentYear + '秋季学期';
+  } else {
+    defaultTerm = currentYear + '春季学期';
+  }
+  // 如果已保存学期且在选择范围内则优先
+  if(STATE.selectedTerm && STATE.selectedTerm >= '2026' && STATE.selectedTerm <= '2046'){
+    sel.value = STATE.selectedTerm;
+  } else {
+    sel.value = defaultTerm;
+    STATE.selectedTerm = sel.value;
+  }
 }
 
 // ===== 导出CSV =====
 function exportCSV(){
-  const lines = ['姓名,周次,作业守卫者,眼神小雷达,金点子大王,书写小标兵,善上小天使'];
+  const header = ['姓名,周次,' + DIMS.map(d=>d.name).join(',')];
   STATE.students.forEach(s=>{
     s.weeks.forEach(w=>{
-      lines.push(`${s.name},${w.week},${w.homework},${w.focus},${w.ideas},${w.writing},${w.kindness}`);
+      header.push(`${s.name},${w.week},${DIM_KEYS.map(k=>w[k]||0).join(',')}`);
     });
   });
-  const csv = '\uFEFF' + lines.join('\n'); // BOM for Excel
+  const csv = '\uFEFF' + header.join('\n'); // BOM for Excel
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1602,7 +2932,15 @@ function bindEvents(){
   // 周次选择
   $('#selWeek').addEventListener('change',e=>{
     STATE.currentWeek = parseInt(e.target.value);
+    saveState();
     refreshAll();
+  });
+
+  // 学期选择
+  $('#selTerm').addEventListener('change',e=>{
+    STATE.selectedTerm = e.target.value;
+    saveState();
+    showToast('已切换到 ' + STATE.selectedTerm, 'info');
   });
 
   // 学生选择
@@ -1621,26 +2959,122 @@ function bindEvents(){
     if(e.target===$('#importModal')) closeImportModal();
   });
 
+  // 云端同步
+  $('#btnCloudSync').addEventListener('click',openCloudSync);
+  $('#cloudModalClose').addEventListener('click',closeCloudSync);
+  $('#cloudModalClose2').addEventListener('click',closeCloudSync);
+  $('#cloudModal').addEventListener('click',e=>{
+    if(e.target===$('#cloudModal')) closeCloudSync();
+  });
+  $('#cloudLoginBtn').addEventListener('click',cloudLogin);
+  $('#cloudPassword').addEventListener('keydown',e=>{
+    if(e.key==='Enter') cloudLogin();
+  });
+  $('#cloudLogoutBtn').addEventListener('click',cloudLogout);
+  $('#cloudUploadBtn').addEventListener('click',cloudUpload);
+  $('#cloudDownloadBtn').addEventListener('click',cloudDownload);
+  $('#cloudClassName').addEventListener('change',function(){
+    STATE.className = this.value.trim() || '303班';
+    saveState();
+  });
+
+  // 学生账号管理
+  $('#navStudents').addEventListener('click',openStudentManager);
+  $('#studentModalClose').addEventListener('click',closeStudentManager);
+  $('#studentModalClose2').addEventListener('click',closeStudentManager);
+  $('#studentModal').addEventListener('click',e=>{
+    if(e.target===$('#studentModal')) closeStudentManager();
+  });
+  $('#studentGotoLogin').addEventListener('click',function(){
+    closeStudentManager();
+    openCloudSync();
+  });
+  $('#stuRefreshBtn').addEventListener('click',loadStudentList);
+  $('#stuCreateBtn').addEventListener('click',batchCreateStudents);
+  $('#stuExcelBtn').addEventListener('click',function(){
+    $('#stuExcelHint').style.display = 'block';
+    $('#stuExcelFileInput').click();
+  });
+  $('#stuExcelFileInput').addEventListener('change',function(){
+    handleStudentExcelFile(this);
+  });
+  $('#stuClassName').addEventListener('change',loadStudentList);
+  // 列表操作（事件委托）
+  $('#stuList').addEventListener('change',function(e){
+    var sel = e.target.closest('.stu-level');
+    if(sel) changeStudentLevel(parseInt(sel.dataset.sid), sel.value);
+  });
+  $('#stuList').addEventListener('click',function(e){
+    var btn = e.target.closest('.stu-toggle');
+    if(btn){ toggleStudentActive(parseInt(btn.dataset.sid)); return; }
+    var rp = e.target.closest('.stu-resetpwd');
+    if(rp) resetStudentPassword(parseInt(rp.dataset.sid), rp.dataset.name);
+  });
+
   // 导入Tab切换
   $$('.modal-tab').forEach(tab=>{
     tab.addEventListener('click',()=>{
       $$('.modal-tab').forEach(t=>t.classList.remove('active'));
       tab.classList.add('active');
       const type = tab.dataset.tab;
-      if(type==='csv'){
-        $('#formatDesc').textContent = '每行格式：姓名,周次,作业守卫者,眼神小雷达,金点子大王,书写小标兵,善上小天使';
-        $('#formatExample').textContent = '张小明,4,9,8,7,9,10\n李小红,4,10,9,8,9,10';
-        $('#importTextarea').placeholder = '粘贴CSV数据...';
+      pendingExcelData = null;
+      $('#excelFileName').style.display = 'none';
+      $('#excelFileName').textContent = '';
+      if(type==='behavior'){
+        $('#modalFormat').style.display='none';
+        $('#behaviorSection').style.display='block';
+        $('#excelSection').style.display='none';
+        $('#importTextarea').style.display='block';
+        $('#importTextarea').placeholder='粘贴课堂行为 JSON 数据（从课堂行为检测系统「推送到五维评价」复制）...';
+        $('#importTextarea').oninput=previewBehaviorData;
+        populateBehaviorSelects();
+      } else if(type==='excel'){
+        $('#modalFormat').style.display='none';
+        $('#behaviorSection').style.display='none';
+        $('#excelSection').style.display='block';
+        $('#importTextarea').style.display='none';
+        $('#importTextarea').oninput=null;
       } else {
-        $('#formatDesc').textContent = 'JSON数组格式：[{name, weeks:[{week, homework, focus, ideas, writing, kindness}]}]';
-        $('#formatExample').textContent = '[\n  {"name":"张小明","weeks":[{"week":4,"homework":9,"focus":8,"ideas":7,"writing":9,"kindness":10}]}\n]';
-        $('#importTextarea').placeholder = '粘贴JSON数据...';
+        $('#modalFormat').style.display='block';
+        $('#behaviorSection').style.display='none';
+        $('#excelSection').style.display='none';
+        $('#importTextarea').style.display='block';
+        $('#importTextarea').oninput=null;
+        if(type==='csv'){
+          $('#formatDesc').textContent = '每行格式：姓名,周次,' + DIMS.map(d=>d.name).join(',');
+          $('#formatExample').textContent = '张小明,4,' + DIM_KEYS.map(()=>Math.floor(Math.random()*5)+6).join(',') + '\n李小红,4,' + DIM_KEYS.map(()=>Math.floor(Math.random()*5)+6).join(',');
+          $('#importTextarea').placeholder = '粘贴CSV数据...';
+        } else {
+          $('#formatDesc').textContent = 'JSON数组格式：[{name, weeks:[{week, ' + DIM_KEYS.join(', ') + '}]}]';
+          $('#formatExample').textContent = '[\n  {"name":"张小明","weeks":[{"week":4,' + DIM_KEYS.map(k=>'"'+k+'":'+(Math.floor(Math.random()*5)+6)).join(',') + '}]}\n]';
+          $('#importTextarea').placeholder = '粘贴JSON数据...';
+        }
       }
     });
   });
 
+  // Excel 上传区域点击触发文件选择
+  var dropZone = $('#excelDropZone');
+  if(dropZone){
+    dropZone.addEventListener('click',function(e){
+      if(e.target !== $('#excelFileInput')){
+        $('#excelFileInput').click();
+      }
+    });
+  }
+
   // 导出
   $('#navExport').addEventListener('click',exportCSV);
+
+  // 维度设置
+  $('#navDimSettings').addEventListener('click',openDimSettings);
+  $('#dimModalClose').addEventListener('click',closeDimSettings);
+  $('#dimModalCancel').addEventListener('click',closeDimSettings);
+  $('#dimModalSave').addEventListener('click',saveDimSettings);
+  $('#addDimBtn').addEventListener('click',addDimRow);
+  $('#dimSettingsModal').addEventListener('click',e=>{
+    if(e.target===$('#dimSettingsModal')) closeDimSettings();
+  });
 
   // 表格搜索
   $('#tableSearch').addEventListener('input',e=>{
@@ -1659,9 +3093,196 @@ function bindEvents(){
   });
 }
 
+// ===== 维度设置 =====
+const DIM_COLORS = ['#2563eb','#06b6d4','#f59e0b','#10b981','#8b5cf6','#ec4899','#14b8a6','#f97316'];
+let _dimEditList = [];
+
+function openDimSettings() {
+  _dimEditList = JSON.parse(JSON.stringify(DIMS));
+  renderDimSettingsList();
+  $('#dimSettingsModal').classList.add('show');
+}
+
+function closeDimSettings() {
+  $('#dimSettingsModal').classList.remove('show');
+}
+
+function renderDimSettingsList() {
+  const list = $('#dimSettingsList');
+  list.innerHTML = _dimEditList.map((d, i) => {
+    const colorOptions = DIM_COLORS.map(c =>
+      `<option value="${c}" ${d.color===c?'selected':''}>${c}</option>`
+    ).join('');
+    return `<div class="dim-edit-row" style="display:flex;gap:8px;align-items:center;margin-bottom:10px;padding:10px;background:var(--slate-50);border-radius:9px;">
+      <div style="width:28px;height:28px;border-radius:7px;background:${d.color};display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0;">${i+1}</div>
+      <input type="text" data-idx="${i}" data-field="name" value="${d.name}" placeholder="维度全名" style="flex:1;padding:6px 10px;border:1px solid var(--slate-200);border-radius:7px;font-size:13px;">
+      <input type="text" data-idx="${i}" data-field="short" value="${d.short}" placeholder="简称" style="width:70px;padding:6px 10px;border:1px solid var(--slate-200);border-radius:7px;font-size:13px;">
+      <select data-idx="${i}" data-field="color" style="padding:6px 8px;border:1px solid var(--slate-200);border-radius:7px;font-size:12px;">${colorOptions}</select>
+      <button data-idx="${i}" class="dim-remove-btn" ${_dimEditList.length<=3?'disabled':''} style="width:28px;height:28px;border:none;border-radius:7px;background:${_dimEditList.length<=3?'var(--slate-100)':'rgba(239,68,68,0.1)'};color:${_dimEditList.length<=3?'var(--slate-300)':'#ef4444'};cursor:${_dimEditList.length<=3?'not-allowed':'pointer'};font-size:14px;">x</button>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('.dim-remove-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      _dimEditList.splice(idx, 1);
+      renderDimSettingsList();
+    });
+  });
+
+  // 颜色变化时更新预览圆
+  list.querySelectorAll('select[data-field="color"]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const idx = parseInt(sel.dataset.idx);
+      const circle = list.querySelectorAll('.dim-edit-row')[idx].querySelector('div');
+      circle.style.background = sel.value;
+    });
+  });
+
+  // 保存输入值到 _dimEditList
+  list.querySelectorAll('input[data-field], select[data-field]').forEach(el => {
+    el.addEventListener('change', () => {
+      const idx = parseInt(el.dataset.idx);
+      const field = el.dataset.field;
+      _dimEditList[idx][field] = el.value;
+    });
+  });
+
+  $('#addDimBtn').style.display = _dimEditList.length >= 8 ? 'none' : 'block';
+}
+
+function addDimRow() {
+  if (_dimEditList.length >= 8) return;
+  const usedColors = _dimEditList.map(d => d.color);
+  const availColor = DIM_COLORS.find(c => !usedColors.includes(c)) || DIM_COLORS[0];
+  _dimEditList.push({
+    key: 'dim' + Date.now(),
+    name: '新维度',
+    short: '维度',
+    color: availColor,
+    bg: availColor + '20',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>'
+  });
+  renderDimSettingsList();
+}
+
+function saveDimSettings() {
+  // 验证
+  for (var i = 0; i < _dimEditList.length; i++) {
+    if (!_dimEditList[i].name || !_dimEditList[i].short) {
+      showToast('请填写所有维度的名称和简称');
+      return;
+    }
+  }
+  // 更新 bg 颜色
+  _dimEditList.forEach(function(d) {
+    d.bg = d.color + '20';
+  });
+  // 保存
+  DIMS = _dimEditList;
+  saveDims();
+  // 处理旧数据：为学生数据的每周添加新维度/删除旧维度
+  STATE.students.forEach(function(s) {
+    s.weeks.forEach(function(w) {
+      var validKeys = DIM_KEYS;
+      // 删除不存在的维度
+      Object.keys(w).forEach(function(k) {
+        if (k !== 'week' && validKeys.indexOf(k) === -1) {
+          delete w[k];
+        }
+      });
+      // 添加缺失的维度
+      validKeys.forEach(function(k) {
+        if (w[k] === undefined) {
+          w[k] = Math.max(5, Math.min(10, Math.round(6 + Math.random() * 3)));
+        }
+      });
+    });
+  });
+  // 更新侧边栏 footer
+  var footer = document.querySelector('.sidebar-footer');
+  if (footer) {
+    footer.innerHTML = '<strong>真实五维评价</strong><br>兴趣 · 效果 · ' + DIMS.map(function(d) { return d.short; }).join(' · ');
+  }
+  // 更新导入格式描述
+  updateImportFormat();
+  closeDimSettings();
+  refreshAll();
+  showToast('维度设置已保存');
+}
+
+function updateImportFormat() {
+  var csvFormat = '每行格式：姓名,周次,' + DIMS.map(function(d) { return d.name; }).join(',');
+  var csvExample = '张小明,4,' + DIMS.map(function() { return Math.floor(Math.random()*5)+6; }).join(',') + '\n李小红,4,' + DIMS.map(function() { return Math.floor(Math.random()*5)+6; }).join(',');
+  var jsonFormat = 'JSON数组格式：[{name, weeks:[{week, ' + DIM_KEYS.join(', ') + '}]}]';
+  var jsonExample = '[\n  {"name":"张小明","weeks":[{"week":4,' + DIM_KEYS.map(function(k) { return '"' + k + '":' + (Math.floor(Math.random()*5)+6); }).join(',') + '}]}\n]';
+  if ($('#formatDesc')) {
+    var activeTab = $('.modal-tab.active');
+    if (!activeTab) return;
+    var tabType = activeTab.dataset.tab;
+    if (tabType === 'csv') {
+      $('#formatDesc').textContent = csvFormat;
+      $('#formatExample').textContent = csvExample;
+    } else if (tabType === 'json') {
+      $('#formatDesc').textContent = jsonFormat;
+      $('#formatExample').textContent = jsonExample;
+    } else if (tabType === 'behavior') {
+      populateBehaviorSelects();
+      previewBehaviorData();
+    }
+  }
+}
+
 // ===== 初始化 =====
 function init(){
+  // 角色权限控制：从 URL 参数读取 role，非教师时隐藏编辑功能
+  var urlParams = new URLSearchParams(window.location.search);
+  var userRole = urlParams.get('role') || 'readonly';
+  var isTeacher = userRole === 'teacher';
+  
+  if (!isTeacher) {
+    // 非教师：隐藏侧边栏的编辑导航项
+    var editNavItems = ['navImport', 'navExport', 'navDimSettings', 'navStudents'];
+    editNavItems.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    // 隐藏顶部的导入按钮和云同步按钮
+    var btnImport = document.getElementById('btnImport');
+    if (btnImport) btnImport.style.display = 'none';
+    var btnCloudSync = document.getElementById('btnCloudSync');
+    if (btnCloudSync) btnCloudSync.style.display = 'none';
+    // 隐藏维度设置模态框触发
+    var addDimBtn = document.getElementById('addDimBtn');
+    if (addDimBtn) addDimBtn.style.display = 'none';
+    // 在侧边栏隐藏"数据管理"标签
+    var dataLabels = document.querySelectorAll('.nav-section-label');
+    dataLabels.forEach(function(label) {
+      if (label.textContent.indexOf('数据') !== -1 || label.textContent.indexOf('管理') !== -1) {
+        label.style.display = 'none';
+      }
+    });
+  }
+
   updateWeekSelector();
+  buildTermOptions();
+  // 首次加载如果无保存学期则初始化并保存
+  if(!STATE.selectedTerm){
+    STATE.selectedTerm = $('#selTerm').value;
+    saveState();
+  }
+  // 动态更新侧边栏 footer
+  var footer = document.querySelector('.sidebar-footer');
+  if (footer) {
+    footer.innerHTML = '<strong>真实五维评价</strong><br>兴趣 · 效果 · ' + DIMS.map(function(d) { return d.short; }).join(' · ');
+  }
+  // 动态更新导入格式描述
+  if ($('#formatDesc')) {
+    $('#formatDesc').textContent = '每行格式：姓名,周次,' + DIMS.map(function(d) { return d.name; }).join(',');
+  }
+  if ($('#formatExample')) {
+    $('#formatExample').textContent = '张小明,4,' + DIM_KEYS.map(function() { return Math.floor(Math.random()*5)+6; }).join(',') + '\n李小红,4,' + DIM_KEYS.map(function() { return Math.floor(Math.random()*5)+6; }).join(',');
+  }
   bindEvents();
   refreshAll();
 }
