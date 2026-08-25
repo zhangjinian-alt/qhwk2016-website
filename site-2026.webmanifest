@@ -1,0 +1,38 @@
+{
+  "name": "青花微课 - 张老师的数学课",
+  "short_name": "青花微课",
+  "description": "东莞市东华小学张吉年老师的数学教学网站：同步课堂、培优微课、AI 批改、家校互通",
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192-2026.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/android-chrome-512x512-2026.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/android-chrome-maskable-192x192-2026.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/android-chrome-maskable-512x512-2026.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "theme_color": "#4A90D9",
+  "background_color": "#4A90D9",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "lang": "zh-CN"
+}
