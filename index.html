@@ -118,15 +118,6 @@ img { max-width:100%; display:block; }
 .nav-desktop a:hover, .nav-desktop a.active {
   background:var(--primary-bg); color:var(--primary);
 }
-.mode-switch {
-  display:flex; background:var(--bg); border-radius:20px; padding:3px;
-  flex-shrink:0;
-}
-.mode-btn {
-  padding:6px 14px; border-radius:17px; font-size:13px; font-weight:500;
-  color:var(--text-muted); transition:var(--transition);
-}
-.mode-btn.active { background:var(--primary); color:white; }
 .menu-toggle {
   display:none; font-size:24px; color:var(--text);
   padding:8px; border-radius:8px;
@@ -790,10 +781,6 @@ img { max-width:100%; display:block; }
       <a href="#" data-page="evaluate">多元评价</a>
       <a href="#" data-page="about">关于我</a>
     </nav>
-    <div class="mode-switch" id="modeSwitch">
-      <button class="mode-btn active" data-mode="student" onclick="switchMode('student')">学生模式</button>
-      <button class="mode-btn" data-mode="parent" onclick="switchMode('parent')">家长模式</button>
-    </div>
     <button class="btn-lock locked" id="lockBtn" onclick="openAuthModal()" title="教师认证">🔒</button>
     <button class="btn-lock" id="cloudSyncBtn" onclick="openCloudLoginModal()" title="云端同步" style="font-size:18px;color:#999;">☁️</button>
     <button class="menu-toggle" onclick="toggleMobileNav()">☰</button>
@@ -809,10 +796,6 @@ img { max-width:100%; display:block; }
   <a href="#" data-page="feedback" onclick="navigate('feedback');toggleMobileNav()">学习反馈</a>
   <a href="#" data-page="evaluate" onclick="navigate('evaluate');toggleMobileNav()">多元评价</a>
   <a href="#" data-page="about" onclick="navigate('about');toggleMobileNav()">关于我</a>
-  <div style="margin-top:16px;display:flex;gap:8px;">
-    <button class="mode-btn active" onclick="switchMode('student')">学生模式</button>
-    <button class="mode-btn" onclick="switchMode('parent')">家长模式</button>
-  </div>
 </nav>
 
 <!-- ===== HOME PAGE ===== -->
@@ -985,8 +968,8 @@ img { max-width:100%; display:block; }
     <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);" id="whisperSection">
       <h3 style="margin-bottom:16px;" id="whisperTitle">💬 悄悄话</h3>
       <form id="whisperForm" onsubmit="submitWhisper(event)">
-        <div class="form-group"><label>孩子姓名</label><input type="text" id="whisperName" required></div>
-        <div class="form-group"><label>家长留言</label><textarea id="whisperMsg" required></textarea></div>
+        <div class="form-group"><label>姓名</label><input type="text" id="whisperName" required></div>
+        <div class="form-group"><label>留言内容</label><textarea id="whisperMsg" required></textarea></div>
         <button type="submit" class="btn btn-primary" style="width:100%;">发送给老师</button>
       </form>
     </div>
@@ -2103,7 +2086,7 @@ function lockAuth() {
   // 退出教师模式后重新加载共享课程
   sharedCoursesLoaded = false;
   loadSharedCourses();
-  showToast("🔒 已锁定，已切换回" + (appData.mode === 'parent' ? '家长' : '学生') + "模式");
+  showToast("🔒 已锁定，已切换回学生模式");
 }
 
 async function doChangePin() {
@@ -2318,7 +2301,6 @@ function getDefaultData() {
     ],
     classPhotos: ['🎨', '🏃', '📖', '🎭', '🔬', '🎵'],
     userName: '小明同学',
-    parentStudentName: '',
     messages: [],
     profile: {
       philosophy: '我相信每个孩子都有学好数学的潜力。数学不是冰冷的公式，而是理解世界的语言。在我的课堂上，我注重培养孩子们的数学思维和学习兴趣，让每个孩子都能在轻松愉快的氛围中掌握数学知识，建立自信。',
@@ -2374,8 +2356,7 @@ let appData = loadData();
 
 // ===== ROLE & PERMISSIONS =====
 function getCurrentRole() {
-  // mode 优先：学生/家长模式不显示教师功能，即使 PIN 认证还在
-  if (appData.mode === 'parent') return 'parent';
+  // mode 优先：学生模式不显示教师功能，即使 PIN 认证还在
   if (appData.mode === 'student') return 'student';
   // mode='teacher' 时需要 PIN 认证
   if (isAuthenticated()) return 'teacher';
@@ -2387,7 +2368,6 @@ function hasPermission(action) {
   const role = getCurrentRole();
   const permissions = {
     student: ['view_course', 'do_exercise', 'view_own_report', 'send_message', 'view_notice', 'exchange_store', 'view_evaluate'],
-    parent:  ['view_course_readonly', 'view_child_report', 'view_notice', 'send_message', 'view_child_evaluate'],
     teacher: ['*']
   };
   const perms = permissions[role] || [];
@@ -2415,11 +2395,7 @@ function updateRoleUI() {
   } else {
     if (modeSwitch) modeSwitch.style.display = '';
     if (mobileModeWrap) mobileModeWrap.style.display = '';
-    if (role === 'parent') {
-      if (floatBtn) floatBtn.style.display = 'flex';
-    } else {
-      if (floatBtn) floatBtn.style.display = 'none';
-    }
+    if (floatBtn) floatBtn.style.display = 'none';
   }
   updateHomeStats();
 }
@@ -2518,12 +2494,12 @@ function toggleMobileNav() {
 
 // ===== MODE SWITCH =====
 function switchMode(mode) {
-  if (mode !== 'student' && mode !== 'parent') return;
+  if (mode !== 'student') return;
   appData.mode = mode;
   document.querySelectorAll('.mode-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === mode);
   });
-  // 切换到学生/家长模式时，自动退出教师认证，防止仍看到教师专属功能
+  // 切换到学生模式时，自动退出教师认证，防止仍看到教师专属功能
   if (isAuthenticated()) {
     sessionStorage.removeItem(SESSION_KEY);
   }
@@ -2534,7 +2510,7 @@ function switchMode(mode) {
   // 模式切换后重新加载共享课程
   sharedCoursesLoaded = false;
   loadSharedCourses();
-  showToast(mode === 'student' ? '已切换到学生模式' : '已切换到家长模式');
+  showToast('已切换到学生模式');
 }
 
 // ===== EXERCISE TOGGLE =====
@@ -2601,11 +2577,6 @@ function updateWelcome() {
     if (title) title.textContent = '教学管理控制台';
     if (sub) sub.textContent = '管理课程内容、发布通知、查看学生数据';
     if (cta) cta.innerHTML = '<button class="btn btn-primary" onclick="navigate(\'classroom\')">📚 管理课程</button><button class="btn btn-outline" onclick="navigate(\'parent\')">📢 发布通知</button>';
-  } else if (role === 'parent') {
-    if (msg) msg.textContent = '家长中心 — 关注 ' + (appData.parentStudentName || '未绑定');
-    if (title) title.textContent = (appData.parentStudentName ? appData.parentStudentName + ' 的学习近况' : '孩子的学习近况');
-    if (sub) sub.textContent = '查看学习进度、班级通知和评价反馈';
-    if (cta) cta.innerHTML = '<button class="btn btn-primary" onclick="navigate(\'feedback\')">📊 查看学习报告</button><button class="btn btn-outline" onclick="navigate(\'parent\')">🏠 家校互通</button><button class="btn btn-outline" onclick="bindChildName()">⚙️ 设置孩子姓名</button>';
   } else {
     if (msg) msg.textContent = '欢迎回来，' + appData.userName + '！';
     if (title) title.textContent = '本周小π带来了「巧算乘法」';
@@ -2659,21 +2630,6 @@ function renderHomeByRole(role) {
       '<div class="quick-card" onclick="navigate(\'feedback\')"><div class="icon" style="background:#E6F1FB;">📋</div><h4>作业批改</h4><p>AI 批改工作台</p></div>' +
       '<div class="quick-card" onclick="window.open(\'课堂行为/index.html\',\'_blank\')"><div class="icon" style="background:#FAEEDA;">📹</div><h4>课堂行为</h4><p>AI 行为检测</p></div>' +
       '<div class="quick-card" onclick="window.open(\'五维评价/class-dashboard.html\',\'_blank\')"><div class="icon" style="background:#EAF3DE;">📊</div><h4>班级看板</h4><p>五维评价全览</p></div>';
-  } else if (role === 'parent') {
-    if (taskTitle) taskTitle.textContent = '📊 孩子学习概览';
-    taskGrid.innerHTML = '<div class="video-card" style="cursor:pointer;" onclick="navigate(\'feedback\')">' +
-      '<div class="video-thumb" style="background:linear-gradient(135deg,#52C41A,#7ED957);"><div class="play-btn">📊</div></div>' +
-      '<h3>学习报告</h3><p class="meta">积分 ' + appData.points + ' · 连续 ' + appData.streak + ' 天</p></div>' +
-      '<div class="exercise-card"><h3>近期表现</h3>' +
-      '<div style="padding:16px 0;"><p style="font-size:14px;color:var(--text-secondary);margin-bottom:8px;">已获勋章：' + appData.medals.filter(function(x){return x.unlocked}).length + ' 枚</p>' +
-      '<p style="font-size:14px;color:var(--text-muted);">错题记录：' + appData.mistakes.length + ' 道</p></div>' +
-      '<button class="btn btn-primary" style="width:100%;" onclick="navigate(\'evaluate\')">🏆 查看评价详情</button></div>';
-    if (quickTitle) quickTitle.textContent = '快捷入口';
-    if (quickGrid) quickGrid.innerHTML =
-      '<div class="quick-card" onclick="navigate(\'feedback\')"><div class="icon" style="background:#FFF0F5;">📊</div><h4>学习报告</h4><p>错题本 + 雷达图</p></div>' +
-      '<div class="quick-card" onclick="navigate(\'parent\')"><div class="icon" style="background:#F0FFF4;">🏠</div><h4>家校互通</h4><p>通知 + 留言</p></div>' +
-      '<div class="quick-card" onclick="navigate(\'evaluate\')"><div class="icon" style="background:#F3E8FF;">🏆</div><h4>多元评价</h4><p>勋章 + 评价</p></div>' +
-      '<div class="quick-card" onclick="navigate(\'classroom\')"><div class="icon" style="background:#EBF5FF;">📚</div><h4>课程进度</h4><p>查看已学课程</p></div>';
   } else {
     if (taskTitle) taskTitle.textContent = '📋 本周任务清单';
     taskGrid.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">加载学习任务中...</p>';
@@ -2880,16 +2836,6 @@ function showDayDetail(dateStr) {
 }
 
 // ===== CLASSROOM =====
-function bindChildName() {
-  openFormModal('设置孩子姓名', [
-    { label: '孩子的姓名', name: 'childName', type: 'text', required: true, placeholder: '输入孩子的姓名', value: appData.parentStudentName || '' }
-  ], function(data) {
-    appData.parentStudentName = data.childName;
-    saveData();
-    updateHomeStats();
-    showToast('已设置：' + data.childName);
-  }, '确认');
-}
 function renderClassroom() {
   const role = getCurrentRole();
   const grid = document.getElementById('courseGrid');
@@ -2942,13 +2888,6 @@ function renderClassroom() {
     }).join('') +
       '<div class="course-card" style="display:flex;align-items:center;justify-content:center;border:2px dashed var(--border);cursor:pointer;background:var(--bg);" onclick="addCourse()">' +
       '<div style="text-align:center;color:var(--text-muted);"><div style="font-size:32px;margin-bottom:8px;">➕</div><div style="font-size:14px;font-weight:500;">添加课程</div></div></div>';
-  } else if (role === 'parent') {
-    grid.innerHTML = appData.courses.map(function(c) {
-      return '<div class="course-card" style="opacity:0.85;" onclick="showToast(\'请在学生模式下观看课程\')">' +
-        '<div class="course-thumb" style="background:linear-gradient(135deg,' + c.thumb + ',' + c.thumb + '88);">' +
-        '<div style="width:56px;height:56px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:' + c.thumb + ';">📖</div></div>' +
-        '<div class="course-info"><div style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">' + (c.unit || c.grade) + '</div><h3>' + c.title + '</h3><span style="font-size:13px;color:var(--text-muted);margin-left:8px;">' + c.duration + '</span></div></div>';
-    }).join('');
   } else {
     var matchCount = 0;
     var html = appData.courses.map(function(c, i) {
@@ -3134,16 +3073,6 @@ function renderEnrichment() {
     }).join('') +
       '<div class="course-card" style="display:flex;align-items:center;justify-content:center;border:2px dashed var(--border);cursor:pointer;background:var(--bg);" onclick="addEnrichment()">' +
       '<div style="text-align:center;color:var(--text-muted);"><div style="font-size:32px;margin-bottom:8px;">➕</div><div style="font-size:14px;font-weight:500;">添加课程</div></div></div>';
-  } else if (role === 'parent') {
-    grid.innerHTML = appData.enrichments.map(function(c) {
-      return '<div class="course-card" style="opacity:0.85;" onclick="showToast(\'请在学生模式下观看课程\')">' +
-        '<div class="course-thumb" style="background:linear-gradient(135deg,' + c.thumb + ',' + c.thumb + '88);">' +
-        '<div style="width:56px;height:56px;background:rgba(255,255,255,0.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:' + c.thumb + ';">📖</div></div>' +
-        '<div class="course-info">' +
-        '<div style="font-size:12px;color:var(--accent);font-weight:600;line-height:1.4;margin-bottom:6px;min-height:17px;">' + (c.subTitle || '&nbsp;') + '</div>' +
-        '<h3 style="margin-top:0;">' + c.title + '</h3><span class="grade-badge">' + c.grade + '</span>' +
-        '<span style="font-size:13px;color:var(--text-muted);margin-left:8px;">' + c.duration + '</span></div></div>';
-    }).join('');
   } else {
     var matchCount = 0;
     var html = appData.enrichments.map(function(c, i) {
@@ -3349,7 +3278,7 @@ function renderParent() {
   var whisperTitle = document.getElementById('whisperTitle');
   if (whisperSection) {
     if (role === 'teacher') {
-      if (whisperTitle) whisperTitle.textContent = '📨 家长留言收件箱';
+      if (whisperTitle) whisperTitle.textContent = '📨 留言收件箱';
       var formEl = whisperSection.querySelector('form');
       if (formEl) formEl.style.display = 'none';
       var inbox = whisperSection.querySelector('#teacherInbox');
@@ -3357,7 +3286,7 @@ function renderParent() {
       var msgs = appData.messages || [];
       var unreadCount = msgs.filter(function(m) { return !m.read; }).length;
       if (msgs.length === 0) {
-        inbox.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:24px 0;">暂无家长留言</p>';
+        inbox.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:24px 0;">暂无留言</p>';
       } else {
         inbox.innerHTML = '<div style="margin-bottom:12px;font-size:13px;color:var(--text-secondary);">' +
           (unreadCount > 0 ? '<span style="background:var(--primary);color:white;padding:2px 10px;border-radius:12px;font-size:12px;">未读 ' + unreadCount + ' 条</span> ' : '') +
@@ -3386,7 +3315,7 @@ function renderParent() {
           }).join('');
       }
     } else {
-      if (whisperTitle) whisperTitle.textContent = role === 'parent' ? '💬 给老师留言' : '💬 悄悄话';
+      if (whisperTitle) whisperTitle.textContent = '💬 悄悄话';
       var formEl2 = whisperSection.querySelector('form');
       if (formEl2) formEl2.style.display = '';
       var oldInbox = whisperSection.querySelector('#teacherInbox');
@@ -4073,7 +4002,7 @@ function submitWhisper(e) {
   e.preventDefault();
   var name = document.getElementById('whisperName').value.trim();
   var msg = document.getElementById('whisperMsg').value.trim();
-  if (!name) { showToast('请输入孩子姓名'); return; }
+  if (!name) { showToast('请输入姓名'); return; }
   if (!msg) { showToast('请输入留言内容'); return; }
   if (!appData.messages) appData.messages = [];
   appData.messages.push({ name: name, msg: msg, time: new Date().toLocaleString(), read: false, replies: [] });
@@ -4167,8 +4096,8 @@ function renderFeedback() {
           '<div class="solution">✅ 正确解法：' + fmtFrac(escapeHtml(m.solution || '')) + '</div></div>';
       }).join('');
   } else if (isLoggedIn) {
-    // 已登录的学生/家长：显示个人学习数据
-    if (title) title.textContent = role === 'parent' ? '📊 孩子的学习报告' : '📊 学习反馈';
+    // 已登录的学生：显示个人学习数据
+    if (title) title.textContent = '📊 学习反馈';
     list.innerHTML = appData.mistakes.map(function(m) {
       return '<div class="mistake-item"><div class="question">❌ ' + fmtFrac(escapeHtml(m.question + ' = ' + m.wrongAnswer)) + '</div>' +
         '<div class="reason">⚠️ 错误原因：' + fmtFrac(escapeHtml(m.reason || '')) + '</div>' +
@@ -4627,16 +4556,6 @@ function renderEvaluate() {
     if (isStudentLoggedIn()) {
       // 学生身份：加载真实五维数据（雷达图 + 表现小结 + 学习任务）
       renderStudentEval();
-    } else if (role === 'parent') {
-      // 家长身份：展示班级电子喜报（只看班级榜单，无个人雷达图）
-      var html = '<div style="text-align:center;padding:32px 24px;background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow);margin-bottom:24px;">';
-      html += '<div style="font-size:48px;margin-bottom:12px;">🎉</div>';
-      html += '<h3 style="margin-bottom:8px;">班级电子喜报</h3>';
-      html += '<p style="color:var(--text-muted);font-size:14px;">查看本周班级学习标兵与进步之星</p>';
-      html += '</div>';
-      html += '<div id="evalLeaderboard" style="min-height:120px;"><p style="text-align:center;color:var(--text-muted);padding:20px;">⏳ 正在加载喜报数据...</p></div>';
-      content.innerHTML = html;
-      loadEvalLeaderboard();
     } else {
       // 其他非学生账号：提示切换学生账号
       content.innerHTML =
@@ -4653,10 +4572,9 @@ function renderEvaluate() {
       '<div style="text-align:center;padding:48px 24px;background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow);">' +
       '<div style="font-size:64px;margin-bottom:16px;">🔒</div>' +
       '<h3 style="margin-bottom:12px;">请登录后查看个人评价</h3>' +
-      '<p style="color:var(--text-muted);margin-bottom:24px;">学生和家长需登录账号才能查看自己的学习评价数据</p>' +
+      '<p style="color:var(--text-muted);margin-bottom:24px;">学生（家长查看孩子情况请用学生账号）登录后即可查看学习评价数据</p>' +
       '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">' +
       '<button class="btn btn-primary" onclick="openCloudLoginModal()">🔑 账号登录</button>' +
-      '<button class="btn btn-outline" onclick="switchMode(\'parent\');openCloudLoginModal()">👨‍👩‍👧 家长登录</button>' +
       '</div>' +
       '<p style="font-size:12px;color:var(--text-muted);margin-top:16px;">没有账号？请联系张老师获取邀请码</p>' +
       '</div>';
@@ -4720,7 +4638,7 @@ async function renderStudentEval() {
   if (tasks.length === 0) {
     html += '<div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;text-align:center;color:var(--text-muted);box-shadow:var(--shadow);">' +
       '<div style="font-size:40px;margin-bottom:8px;">🌱</div>' +
-      '老师暂未给你安排学习任务，先去 <b style="color:var(--primary);cursor:pointer;" onclick="switchMode(\'sync\')">同步课堂</b> 或 <b style="color:var(--primary);cursor:pointer;" onclick="switchMode(\'enrichment\')">培优微课</b> 看看吧~' +
+      '老师暂未给你安排学习任务，先去 <b style="color:var(--primary);cursor:pointer;" onclick="navigate(\'classroom\')">同步课堂</b> 或 <b style="color:var(--primary);cursor:pointer;" onclick="navigate(\'thinking\')">培优微课</b> 看看吧~' +
       '</div>';
   } else {
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;">';
@@ -7477,8 +7395,8 @@ function renderHwUpload() {
     return;
   }
 
-  // 学生/家长模式：上传作业
-  var studentName = role === 'parent' ? (appData.parentStudentName || '') : (appData.userName || '');
+  // 学生模式：上传作业
+  var studentName = appData.userName || '';
   var stuProfile = getStudentProfile();
   if (role === 'student' && stuProfile && stuProfile.display_name) {
     studentName = stuProfile.display_name;   // 学生登录后姓名锁定为档案姓名
@@ -8471,16 +8389,16 @@ async function init() {
     setSyncStatus("disconnected");
   }
 
+  // 家长模式已下线：历史存量数据自动迁移回学生模式（家长请用学生账号登录）
   if (appData.mode === 'parent') {
-    document.querySelectorAll('.mode-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.mode === 'parent');
-    });
+    appData.mode = 'student';
+    saveData();
   }
   // 页面加载时一致性校验：非教师模式下不应保留教师认证
   if (appData.mode === 'teacher' && !isAuthenticated()) {
     appData.mode = 'student';
   }
-  if ((appData.mode === 'student' || appData.mode === 'parent') && isAuthenticated()) {
+  if (appData.mode === 'student' && isAuthenticated()) {
     sessionStorage.removeItem(SESSION_KEY);
   }
   updateAuthUI();
