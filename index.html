@@ -22,6 +22,12 @@
 <link rel="manifest" href="/site-2026.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192-2026.png">
 <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512-2026.png">
+<meta name="theme-color" content="#4A90D9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="青花微课">
+<meta name="application-name" content="青花微课">
+<meta name="mobile-web-app-capable" content="yes">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -8426,6 +8432,14 @@ async function init() {
   }
 }
 init();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  // 注册 PWA service worker（仅在 HTTPS 环境下生效）
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw.js').catch(function(e) { console.warn('SW 注册失败', e); });
+  });
+}
 </script>
 </body>
 </html>
