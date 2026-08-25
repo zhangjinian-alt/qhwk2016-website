@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>把青花微课加到桌面 - 家长指引</title>
+<meta name="theme-color" content="#4A90D9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="青花微课">
+<link rel="apple-touch-icon" href="/apple-touch-icon-2026.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192-2026.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+         background: linear-gradient(180deg, #EBF5FF 0%, #ffffff 380px);
+         color: #2C3E50; line-height: 1.7; padding: 0 0 48px; }
+  .hero { background: linear-gradient(135deg, #4A90D9, #7AB8F5); color: white;
+          padding: 36px 20px 44px; text-align: center; }
+  .hero img.icon { width: 96px; height: 96px; border-radius: 22px;
+                   box-shadow: 0 8px 24px rgba(0,0,0,0.2); margin-bottom: 12px; }
+  .hero h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  .hero p { font-size: 14px; opacity: .9; }
+  .container { max-width: 640px; margin: 0 auto; padding: 0 20px; }
+  .card { background: white; border-radius: 18px; padding: 24px 20px;
+          margin-top: -22px; box-shadow: 0 4px 24px rgba(74,144,217,0.10);
+          margin-bottom: 18px; }
+  .step { display: flex; align-items: flex-start; gap: 14px; padding: 10px 0; }
+  .step .num { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%;
+               background: #4A90D9; color: white; font-weight: 600;
+               display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .step .body { flex: 1; font-size: 15px; }
+  .step .body b { color: #4A90D9; }
+  .device-tabs { display: flex; gap: 8px; margin-bottom: 16px; background: #F0F4F8;
+                 padding: 4px; border-radius: 12px; }
+  .device-tabs button { flex: 1; padding: 10px 0; border: none; background: transparent;
+                        font-size: 14px; font-weight: 500; color: #666; border-radius: 9px;
+                        cursor: pointer; transition: all .2s; }
+  .device-tabs button.active { background: white; color: #4A90D9;
+                               box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .device-pane { display: none; }
+  .device-pane.active { display: block; }
+  .tip { background: #FFF7E6; border-left: 3px solid #FAAD14; padding: 12px 14px;
+         border-radius: 8px; font-size: 13px; color: #874D00; margin-top: 12px; }
+  .qr { text-align: center; margin: 16px 0; }
+  .qr img { width: 180px; height: 180px; border-radius: 12px;
+            border: 6px solid white; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .qr p { font-size: 12px; color: #888; margin-top: 8px; }
+  .back { display: block; text-align: center; margin-top: 16px; color: #4A90D9;
+          text-decoration: none; font-size: 14px; }
+  .warn { background: #FFF1F0; border-left: 3px solid #FF4D4F; padding: 12px 14px;
+          border-radius: 8px; font-size: 13px; color: #A8071A; margin: 12px 0 18px; }
+  h2 { font-size: 17px; font-weight: 600; margin-bottom: 10px; color: #2C3E50; }
+  h2 .emoji { margin-right: 6px; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <img class="icon" src="/apple-touch-icon-2026.png" alt="青花微课">
+  <h1>把青花微课加到桌面</h1>
+  <p>一键打开，像 APP 一样用</p>
+</div>
+
+<div class="container">
+  <div class="card">
+    <h2><span class="emoji">📱</span>选择你的手机</h2>
+    <div class="device-tabs">
+      <button class="active" data-pane="ios">🍎 苹果 (iPhone / iPad)</button>
+      <button data-pane="android">🤖 安卓</button>
+      <button data-pane="wechat">💬 微信里点开的</button>
+    </div>
+
+    <div class="device-pane active" id="pane-ios">
+      <div class="step"><div class="num">1</div><div class="body">用手机自带的 <b>Safari 浏览器</b> 打开 <b>qhwk2016.com</b>（不能在微信里加）</div></div>
+      <div class="step"><div class="num">2</div><div class="body">点底部中间的 <b>"分享" 按钮</b> <span style="font-size:18px;">⎘</span>（方框里向上箭头）</div></div>
+      <div class="step"><div class="num">3</div><div class="body">在弹出菜单里向下滑，找到并点击 <b>"添加到主屏幕"</b> <span style="font-size:18px;">➕</span></div></div>
+      <div class="step"><div class="num">4</div><div class="body">名称可以改成 "青花微课"，点右上角 <b>"添加"</b></div></div>
+      <div class="step"><div class="num">5</div><div class="body">回到桌面，<b>点青花微课的图标</b> 就能像 APP 一样打开，没有浏览器地址栏了</div></div>
+      <div class="tip">💡 添加后第一次打开会有 1-2 秒的"启动画面"（Safari 优化效果），之后秒开</div>
+    </div>
+
+    <div class="device-pane" id="pane-android">
+      <div class="step"><div class="num">1</div><div class="body">用手机自带的 <b>Chrome 浏览器</b>（或 Edge/华为/小米浏览器）打开 <b>qhwk2016.com</b></div></div>
+      <div class="step"><div class="num">2</div><div class="body">浏览器会自动弹出提示：<b>"添加到主屏幕 / 安装应用"</b>，直接点 <b>"安装"</b> 或 <b>"添加"</b></div></div>
+      <div class="step"><div class="num">3</div><div class="body">如果没弹出来：点右上角 <b>⋮ 三个点</b> → 找到 <b>"添加到主屏幕"</b> 或 <b>"安装应用"</b></div></div>
+      <div class="step"><div class="num">4</div><div class="body">桌面出现青花微课图标，点开就是全屏 APP 模式（没有浏览器地址栏）</div></div>
+      <div class="tip">💡 安卓部分品牌（华为/小米/OPPO）会真的安装一个"轻应用"到应用列表，可以在所有 APP 里找到它</div>
+    </div>
+
+    <div class="device-pane" id="pane-wechat">
+      <div class="warn">⚠️ 微信里不能直接加到桌面。先把链接发到自己的"文件传输助手"或收藏，再用浏览器打开。</div>
+      <div class="step"><div class="num">1</div><div class="body">长按下面的网址，<b>复制链接</b></div></div>
+      <div class="step"><div class="num">2</div><div class="body">打开微信的 <b>「文件传输助手」</b>（或任意聊天），粘贴发送给自己</div></div>
+      <div class="step"><div class="num">3</div><div class="body">点开这条消息，右上角 <b>「···」</b> → <b>「在浏览器打开」</b></div></div>
+      <div class="step"><div class="num">4</div><div class="body">跳到浏览器后，按上面"苹果"或"安卓"的步骤继续添加</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="emoji">📷</span>扫码直达本页</h2>
+    <div class="qr">
+      <img src="/app-qr.png" alt="扫码打开添加指引">
+      <p>用手机相机扫码，看图一步步加</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="emoji">❓</span>常见问题</h2>
+    <div class="step"><div class="body"><b>Q：添加到桌面后打开还是浏览器？</b><br>A：iPhone 请确认是用 Safari 打开的；安卓请用 Chrome。微信/QQ 内置浏览器不允许添加。</div></div>
+    <div class="step"><div class="body"><b>Q：图标不一样怎么办？</b><br>A：第一次添加时 iOS 会自动用网页图标，2-3 秒后变成青花微课的图标。安卓几乎立即生效。</div></div>
+    <div class="step"><div class="body"><b>Q：能多设备同步吗？</b><br>A：可以的。换手机在新设备按同样步骤加一次，用学生账号登录就能看到学习数据。</div></div>
+  </div>
+
+  <a class="back" href="/">← 返回青花微课首页</a>
+</div>
+
+<script>
+  document.querySelectorAll('.device-tabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.device-tabs button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.device-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('pane-' + btn.dataset.pane).classList.add('active');
+    });
+  });
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>
