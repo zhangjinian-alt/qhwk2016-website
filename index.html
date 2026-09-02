@@ -3468,7 +3468,7 @@ function renderClassPhotosOverview(role) {
   if (role === 'teacher') {
     if (section) section.style.display = 'block';
     if (grid) grid.style.gridTemplateColumns = '1fr 1fr';
-    el.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">导入公司表格后，三端同步展示三家公司团体照、董事长及总经理人头像。</p>' +
+    el.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">导入公司表格后，三端同步展示三家公司团体照、董事长及总经理人头像（人头像自动读取「导入学生头像」的照片）。</p>' +
       '<button class="btn btn-primary" style="width:100%;" onclick="importCompanyExcel()">📊 导入公司表格</button>';
   } else {
     // 学生/家长端：隐藏概览卡片，让悄悄话占满整行
@@ -3535,15 +3535,20 @@ async function renderClassPhotos(role) {
 
   el.innerHTML = html;
 
-  // 并行加载三类照片
-  var photoData = await Promise.all([
-    loadCompanyPhotos('company_group'),
-    loadCompanyPhotos('chairman'),
-    loadCompanyPhotos('manager')
-  ]);
-  loadCompanySectionPhotos(role, companyOrder, companyMap, photoData[0].photos || []);
-  renderMemberSection('chairmanSection', '董事长', role, groups, photoData[1].photos || []);
-  renderMemberSection('managerSection', '总经理', role, groups, photoData[2].photos || []);
+  // 并行加载：团体照（手动上传不变） + 全班学生头像（董事长/总经理自动识别）
+  var avatarStudents = [];
+  try {
+    var resp = await fetchWithAuth('/class-photos/avatars?class_name=' + encodeURIComponent(_defaultLeaderboardClass()));
+    if (resp.ok) {
+      var adata = await resp.json();
+      avatarStudents = adata.students || [];
+    }
+  } catch (e) {}
+
+  var photoData = await loadCompanyPhotos('company_group');
+  loadCompanySectionPhotos(role, companyOrder, companyMap, photoData.photos || []);
+  renderMemberSection('chairmanSection', '董事长', role, groups, avatarStudents);
+  renderMemberSection('managerSection', '总经理', role, groups, avatarStudents);
 }
 
 async function loadCompanySectionPhotos(role, companyOrder, companyMap, photos) {
@@ -3573,7 +3578,7 @@ async function loadCompanySectionPhotos(role, companyOrder, companyMap, photos) 
   });
 }
 
-function renderMemberSection(containerId, position, role, groups, photos) {
+function renderMemberSection(containerId, position, role, groups, students) {
   var el = document.getElementById(containerId);
   if (!el) return;
   var list = [];
@@ -3591,29 +3596,25 @@ function renderMemberSection(containerId, position, role, groups, photos) {
     return;
   }
 
-  var typeKey = position === '董事长' ? 'chairman' : 'manager';
+  // 学生头像映射：自动读取「导入学生头像」的照片，按姓名匹配，无需单独上传
+  var avatarMap = {};
+  (students || []).forEach(function(s) {
+    if (s && s.name) avatarMap[String(s.name).trim().replace(/\s+/g, '')] = s.avatar_url || '';
+  });
+
+  var esc = function(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
   var html = '';
   list.forEach(function(item) {
-    var p = null;
-    var targetName = (item.name || '').trim().replace(/\s+/g, ' ');
-    for (var i = 0; i < photos.length; i++) {
-      var photoName = (photos[i].student_name || '').trim().replace(/\s+/g, ' ');
-      if (photoName === targetName && photos[i].photo_type === typeKey) { p = photos[i]; break; }
-    }
+    var key = String(item.name || '').trim().replace(/\s+/g, '');
+    var url = avatarMap[key] || '';
+    var urlFull = url ? photoUrl(url) : '';
+    var fallback = '<div class="avatar-fallback" style="' + (urlFull ? 'display:none;' : 'display:flex;') + 'position:absolute;inset:0;align-items:center;justify-content:center;color:var(--primary);font-weight:700;font-size:16px;">' + esc(String(item.name || '').slice(-2)) + '</div>';
+    var img = urlFull
+      ? '<img src="' + esc(urlFull) + '" style="width:100%;height:100%;object-fit:cover;" alt="' + esc(item.name) + '" onerror="var self=this;if(self.src && self.src.indexOf(\'retry=\')===-1){self.src=self.src+(self.src.indexOf(\'?\')===-1?\'?\' : \'&\')+\'retry=\'+Date.now();return;}self.onerror=null;self.style.display=\'none\';var f=self.parentNode.querySelector(\'.avatar-fallback\');if(f)f.style.display=\'flex\';">'
+      : '';
     html += '<div style="text-align:center;">';
-    html += '<div style="position:relative;width:80px;height:80px;margin:0 auto;border-radius:50%;overflow:hidden;border:3px solid var(--primary);background:var(--bg-secondary);">';
-    if (p) {
-      var avatarSrc = photoUrl(p.image_url) + (p.id ? '?cb=' + p.id : '');
-      html += '<img src="' + avatarSrc + '" style="width:100%;height:100%;object-fit:cover;background:var(--bg-secondary);" alt="' + item.name + '" onerror="var self=this; if(self.src && self.src.indexOf(\'retry=\')===-1){ self.src = self.src + (self.src.indexOf(\'?\')===-1 ? \'?\' : \'&\') + \'retry=\' + Date.now(); return; } self.onerror=null;self.style.display=\'none\';var f=self.parentNode.querySelector(\'.avatar-fallback\');if(f)f.style.display=\'flex\';">' +
-              '<div class="avatar-fallback" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;color:var(--text-muted);font-size:12px;">暂无</div>';
-    } else {
-      html += '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:12px;">暂无</div>';
-    }
-    if (role === 'teacher') {
-      html += '<label style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:white;font-size:10px;padding:2px 0;cursor:pointer;text-align:center;">上传<input type="file" accept="image/*" style="display:none;" onchange="uploadMemberPhoto(this,\'' + typeKey + '\',\'' + item.name + '\')"></label>';
-    }
-    html += '</div>';
-    html += '<p style="margin-top:6px;font-size:12px;color:var(--text-primary);font-weight:500;">' + item.name + '</p>';
+    html += '<div style="position:relative;width:80px;height:80px;margin:0 auto;border-radius:50%;overflow:hidden;border:3px solid var(--primary);background:var(--bg-secondary);">' + img + fallback + '</div>';
+    html += '<p style="margin-top:6px;font-size:12px;color:var(--text-primary);font-weight:500;">' + esc(item.name) + '</p>';
     html += '</div>';
   });
   el.innerHTML = html;
@@ -3920,35 +3921,6 @@ async function uploadCompanyPhoto(input, company) {
   } catch(e) {
     showToast('上传失败：' + (e.message || '未知错误'));
     console.error('uploadCompanyPhoto error:', e);
-  } finally {
-    input.value = '';
-  }
-}
-
-async function uploadMemberPhoto(input, photoType, studentName) {
-  var file = input.files[0];
-  if (!file) return;
-  try {
-    showToast('正在压缩照片...');
-    var compressed = await compressImage(file, { maxWidth: 800, quality: 0.85, filename: 'avatar.jpg' });
-    showToast('压缩后 ' + (compressed.size / 1024).toFixed(0) + 'KB，正在上传...');
-    var formData = new FormData();
-    formData.append('file', compressed);
-    formData.append('photo_type', photoType);
-    formData.append('student_name', studentName);
-    var resp = await fetchWithAuth('/class-photos/upload', {method: 'POST', body: formData});
-    if (resp.ok) {
-      _companyPhotos = null;
-      showToast('照片已上传');
-      renderClassPhotos(getCurrentRole());
-    } else {
-      var errText = '';
-      try { var errJson = await resp.json(); errText = errJson.detail || errJson.message || ''; } catch(e) {}
-      showToast('上传失败' + (errText ? '：' + errText : ''));
-    }
-  } catch(e) {
-    showToast('上传失败：' + (e.message || '未知错误'));
-    console.error('uploadMemberPhoto error:', e);
   } finally {
     input.value = '';
   }
@@ -5381,9 +5353,10 @@ async function handleAvatarUpload(sid, input) {
     }
     var data = await resp.json();
     if (statusEl) statusEl.textContent = '✅ 上传成功';
-    // 刷新弹窗列表与喜报
+    // 刷新弹窗列表、喜报与班级风采头像墙
     await loadAvatarManagerList();
     await loadEvalLeaderboard();
+    renderClassPhotos(getCurrentRole());
   } catch (e) {
     console.log('头像上传失败:', e.message);
     if (statusEl) statusEl.textContent = '❌ 上传失败';
