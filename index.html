@@ -2869,7 +2869,7 @@ function renderClassroom() {
     mgmtBtn.className = 'btn btn-outline';
     mgmtBtn.style.cssText = 'margin-left:auto;padding:6px 14px;font-size:13px;border-radius:8px;';
     mgmtBtn.innerHTML = '📹 视频管理';
-    mgmtBtn.onclick = function() { loadVideoManagement(); };
+    mgmtBtn.onclick = function() { loadVideoManagement('sync'); };
     filterBar.appendChild(mgmtBtn);
     var vgBtn = document.createElement('button');
     vgBtn.id = 'classroomVgBtn';
@@ -3052,7 +3052,7 @@ function renderEnrichment() {
     mgmtBtn.className = 'btn btn-outline';
     mgmtBtn.style.cssText = 'margin-left:auto;padding:6px 14px;font-size:13px;border-radius:8px;';
     mgmtBtn.innerHTML = '📹 视频管理';
-    mgmtBtn.onclick = function() { loadVideoManagement(); };
+    mgmtBtn.onclick = function() { loadVideoManagement('enrichment'); };
     filterBar.appendChild(mgmtBtn);
     var vgBtn = document.createElement('button');
     vgBtn.id = 'enrichmentVgBtn';
@@ -6933,7 +6933,7 @@ function renderWizardStep4() {
   html += '<div style="display:flex;justify-content:space-between;font-size:13px;"><span style="color:var(--text-muted);">文件大小</span><span style="font-weight:600;">' + (s.fileSize/1048576).toFixed(1) + 'MB</span></div>';
   html += '</div>';
   html += '<div style="display:flex;gap:10px;">';
-  html += '<button type="button" onclick="closeModalDirect();loadVideoManagement()" class="btn btn-outline" style="flex:1;padding:10px 20px;border-radius:10px;font-size:14px;">管理视频列表</button>';
+  html += '<button type="button" onclick="closeModalDirect();loadVideoManagement(wizardState.category)" class="btn btn-outline" style="flex:1;padding:10px 20px;border-radius:10px;font-size:14px;">管理视频列表</button>';
   html += '<button type="button" onclick="closeModalDirect();navigate(\'' + (s.category === 'sync' ? 'classroom' : 'thinking') + '\')" class="btn btn-primary" style="flex:1;padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;">查看效果</button>';
   html += '</div>';
   html += '</div>';
@@ -6945,12 +6945,19 @@ function wizardPrevStep() {
 }
 
 // 加载视频管理列表（教师端）
-function loadVideoManagement() {
+// category: 'sync' 同步课堂 / 'enrichment' 培优微课，缺省沿用上次视图
+function loadVideoManagement(category) {
   var token = getCloudToken();
   if (!token) { showToast('请先登录教师账号', 'error'); return; }
 
+  if (category === 'sync' || category === 'enrichment') {
+    window._videoMgmtCategory = category;
+  }
+  var cat = window._videoMgmtCategory || '';
+  var url = API_BASE + '/videos?scope=all' + (cat ? '&category=' + cat : '');
+
   Promise.all([
-    fetch(API_BASE + '/videos?scope=all', { headers: { 'Authorization': 'Bearer ' + token } }).then(function(r) { if (!r.ok) throw new Error('加载失败'); return r.json(); }),
+    fetch(url, { headers: { 'Authorization': 'Bearer ' + token } }).then(function(r) { if (!r.ok) throw new Error('加载失败'); return r.json(); }),
     fetch(API_BASE + '/teacher/weekly-push', { headers: { 'Authorization': 'Bearer ' + token } }).then(function(r) { return r.ok ? r.json() : []; })
   ]).then(function(results) {
     window._weeklyPushIds = (results[1] || []).map(function(p) { return p.video_id; });
@@ -6982,7 +6989,9 @@ function renderVideoManagementModal(videos) {
   var statusMap = { draft: ['草稿', '#999'], uploaded: ['待审核', '#FAAD14'], published: ['已发布', '#52C41A'], rejected: ['已拒绝', '#FF4D4F'] };
   var pushIds = window._weeklyPushIds || [];
   var pushList = window._weeklyPushList || [];
-  var html = '<h3 style="margin-bottom:16px;">📹 视频管理</h3>';
+  var cat = window._videoMgmtCategory || '';
+  var catLabel = cat === 'sync' ? '同步课堂' : (cat === 'enrichment' ? '培优微课' : '全部');
+  var html = '<h3 style="margin-bottom:16px;">📹 视频管理' + (cat ? ' · ' + catLabel : '') + '</h3>';
 
   // 本周推送说明区
   var syncN = 0, enrN = 0;
@@ -6990,12 +6999,16 @@ function renderVideoManagementModal(videos) {
   var tip = '';
   if (pushList.length === 0) {
     tip = '<div style="font-size:12px;color:#FAAD14;margin-top:6px;font-weight:600;">⚠️ 本周尚未推送，学生端「本周任务清单」会是空的</div>';
-  } else if (syncN !== 2 || enrN !== 5) {
+  } else if (cat === 'sync' && syncN !== 2) {
+    tip = '<div style="font-size:12px;color:#FAAD14;margin-top:6px;">💡 建议：同步课堂 ' + syncN + '/2 个（中等生看，本周已推培优 ' + enrN + ' 个）</div>';
+  } else if (cat === 'enrichment' && enrN !== 5) {
+    tip = '<div style="font-size:12px;color:#FAAD14;margin-top:6px;">💡 建议：培优微课 ' + enrN + '/5 个（优生看，本周已推同步 ' + syncN + ' 个）</div>';
+  } else if (!cat && (syncN !== 2 || enrN !== 5)) {
     tip = '<div style="font-size:12px;color:#FAAD14;margin-top:6px;">💡 建议：培优微课 ' + enrN + '/5 个（优生看），同步课堂 ' + syncN + '/2 个（中等生看）</div>';
   }
   html += '<div style="background:#EBF5FF;border:1px solid #B3D7F5;border-radius:10px;padding:14px 16px;margin-bottom:16px;">';
   html += '<div style="font-size:14px;font-weight:600;color:#1E5FA8;">📌 本周推送' + (pushList.length ? '（已指定 ' + pushList.length + ' 个：同步 ' + syncN + ' + 培优 ' + enrN + '）' : '（未指定）') + '</div>';
-  html += '<p style="font-size:12px;color:var(--text-secondary);margin:6px 0 0;line-height:1.6;">学生任务<b>完全由老师推送决定，没有自动推荐</b>：优生（每周建议 5 个）看推送里的培优微课，中等生（每周建议 2 个）看推送里的同步课堂，顺序与勾选一致。列表显示<b>全站所有已发布视频</b>（含其他账号上传的），均可推送；推几个、推哪个，全由你定；本周不推送，学生端就显示「老师暂未安排」。</p>';
+  html += '<p style="font-size:12px;color:var(--text-secondary);margin:6px 0 0;line-height:1.6;">学生任务<b>完全由老师推送决定，没有自动推荐</b>：优生（每周建议 5 个）看推送里的培优微课，中等生（每周建议 2 个）看推送里的同步课堂，顺序与勾选一致。' + (cat ? '当前列表只显示<b>' + catLabel + '</b>的视频（含其他账号上传的，均可推送），另一栏目的视频请到对应页面推送。' : '列表显示<b>全站所有已发布视频</b>（含其他账号上传的），均可推送。') + '本周不推送，学生端就显示「老师暂未安排」。</p>';
   html += tip;
   html += '</div>';
 
@@ -7012,7 +7025,7 @@ function renderVideoManagementModal(videos) {
       html += '<div style="width:48px;height:48px;border-radius:8px;background:' + (v.thumbnail || '#4A90D9') + ';display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">' + (v.video_url ? '🎬' : '📹') + '</div>';
       html += '<div style="flex:1;min-width:0;">';
       html += '<div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + v.title + (mine ? '' : ' <span style="font-size:11px;color:#8C8C8C;font-weight:400;">（其他老师上传）</span>') + '</div>';
-      html += '<div style="font-size:12px;color:var(--text-muted);">' + catLabel + ' · ' + (v.unit || v.grade || '') + ' · ' + (v.duration || '') + '</div>';
+      html += '<div style="font-size:12px;color:var(--text-muted);">' + (cat ? '' : catLabel + ' · ') + (v.unit || v.grade || '') + ' · ' + (v.duration || '') + '</div>';
       html += '</div>';
       if (v.status === 'published') {
         html += '<button onclick="toggleWeeklyPush(' + v.id + ')" style="background:' + (pushed ? '#fff' : '#FAAD14') + ';color:' + (pushed ? '#52C41A' : '#fff') + ';border:' + (pushed ? '1px solid #52C41A' : 'none') + ';border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;flex-shrink:0;font-weight:600;">' + (pushed ? '✅ 已推送' : '📌 推送') + '</button>';
