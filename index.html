@@ -6949,16 +6949,48 @@ function loadVideoManagement() {
   var token = getCloudToken();
   if (!token) { showToast('请先登录教师账号', 'error'); return; }
 
-  fetch(API_BASE + '/videos', { headers: { 'Authorization': 'Bearer ' + token } })
-    .then(function(r) { if (!r.ok) throw new Error('加载失败'); return r.json(); })
-    .then(function(videos) {
-      renderVideoManagementModal(videos);
-    }).catch(function(e) { showToast('加载视频列表失败：' + e.message, 'error'); });
+  Promise.all([
+    fetch(API_BASE + '/videos', { headers: { 'Authorization': 'Bearer ' + token } }).then(function(r) { if (!r.ok) throw new Error('加载失败'); return r.json(); }),
+    fetch(API_BASE + '/teacher/weekly-push', { headers: { 'Authorization': 'Bearer ' + token } }).then(function(r) { return r.ok ? r.json() : []; })
+  ]).then(function(results) {
+    window._weeklyPushIds = (results[1] || []).map(function(p) { return p.video_id; });
+    window._weeklyPushList = results[1] || [];
+    renderVideoManagementModal(results[0]);
+  }).catch(function(e) { showToast('加载视频列表失败：' + e.message, 'error'); });
+}
+
+// 切换视频的「本周推送」状态（教师端）
+function toggleWeeklyPush(vid) {
+  var token = getCloudToken();
+  var ids = (window._weeklyPushIds || []).slice();
+  var idx = ids.indexOf(vid);
+  if (idx >= 0) { ids.splice(idx, 1); } else { ids.push(vid); }
+  fetch(API_BASE + '/teacher/weekly-push', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ video_ids: ids })
+  })
+    .then(function(r) { if (!r.ok) return r.json().then(function(e) { throw new Error(extractErrorDetail(e) || '操作失败'); }); return r.json(); })
+    .then(function(res) {
+      showToast(res.message || '已更新本周推送');
+      loadVideoManagement();
+    })
+    .catch(function(e) { showToast('推送设置失败：' + e.message, 'error'); });
 }
 
 function renderVideoManagementModal(videos) {
   var statusMap = { draft: ['草稿', '#999'], uploaded: ['待审核', '#FAAD14'], published: ['已发布', '#52C41A'], rejected: ['已拒绝', '#FF4D4F'] };
+  var pushIds = window._weeklyPushIds || [];
+  var pushList = window._weeklyPushList || [];
   var html = '<h3 style="margin-bottom:16px;">📹 视频管理</h3>';
+
+  // 本周推送说明区
+  var syncN = 0, enrN = 0;
+  pushList.forEach(function(p) { if (p.category === 'sync') { syncN++; } else { enrN++; } });
+  html += '<div style="background:#EBF5FF;border:1px solid #B3D7F5;border-radius:10px;padding:14px 16px;margin-bottom:16px;">';
+  html += '<div style="font-size:14px;font-weight:600;color:#1E5FA8;">📌 本周推送' + (pushList.length ? '（已指定 ' + pushList.length + ' 个：同步 ' + syncN + ' + 培优 ' + enrN + '）' : '（未指定，学生端自动推荐最新视频）') + '</div>';
+  html += '<p style="font-size:12px;color:var(--text-secondary);margin:6px 0 0;line-height:1.6;">学生住校，周末回家登录后，首页「本周任务清单」优先显示这里指定的视频：优生看其中的培优微课，中后等看其中的同步课堂，顺序与老师勾选一致。点下方视频的「📌推送」按钮即可加入或移出。</p>';
+  html += '</div>';
 
   if (!videos || videos.length === 0) {
     html += '<div style="text-align:center;padding:40px;color:var(--text-muted);"><div style="font-size:48px;margin-bottom:12px;">📭</div><p>暂无视频记录</p><p style="font-size:13px;margin-top:4px;">点击课程页面的「添加课程」上传视频</p></div>';
@@ -6967,12 +6999,16 @@ function renderVideoManagementModal(videos) {
     videos.forEach(function(v) {
       var st = statusMap[v.status] || ['未知', '#999'];
       var catLabel = v.category === 'sync' ? '同步课堂' : '培优微课';
+      var pushed = pushIds.indexOf(v.id) >= 0;
       html += '<div style="background:var(--bg);border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px;">';
       html += '<div style="width:48px;height:48px;border-radius:8px;background:' + (v.thumbnail || '#4A90D9') + ';display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">' + (v.video_url ? '🎬' : '📹') + '</div>';
       html += '<div style="flex:1;min-width:0;">';
       html += '<div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + v.title + '</div>';
       html += '<div style="font-size:12px;color:var(--text-muted);">' + catLabel + ' · ' + (v.unit || v.grade || '') + ' · ' + (v.duration || '') + '</div>';
       html += '</div>';
+      if (v.status === 'published') {
+        html += '<button onclick="toggleWeeklyPush(' + v.id + ')" style="background:' + (pushed ? '#fff' : '#FAAD14') + ';color:' + (pushed ? '#52C41A' : '#fff') + ';border:' + (pushed ? '1px solid #52C41A' : 'none') + ';border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;flex-shrink:0;font-weight:600;">' + (pushed ? '✅ 已推送' : '📌 推送') + '</button>';
+      }
       html += '<span style="background:' + st[1] + ';color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;flex-shrink:0;">' + st[0] + '</span>';
       if (v.status !== 'published') {
         html += '<button onclick="publishVideoFromList(' + v.id + ')" style="background:var(--primary);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;flex-shrink:0;">发布</button>';
