@@ -6987,9 +6987,16 @@ function renderVideoManagementModal(videos) {
   // 本周推送说明区
   var syncN = 0, enrN = 0;
   pushList.forEach(function(p) { if (p.category === 'sync') { syncN++; } else { enrN++; } });
+  var tip = '';
+  if (pushList.length === 0) {
+    tip = '<div style="font-size:12px;color:#FAAD14;margin-top:6px;font-weight:600;">⚠️ 本周尚未推送，学生端「本周任务清单」会是空的</div>';
+  } else if (syncN !== 2 || enrN !== 5) {
+    tip = '<div style="font-size:12px;color:#FAAD14;margin-top:6px;">💡 建议：培优微课 ' + enrN + '/5 个（优生看），同步课堂 ' + syncN + '/2 个（中等生看）</div>';
+  }
   html += '<div style="background:#EBF5FF;border:1px solid #B3D7F5;border-radius:10px;padding:14px 16px;margin-bottom:16px;">';
-  html += '<div style="font-size:14px;font-weight:600;color:#1E5FA8;">📌 本周推送' + (pushList.length ? '（已指定 ' + pushList.length + ' 个：同步 ' + syncN + ' + 培优 ' + enrN + '）' : '（未指定，学生端自动推荐最新视频）') + '</div>';
-  html += '<p style="font-size:12px;color:var(--text-secondary);margin:6px 0 0;line-height:1.6;">学生住校，周末回家登录后，首页「本周任务清单」优先显示这里指定的视频：优生看其中的培优微课，中后等看其中的同步课堂，顺序与老师勾选一致。点下方视频的「📌推送」按钮即可加入或移出。</p>';
+  html += '<div style="font-size:14px;font-weight:600;color:#1E5FA8;">📌 本周推送' + (pushList.length ? '（已指定 ' + pushList.length + ' 个：同步 ' + syncN + ' + 培优 ' + enrN + '）' : '（未指定）') + '</div>';
+  html += '<p style="font-size:12px;color:var(--text-secondary);margin:6px 0 0;line-height:1.6;">学生任务<b>完全由老师推送决定，没有自动推荐</b>：优生（每周建议 5 个）看推送里的培优微课，中等生（每周建议 2 个）看推送里的同步课堂，顺序与勾选一致。推几个、推哪个，全由你定；本周不推送，学生端就显示「老师暂未安排」。</p>';
+  html += tip;
   html += '</div>';
 
   if (!videos || videos.length === 0) {
