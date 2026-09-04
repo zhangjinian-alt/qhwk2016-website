@@ -32,3 +32,8 @@ Thumbs.db
 # WorkBuddy
 .workbuddy/
 */.workbuddy/
+
+# 临时调试脚本（开发完不需要进仓）
+_*.py
+_*.sh
+_*.json
