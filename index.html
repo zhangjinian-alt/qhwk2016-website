@@ -993,6 +993,16 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
     <div id="classPhotos" style="min-height:60px;"></div>
   </div>
 </div>
+<!-- 资料下载区（讲义/试卷/教辅，教师上传 三端下载） -->
+<div class="container section" id="materialsSection">
+  <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+      <h3 style="margin:0;font-size:18px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f4c1" xlink:href="#tw-1f4c1"/></svg> 资料下载</h3>
+      <span id="materialsMeta" style="font-size:13px;color:var(--text-muted);"></span>
+    </div>
+    <div id="materialsContent" style="min-height:60px;"></div>
+  </div>
+</div>
 <!-- 五维评价累计积分总榜 -->
 <div class="container section" id="cumulativeLeaderboardSection">
   <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
@@ -2257,12 +2267,12 @@ function getDefaultData() {
     streak: 7,
     exercises: [false, false, false],
     medals: [
-      { id: 'think_star', name: '思维小诸葛', icon: '🧠', rule: '五维评价中“思维品质”得分≥9', unlocked: false, detail: '暂无数据' },
-      { id: 'calc_master', name: '计算小达人', icon: '🧮', rule: '本周周末作业准确率≥90%', unlocked: false, detail: '暂无数据' },
-      { id: 'writing_model', name: '书写小标兵', icon: '✍️', rule: '本周五维评价中“学习习惯”得分≥9', unlocked: false, detail: '暂无数据' },
-      { id: 'literacy_expert', name: '素养小能手', icon: '🌟', rule: '本周周末作业应用题或素养题准确率≥90%', unlocked: false, detail: '暂无数据' },
-      { id: 'correction_tutor', name: '纠错小讲师', icon: '📝', rule: '本周周末作业全部订正合格', unlocked: false, detail: '暂无数据' },
-      { id: 'full_score_star', name: '满分之星', icon: '💯', rule: '本周周末作业满分', unlocked: false, detail: '暂无数据' },
+      { id: 'think_star', name: '思维小诸葛', icon: '🧠', rule: '五维评价中「思维品质」得分≥9', unlocked: false, detail: '暂无数据' },
+      { id: 'calc_master', name: '计算小达人', icon: '🧮', rule: '周末作业中所有纯计算题全对', unlocked: false, detail: '暂无数据' },
+      { id: 'habit_star', name: '习惯小标兵', icon: '📚', rule: '五维评价中「学习习惯」得分≥9', unlocked: false, detail: '暂无数据' },
+      { id: 'literacy_expert', name: '素养小能手', icon: '🌟', rule: '周末作业最后一题全对', unlocked: false, detail: '暂无数据' },
+      { id: 'correction_tutor', name: '纠错小讲师', icon: '📝', rule: '周末作业全部订正合格', unlocked: false, detail: '暂无数据' },
+      { id: 'full_score_star', name: '满分之星', icon: '💯', rule: '周末作业满分', unlocked: false, detail: '暂无数据' },
     ],
     courses: [
       { title: '分数的基本概念', grade: '三年级', thumb: '#4A90D9', duration: '8分钟', videoUrl: '' },
@@ -2549,7 +2559,7 @@ function renderPageContent(page) {
       else { reconcileVideoUrls(); }
       renderEnrichment();
       break;
-    case 'parent': renderParent(); renderHwUpload(); break;
+    case 'parent': renderParent(); renderHwUpload(); renderMaterials(); break;
     case 'feedback': renderFeedback(); renderReviewRecommendations(); renderHwGrading(); break;
     case 'evaluate': renderEvaluate(); updateClassEvalVisibility(); break;
     case 'about': pushAboutToCloudIfTeacher(); renderAbout(); loadPublicAbout(); break;
@@ -4682,7 +4692,7 @@ async function loadMeritWall(options) {
       if (stuName) params.push('student_name=' + encodeURIComponent(stuName));
       if (profile && profile.class_name) params.push('class_name=' + encodeURIComponent(profile.class_name));
     }
-    params.push('week=1');
+    // 不传 week → 后端默认 _teach_week()（开学第 1 周硬编码会导致第 2 周后失效）
     var url = '/merit-wall' + (params.length ? '?' + params.join('&') : '');
     var resp = await fetchWithAuth(url);
     if (!resp.ok) throw new Error('请求失败');
@@ -7479,6 +7489,259 @@ function renderHwUpload() {
   }
   renderPendingHint();
   loadHwMyList();
+}
+
+// ===== 资料下载（家校互通：讲义/试卷/教辅） =====
+
+var _materialsCache = [];  // 最近一次拉到的资料列表缓存（教师/学生共用，编辑/删除走 id）
+
+// 把后端返回的 /materials/<file> 转成可下载/预览的主域 URL
+// 主域 nginx 已 alias /materials/ → /var/www/qhwk2016/materials/
+function materialPublicUrl(fileUrl) {
+  if (!fileUrl) return '';
+  if (/^https?:\/\//.test(fileUrl)) return fileUrl;  // 兼容绝对路径
+  var path = fileUrl.startsWith('/') ? fileUrl : '/' + fileUrl;
+  return 'https://qhwk2016.com' + path;
+}
+function materialApiUrl(fileUrl) {
+  // 备援：通过 API 域名兜底（FastAPI 也静态 mount /materials）
+  if (!fileUrl) return '';
+  if (/^https?:\/\//.test(fileUrl)) return fileUrl;
+  var path = fileUrl.startsWith('/') ? fileUrl : '/' + fileUrl;
+  return API_BASE.replace(/\/api$/, '') + path;
+}
+function humanFileSize(bytes) {
+  if (!bytes || bytes < 0) return '0 B';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+function materialIconByExt(name) {
+  var ext = (name || '').split('.').pop().toLowerCase();
+  if (ext === 'pdf') return '📕';
+  if (['doc', 'docx'].indexOf(ext) >= 0) return '📘';
+  if (['xls', 'xlsx', 'csv'].indexOf(ext) >= 0) return '📗';
+  if (['ppt', 'pptx'].indexOf(ext) >= 0) return '📙';
+  if (['zip', 'rar', '7z'].indexOf(ext) >= 0) return '🗜️';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].indexOf(ext) >= 0) return '🖼️';
+  if (['mp3', 'wav', 'm4a'].indexOf(ext) >= 0) return '🎵';
+  if (['mp4', 'mov', 'm4v'].indexOf(ext) >= 0) return '🎬';
+  if (ext === 'txt' || ext === 'md') return '📄';
+  return '📎';
+}
+
+async function renderMaterials() {
+  var container = document.getElementById('materialsContent');
+  var meta = document.getElementById('materialsMeta');
+  if (!container) return;
+  var role = getCurrentRole();
+
+  // 拉资料（公开接口，未登录也能看）
+  try {
+    var resp = await fetch(API_BASE + '/materials/list', { cache: 'no-cache' });
+    if (!resp.ok) throw new Error('加载资料失败');
+    _materialsCache = await resp.json();
+  } catch (e) {
+    var tip = role === 'teacher'
+      ? '<p style="color:var(--text-muted);text-align:center;padding:24px 0;">资料加载失败：' + friendlyFetchError(e) + '</p>'
+      : '<p style="color:var(--text-muted);text-align:center;padding:24px 0;">老师暂未上传学习资料</p>';
+    container.innerHTML = tip;
+    if (meta) meta.textContent = '';
+    return;
+  }
+
+  var list = _materialsCache || [];
+  if (meta) {
+    meta.textContent = list.length > 0
+      ? ('共 ' + list.length + ' 份')
+      : '';
+  }
+
+  if (list.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:24px 0;">📂 老师暂未上传学习资料，敬请期待</p>' +
+      (role === 'teacher' ? renderMaterialUploadForm() : '');
+    if (role === 'teacher') bindMaterialUploadForm();
+    return;
+  }
+
+  var itemsHtml = list.map(function(m, idx) {
+    var url = materialPublicUrl(m.file_url);
+    var icon = materialIconByExt(m.original_name || m.file_url);
+    var catTag = m.category ? '<span style="font-size:11px;color:var(--primary);background:rgba(74,144,217,0.08);padding:2px 8px;border-radius:10px;margin-right:6px;">' + escapeHtml(m.category) + '</span>' : '';
+    var descHtml = m.description ? '<p style="font-size:13px;color:var(--text-secondary);margin:4px 0 0;">' + escapeHtml(m.description) + '</p>' : '';
+    var time = (m.created_at || '').slice(0, 10);
+
+    var teacherBtns = '';
+    if (role === 'teacher') {
+      teacherBtns = '<div style="display:flex;gap:6px;flex-shrink:0;">' +
+        '<button class="btn btn-outline" style="padding:4px 10px;font-size:12px;" onclick="editMaterial(' + m.id + ')">✏️ 编辑</button>' +
+        '<button class="btn btn-outline" style="padding:4px 10px;font-size:12px;color:var(--danger);border-color:var(--danger);" onclick="deleteMaterial(' + m.id + ')">🗑️ 删除</button>' +
+        '</div>';
+    }
+
+    return '<div style="display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px dashed var(--border);' + (idx === list.length - 1 ? 'border-bottom:none;' : '') + '">' +
+      '<div style="font-size:28px;flex-shrink:0;line-height:1;">' + icon + '</div>' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:2px;">' + catTag +
+          '<a href="' + url + '" download="' + escapeHtml(m.original_name || '') + '" target="_blank" rel="noopener" ' +
+             'style="color:var(--primary);text-decoration:none;font-size:15px;font-weight:500;word-break:break-all;">' +
+            escapeHtml(m.title) + '</a>' +
+        '</div>' +
+        descHtml +
+        '<p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">' +
+          escapeHtml(m.original_name || '') + ' · ' + humanFileSize(m.file_size) + ' · ' + time +
+        '</p>' +
+      '</div>' +
+      teacherBtns +
+      '</div>';
+  }).join('');
+
+  var uploaderHtml = '';
+  if (role === 'teacher') {
+    uploaderHtml = '<div style="margin-top:20px;padding-top:16px;border-top:1px dashed var(--border);">' +
+      renderMaterialUploadForm() + '</div>';
+  }
+
+  container.innerHTML = '<div class="material-list" style="margin:0;">' + itemsHtml + '</div>' + uploaderHtml;
+
+  // 教师端上传表单事件重绑（与作业上传风格一致）
+  if (role === 'teacher') bindMaterialUploadForm();
+}
+
+function renderMaterialUploadForm() {
+  // 简洁版：用 innerHTML 文本引用以保持 XSS 安全
+  return '<div id="matUploadFormWrap">' +
+    '<h4 style="margin:0 0 12px;font-size:15px;">➕ 上传新资料</h4>' +
+    '<form id="matUploadForm" onsubmit="return false;">' +
+      '<div class="form-group"><label>资料标题（必填，给学生看的）</label><input type="text" id="matTitle" required maxlength="100" placeholder="如：分数练习1-3（参考答案）"></div>' +
+      '<div class="form-group"><label>说明（可选）</label><textarea id="matDesc" maxlength="500" placeholder="一句话告诉学生这份资料讲什么/怎么用"></textarea></div>' +
+      '<div class="form-group"><label>分类</label><select id="matCategory"><option value="讲义">📘 讲义</option><option value="试卷">📝 试卷</option><option value="教辅">📗 教辅</option><option value="答案">✅ 答案</option><option value="其他">📎 其他</option></select></div>' +
+      '<div class="form-group"><label>文件（≤ 50MB；支持 PDF/Word/Excel/PPT/图片/压缩包/TXT/音视频）</label>' +
+        '<div class="hw-upload-area" id="matDropZone" style="padding:16px;">' +
+          '<div style="font-size:32px;margin-bottom:4px;">📤</div>' +
+          '<p style="font-size:13px;font-weight:500;color:var(--text-secondary);">点击或拖拽文件到此</p>' +
+          '<input type="file" id="matFileInput" style="display:none;">' +
+        '</div>' +
+        '<p id="matFileName" style="font-size:12px;color:var(--text-muted);margin:6px 0 0;"></p>' +
+      '</div>' +
+      '<div id="matUploadStatus" style="text-align:center;margin-top:8px;font-size:13px;"></div>' +
+      '<button type="button" id="matSubmitBtn" class="btn btn-primary" style="width:100%;margin-top:12px;" onclick="uploadMaterial()">📤 上传资料</button>' +
+    '</form></div>';
+}
+
+function bindMaterialUploadForm() {
+  var dropZone = document.getElementById('matDropZone');
+  var fileInput = document.getElementById('matFileInput');
+  if (dropZone && fileInput) {
+    dropZone.addEventListener('click', function() { fileInput.click(); });
+    fileInput.addEventListener('change', function() { showMaterialFileName(this); });
+    dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.style.background = 'var(--primary-bg)'; });
+    dropZone.addEventListener('dragleave', function() { dropZone.style.background = ''; });
+    dropZone.addEventListener('drop', function(e) {
+      e.preventDefault(); dropZone.style.background = '';
+      var files = e.dataTransfer.files; if (files.length) {
+        fileInput.files = files; showMaterialFileName(fileInput);
+      }
+    });
+  }
+}
+
+function showMaterialFileName(input) {
+  var info = document.getElementById('matFileName');
+  if (!input.files || !input.files[0]) { if (info) info.textContent = ''; return; }
+  var f = input.files[0];
+  if (info) info.textContent = '已选：' + f.name + ' · ' + humanFileSize(f.size);
+}
+
+async function uploadMaterial() {
+  if (!isCloudLoggedIn()) { showToast('请先登录教师账号', 'error'); return; }
+  var titleEl = document.getElementById('matTitle');
+  var descEl = document.getElementById('matDesc');
+  var catEl = document.getElementById('matCategory');
+  var fileEl = document.getElementById('matFileInput');
+  var statusEl = document.getElementById('matUploadStatus');
+  var btn = document.getElementById('matSubmitBtn');
+  if (!titleEl || !fileEl) return;
+
+  var title = (titleEl.value || '').trim();
+  var file = fileEl.files && fileEl.files[0];
+  if (!title) { showToast('请填写资料标题', 'error'); titleEl.focus(); return; }
+  if (!file) { showToast('请选择文件', 'error'); return; }
+
+  var fd = new FormData();
+  fd.append('title', title);
+  fd.append('description', descEl ? (descEl.value || '') : '');
+  fd.append('category', catEl ? (catEl.value || '讲义') : '讲义');
+  fd.append('file', file);
+
+  if (btn) { btn.disabled = true; btn.textContent = '📤 上传中...'; }
+  if (statusEl) statusEl.textContent = '';
+  try {
+    var resp = await fetchWithAuth('/materials/upload', { method: 'POST', body: fd });
+    if (!resp.ok) {
+      var err = await resp.text();
+      throw new Error(extractErrorDetail(err) || ('上传失败 ' + resp.status));
+    }
+    var data = await resp.json();
+    showToast('✅ 上传成功：' + data.title, 'success');
+    // 清空表单
+    titleEl.value = ''; if (descEl) descEl.value = '';
+    fileEl.value = ''; var info = document.getElementById('matFileName'); if (info) info.textContent = '';
+    // 重新渲染
+    await renderMaterials();
+  } catch (e) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--danger);">' + friendlyFetchError(e) + '</span>';
+    showToast('上传失败：' + friendlyFetchError(e), 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📤 上传资料'; }
+  }
+}
+
+function editMaterial(matId) {
+  if (getCurrentRole() !== 'teacher') { showToast('仅教师可编辑', 'error'); return; }
+  var m = (_materialsCache || []).find(function(x) { return x.id === matId; });
+  if (!m) return;
+  openFormModal('编辑资料', [
+    { label: '资料标题', name: 'title', type: 'text', value: m.title, required: true },
+    { label: '说明', name: 'description', type: 'textarea', value: m.description || '' },
+    { label: '分类', name: 'category', type: 'select', value: m.category || '讲义', options: [
+      {value:'讲义',text:'📘 讲义'},{value:'试卷',text:'📝 试卷'},{value:'教辅',text:'📗 教辅'},{value:'答案',text:'✅ 答案'},{value:'其他',text:'📎 其他'}
+    ]},
+  ], async function(data) {
+    try {
+      var resp = await fetchWithAuth('/materials/' + matId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!resp.ok) {
+        var err = await resp.text();
+        throw new Error(extractErrorDetail(err) || '保存失败 ' + resp.status);
+      }
+      showToast('✅ 已更新', 'success');
+      await renderMaterials();
+    } catch (e) {
+      showToast('保存失败：' + friendlyFetchError(e), 'error');
+    }
+  }, '保存');
+}
+
+async function deleteMaterial(matId) {
+  if (getCurrentRole() !== 'teacher') { showToast('仅教师可删除', 'error'); return; }
+  var m = (_materialsCache || []).find(function(x) { return x.id === matId; });
+  if (!m) return;
+  if (!confirm('确定删除资料「' + m.title + '」吗？\n（文件将从服务器移除）')) return;
+  try {
+    var resp = await fetchWithAuth('/materials/' + matId, { method: 'DELETE' });
+    if (!resp.ok) {
+      var err = await resp.text();
+      throw new Error(extractErrorDetail(err) || '删除失败 ' + resp.status);
+    }
+    showToast('✅ 已删除', 'success');
+    await renderMaterials();
+  } catch (e) {
+    showToast('删除失败：' + friendlyFetchError(e), 'error');
+  }
 }
 
 function previewHwImage(input) {
