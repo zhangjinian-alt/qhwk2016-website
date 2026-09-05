@@ -8630,7 +8630,7 @@ function renderHwGrading() {
       '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">先上传标准答案，学生提交同标题作业时 AI 会对照答案批改，准确率更高</p>' +
       '<div id="answerKeyList"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p></div>' +
       '</div>' +
-      // 未交 / 未订正管理区（2026-09-13）
+      // 未交 / 未订正管理区（2026-09-05）
       '<div class="ak-card" style="margin-top:16px;">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
       '<h4 style="margin:0;">📌 未交 / 未订正管理</h4>' +
@@ -8716,7 +8716,7 @@ async function loadHwTeacherList(filter) {
   }
 }
 
-// ===== 未交 / 未订正管理（教师端，2026-09-13） =====
+// ===== 未交 / 未订正管理（教师端，2026-09-05） =====
 var _hwPendingData = null;
 
 async function loadHwPendingManage(force) {
@@ -8816,7 +8816,7 @@ function urgeHomeworkNotice(kind, className) {
   }, '发布催办通知');
 }
 
-// ===== 学生个人待办卡片（未交作业 + 未订正提醒，2026-09-13） =====
+// ===== 学生个人待办卡片（未交作业 + 未订正提醒，2026-09-05） =====
 async function loadStudentPendingCard() {
   var card = document.getElementById('hwPendingCard');
   if (!card) return;
