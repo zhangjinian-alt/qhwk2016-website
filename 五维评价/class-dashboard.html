@@ -605,7 +605,7 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
         <div style="border:2px dashed var(--slate-300);border-radius:12px;padding:28px;text-align:center;background:var(--slate-50);cursor:pointer;transition:all .2s;" id="excelDropZone" ondragover="event.preventDefault();" ondrop="handleExcelDrop(event)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:40px;height:40px;color:var(--blue);margin:0 auto 10px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg>
           <div style="font-size:15px;font-weight:600;color:var(--slate-700);">点击或拖拽上传 Excel 文件</div>
-          <div style="font-size:12px;color:var(--slate-500);margin-top:6px;">支持 .xlsx / .xls，表头第 2 行：姓名、作业、课堂、周末、书写、善上</div>
+          <div style="font-size:12px;color:var(--slate-500);margin-top:6px;">支持 .xlsx / .xls，表头第 2 行：姓名、思维品质、合作交流、学习习惯</div>
           <input type="file" id="excelFileInput" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style="display:none;" onchange="handleExcelFile(this)">
         </div>
         <div id="excelFileName" style="font-size:13px;color:var(--slate-600);margin-top:10px;display:none;"></div>
@@ -615,9 +615,9 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
           格式说明
         </h4>
-        <code id="formatDesc">每行格式：姓名,周次,作业完成,课堂表现,周末自律,书写标兵,善上少年</code>
-        <div class="fmt-example" id="formatExample">张小明,4,9,8,7,9,10
-李小红,4,10,9,8,9,10</div>
+        <code id="formatDesc">每行格式：姓名,周次,思维品质,合作交流,学习习惯</code>
+        <div class="fmt-example" id="formatExample">张小明,4,9,8,7
+李小红,4,10,9,8</div>
       </div>
       <div id="behaviorSection" style="display:none;margin-top:14px;">
         <div id="behaviorPreview" style="background:var(--slate-50);border:1px solid var(--slate-200);border-radius:10px;padding:14px;min-height:60px;">
@@ -653,7 +653,7 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
     </div>
     <div class="modal-body">
       <div id="cloudLoginSection">
-        <p style="font-size:12px;color:var(--slate-500);margin-bottom:16px;line-height:1.7;">将老师三维评分（思维品质/学习态度/学习习惯）上传到云端，可跨设备恢复、供学生端查询。<br>请使用教师账号登录（与主站"☁️ 云端同步"同一账号）。</p>
+        <p style="font-size:12px;color:var(--slate-500);margin-bottom:16px;line-height:1.7;">将老师三维评分（思维品质/合作交流/学习习惯）上传到云端，可跨设备恢复、供学生端查询。<br>请使用教师账号登录（与主站"☁️ 云端同步"同一账号）。</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <input id="cloudUsername" placeholder="教师账号" style="flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;">
           <input id="cloudPassword" type="password" placeholder="密码" style="flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;">
@@ -676,7 +676,7 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
           <button id="cloudDownloadBtn" class="modal-btn modal-btn-cancel" style="flex:1;padding:10px;">⬇ 下载云端评分</button>
         </div>
         <div id="cloudHint" style="font-size:12px;color:var(--slate-500);margin-top:12px;line-height:1.7;">
-          上传：把当前班级本周学生的老师三维评分（思维/态度/习惯）保存到云端（重复上传覆盖该周三维，不影响系统自动的"兴趣/效果"分）。<br>
+          上传：把当前班级本周学生的老师三维评分（思维/合作/习惯）保存到云端（重复上传覆盖该周三维，不影响系统自动的"兴趣/效果"分）。<br>
           下载：拉取云端该班级全部周次的<b>完整五维</b>（含系统自动的学习兴趣/学习效果）并合并到本地。
         </div>
         <div id="cloudSyncStatus" style="display:none;margin-top:12px;padding:10px 12px;border-radius:9px;background:var(--slate-50);border:1px solid var(--slate-200);font-size:12px;color:var(--slate-600);line-height:1.6;"></div>
@@ -771,31 +771,32 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
 // ============================================================
 
 // ===== 五维评价维度配置 =====
-// 完整五维 = 学习兴趣(系统自动) + 学习效果(系统自动) + 思维品质(老师) + 学习态度(老师) + 学习习惯(老师)
-// 老师端编辑/导入的是 think/attitude/habit；interest/effect 由主站学生端自动采集后云端下发
+// 完整五维 = 学习兴趣(系统自动) + 学习效果(系统自动) + 思维品质(老师) + 合作交流(老师) + 学习习惯(老师)
+// 老师端编辑/导入的是 think/coop/habit；interest/effect 由主站学生端自动采集后云端下发
 const DEFAULT_DIMS = [
   { key:'think', name:'思维品质', short:'思维', color:'#2563eb', bg:'#dbeafe',
     icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>',
-    desc:'课堂举手+回答问题+小组合作' },
-  { key:'attitude', name:'学习态度', short:'态度', color:'#f59e0b', bg:'#fef3c7',
-    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7c.6.5 1 1.3 1 2.1V18h6v-1.2c0-.8.4-1.6 1-2.1A7 7 0 0012 2z"/></svg>',
-    desc:'作业完成' },
+    desc:'回答/质疑/补充 + 素养题得分' },
+  { key:'coop', name:'合作交流', short:'合作', color:'#f59e0b', bg:'#fef3c7',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    desc:'小组交流 + 师徒互帮互助' },
   { key:'habit', name:'学习习惯', short:'习惯', color:'#10b981', bg:'#d1fae5',
     icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>',
-    desc:'草稿及作业书写' },
+    desc:'作业提交 + 作业书写 + 使用草稿' },
 ];
 
 const AUTO_DIMS = [
   { key:'interest', name:'学习兴趣', short:'兴趣', color:'#8b5cf6', bg:'#ede9fe',
     icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
-    desc:'系统自动 · 完整观看视频' },
+    desc:'系统自动 · 同步课堂/培优微课完整观看' },
   { key:'effect', name:'学习效果', short:'效果', color:'#06b6d4', bg:'#cffafe',
     icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>',
-    desc:'系统自动 · 作业正确率+订正' },
+    desc:'系统自动 · 周末作业正确率 + 错题订正' },
 ];
 
 // 旧五维 key → 新三维映射（真实评价重构，旧数据自动迁移）
-const LEGACY_DIM_MAP = { homework:'attitude', focus:'think', writing:'habit' };
+// attitude（原学习态度）→ coop（合作交流）
+const LEGACY_DIM_MAP = { homework:'coop', focus:'think', writing:'habit', attitude:'coop' };
 
 let DIMS = (function(){
   const saved = JSON.parse(localStorage.getItem('classDash_dims')) || null;
@@ -905,7 +906,7 @@ function saveState(){
   localStorage.setItem(STATE_KEY, JSON.stringify(toSave));
 }
 function migrateWeekData(wk){
-  // 旧五维数据 → 新三维（真实评价重构）：homework→态度 focus→思维 writing→习惯；ideas/kindness 丢弃
+  // 旧五维数据 → 新三维（真实评价重构）：homework/attitude→合作 focus→思维 writing→习惯；ideas/kindness 丢弃
   // interest/effect（云端系统自动分）原样保留
   let changed = false;
   Object.keys(LEGACY_DIM_MAP).forEach(function(oldK){
@@ -1874,14 +1875,14 @@ async function cloudUpload(){
   if(!className){ showToast('请填写班级名称','error'); return; }
   STATE.className = className;
   saveState();
-  // 收集当前周所有学生评分（服务器固定 3 键：思维/态度/习惯；兴趣/效果为系统自动分，不在此上传）
+  // 收集当前周所有学生评分（服务器固定 3 键：思维/合作/习惯；兴趣/效果为系统自动分，不在此上传）
   const records = [];
   STATE.students.forEach(function(s){
     const wk = getWeekData(s, week) || {};
     records.push({
       student_name: s.name,
       think: wk.think !== undefined ? wk.think : (wk.focus || 0),
-      attitude: wk.attitude !== undefined ? wk.attitude : (wk.homework || 0),
+      coop: wk.coop !== undefined ? wk.coop : (wk.attitude !== undefined ? wk.attitude : (wk.homework || 0)),
       habit: wk.habit !== undefined ? wk.habit : (wk.writing || 0)
     });
   });
@@ -1914,7 +1915,7 @@ async function cloudUpload(){
     showToast('当前为演示数据，无法上传','error');
     return;
   }
-  const nonZero = records.filter(r=>r.think>0 || r.attitude>0 || r.habit>0).length;
+  const nonZero = records.filter(r=>r.think>0 || r.coop>0 || r.habit>0).length;
   if(!nonZero){
     setStatus('当前本周评分全为 0 分，无法上传。请先导入或填写本周评分。','error');
     showToast('当前本周评分全为 0 分，无法上传','error');
@@ -2002,11 +2003,11 @@ async function cloudDownload(){
         wk = { week: r.week };
         st.weeks.push(wk);
       }
-      // 完整五维合并：interest/effect 系统自动（只读展示），think/attitude/habit 老师导入（可编辑）
+      // 完整五维合并：interest/effect 系统自动（只读展示），think/coop/habit 老师导入（可编辑）
       wk.interest = r.interest;
       wk.effect = r.effect;
       wk.think = r.think;
-      wk.attitude = r.attitude;
+      wk.coop = r.coop !== undefined ? r.coop : (r.attitude || 0);
       wk.habit = r.habit;
     });
     // 按 id 稳定排序
@@ -2501,7 +2502,7 @@ function parseCSV(text){
 function parseJSON(text){
   const data = JSON.parse(text);
   if(!Array.isArray(data)) throw new Error('JSON应为数组格式');
-  // 期望格式: [{name, weeks:[{week, think, attitude, habit}]}]
+  // 期望格式: [{name, weeks:[{week, think, coop, habit}]}]
   let maxWeek = 0;
   const newStudents = data.map((s,idx)=>{
     if(!s.name) throw new Error(`第${idx+1}条记录缺少name`);
@@ -2595,14 +2596,14 @@ function parseExcelWorkbook(workbook){
   }
   if(headerIdx === -1) throw new Error('未找到包含"姓名"的表头行');
   var headers = rows[headerIdx].map(function(v){ return (v || '').toString().trim(); });
-  // 列映射：根据表���中文名匹配到系统维度 key
-  // 默认映射：思维->think 态度->attitude 习惯->habit（兼容旧表头：作业->态度 课堂->思维 书写->习惯）
+  // 列映射：根据表头中文名匹配到系统维度 key
+  // 默认映射：思维->think 合作/交流/互助->coop 习惯->habit（兼容旧表头：态度/作业->合作 课堂/思维->think 书写/草稿->habit）
   var colMap = [];
   var nameCol = -1;
   var ignoreCols = [];
   var headerWords = {
-    'think': ['思维', '课堂', '专注', '举手', '回答', '合作', '表现'],
-    'attitude': ['态度', '作业'],
+    'think': ['思维', '课堂', '专注', '举手', '回答', '表现'],
+    'coop': ['合作', '交流', '互助', '师徒', '态度', '作业'],
     'habit': ['习惯', '书写', '草稿', '卷面']
   };
   headers.forEach(function(h, idx){
@@ -2611,10 +2612,10 @@ function parseExcelWorkbook(workbook){
     if(/^(序号|排名|学号|总分|总评|合计|备注)/.test(h)){ ignoreCols.push(idx); return; }
     var lower = h.toLowerCase();
     if(lower === 'think') key = 'think';
-    else if(lower === 'attitude') key = 'attitude';
+    else if(lower === 'coop') key = 'coop';
     else if(lower === 'habit') key = 'habit';
-    // 兼容旧英文键：homework->态度  focus->思维  writing->习惯
-    else if(lower === 'homework') key = 'attitude';
+    // 兼容旧英文键：homework/attitude->合作  focus->思维  writing->习惯
+    else if(lower === 'homework' || lower === 'attitude') key = 'coop';
     else if(lower === 'focus') key = 'think';
     else if(lower === 'writing') key = 'habit';
     else {
@@ -2638,7 +2639,7 @@ function parseExcelWorkbook(workbook){
   DIMS.forEach(function(d){
     if(matchedKeys.indexOf(d.key) === -1) missing.push(d.key);
   });
-  if(colMap.length === 0) throw new Error('未识别到任何维度列（思维品质/学习态度/学习习惯）');
+  if(colMap.length === 0) throw new Error('未识别到任何维度列（思维品质/合作交流/学习习惯）');
   var missingNames = [];
   DIMS.forEach(function(d){
     if(matchedKeys.indexOf(d.key) === -1) missingNames.push(d.name);
