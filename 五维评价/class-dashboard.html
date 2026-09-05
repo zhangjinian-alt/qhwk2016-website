@@ -1049,6 +1049,22 @@ function isAllStar(student, week){
 }
 
 // ===== KPI 计算 =====
+// 自动维度（interest/effect）均分：只统计本周有真实自动分的学生，避免无数据学生拉低均分
+function autoDimAvgFor(key, week){
+  const vals = [];
+  STATE.students.forEach(s=>{
+    const v = (getWeekData(s, week) || {})[key];
+    if(typeof v === 'number' && v > 0) vals.push(v);
+  });
+  return vals.length ? avg(vals) : 0;
+}
+// 本周是否有任何学生带系统自动分（决定班级图表按五维还是三维展示）
+function weekHasAutoData(week){
+  return STATE.students.some(s=>{
+    const d = getWeekData(s, week) || {};
+    return (typeof d.interest === 'number' && d.interest > 0) || (typeof d.effect === 'number' && d.effect > 0);
+  });
+}
 function calcKPIs(week){
   const sts = STATE.students;
   const prevWeek = week>1 ? week-1 : null;
@@ -1093,12 +1109,18 @@ function calcKPIs(week){
     const scores = sts.map(s=>(getWeekData(s,week)||{})[dim.key]||0);
     dimAvgs[dim.key] = avg(scores);
   });
-  let bestDim = DIMS[0], bestAvg = 0;
-  DIMS.forEach(dim=>{
+  // 2026-09-05：系统自动维度（兴趣/效果）并入班级五维，班级雷达/柱状/折线统一五维展示
+  const hasAutoData = weekHasAutoData(week);
+  AUTO_DIMS.forEach(dim=>{
+    dimAvgs[dim.key] = autoDimAvgFor(dim.key, week);
+  });
+  const bestDimPool = hasAutoData ? ALL_DIMS : DIMS;
+  let bestDim = bestDimPool[0], bestAvg = 0;
+  bestDimPool.forEach(dim=>{
     if(dimAvgs[dim.key] > bestAvg){ bestAvg = dimAvgs[dim.key]; bestDim = dim; }
   });
 
-  return { classAvg, prevClassAvg, starCount, starPct, topProgress, bestDim, bestAvg, dimAvgs };
+  return { classAvg, prevClassAvg, starCount, starPct, topProgress, bestDim, bestAvg, dimAvgs, hasAutoData };
 }
 
 // ===== SVG 图表渲染 =====
@@ -1387,8 +1409,9 @@ function renderKPIs(){
   const topProgressNames = k.topProgress.map(p=>p.name).join('、');
   const topProgressDelta = k.topProgress.length>0 ? k.topProgress[0].delta : 0;
 
-  // KPI4: 最强风气标
-  const dimAvgsArr = DIMS.map(d=>k.dimAvgs[d.key]);
+  // KPI4: 最强风气标（2026-09-05：迷你图与班级大图口径一致，有自动分时按五维）
+  const miniChartDims = k.hasAutoData ? ALL_DIMS : DIMS;
+  const dimAvgsArr = miniChartDims.map(d=>k.dimAvgs[d.key]);
 
   // 迷你图数据
   // KPI1: 最近4周综合均分趋势
@@ -1401,13 +1424,13 @@ function renderKPIs(){
     });
     weekAvgs.push(avg(scores));
   }
-  // KPI2: 迷你雷达 - 本周三维均分
-  const radarData = DIMS.map(d=>k.dimAvgs[d.key]);
+  // KPI2: 迷你雷达 - 本周五维（有自动分时）均分
+  const radarData = miniChartDims.map(d=>k.dimAvgs[d.key]);
   // KPI3: 迷你折线 - top1学生的进步趋势
   const top1Student = k.topProgress.length>0 ? STATE.students.find(s=>s.name===k.topProgress[0].name) : null;
   const top1Trend = top1Student ? STATE.totalWeeks>0 ? Array.from({length:STATE.totalWeeks},(_,i)=>studentWeekAvg(top1Student,i+1)) : [] : [];
-  // KPI4: 迷你柱状 - 三维均分
-  const barData = DIMS.map(d=>k.dimAvgs[d.key]);
+  // KPI4: 迷你柱状 - 本周五维（有自动分时）均分
+  const barData = miniChartDims.map(d=>k.dimAvgs[d.key]);
 
   container.innerHTML = `
     <!-- KPI1: 班级综合均分 -->
@@ -1502,17 +1525,24 @@ function renderKPIs(){
 function renderClassCharts(){
   const k = calcKPIs(STATE.currentWeek);
 
-  // 1. 雷达图 - 三维
-  const chartDims = DIMS;
+  // 2026-09-05：云端已下载系统自动分（兴趣/效果）→ 完整五维；否则回退老师三维
+  const chartDims = k.hasAutoData ? ALL_DIMS : DIMS;
+
+  // 1. 雷达图 - 班级五维
   const radarData = chartDims.map(d=>({ label:d.short, value:k.dimAvgs[d.key], color:d.color }));
   renderRadar($('#classRadarChart'), radarData, { fill:'rgba(37,99,235,.1)', stroke:'#2563eb' });
 
-  // 2. 柱状图 - 三维
+  // 2. 柱状图 - 班级五维
   const prevDimAvgs = STATE.currentWeek>1 ? {} : null;
   if(prevDimAvgs){
     chartDims.forEach(d=>{
-      const scores = STATE.students.map(s=>(getWeekData(s,STATE.currentWeek-1)||{})[d.key]||0);
-      prevDimAvgs[d.key] = avg(scores);
+      if(d.key === 'interest' || d.key === 'effect'){
+        // 自动维度上周均分同样按"有分学生"过滤
+        prevDimAvgs[d.key] = autoDimAvgFor(d.key, STATE.currentWeek-1);
+      } else {
+        const scores = STATE.students.map(s=>(getWeekData(s,STATE.currentWeek-1)||{})[d.key]||0);
+        prevDimAvgs[d.key] = avg(scores);
+      }
     });
   }
   const barData = chartDims.map(d=>({
@@ -1521,12 +1551,16 @@ function renderClassCharts(){
   }));
   renderBarChart($('#classBarChart'), barData, { maxVal:10 });
 
-  // 3. 折线图 - 三维
+  // 3. 折线图 - 班级五维
   const lineSeries = chartDims.map(d=>{
     const data = [];
     for(let w=1;w<=STATE.totalWeeks;w++){
-      const scores = STATE.students.map(s=>(getWeekData(s,w)||{})[d.key]||0);
-      data.push({ x:w, y:avg(scores) });
+      if(d.key === 'interest' || d.key === 'effect'){
+        data.push({ x:w, y:autoDimAvgFor(d.key, w) });
+      } else {
+        const scores = STATE.students.map(s=>(getWeekData(s,w)||{})[d.key]||0);
+        data.push({ x:w, y:avg(scores) });
+      }
     }
     return { name:d.name, color:d.color, data };
   });
@@ -1976,7 +2010,8 @@ async function cloudDownload(){
   const term = STATE.selectedTerm;
   if(!className){ showToast('请填写班级名称','error'); return; }
   try{
-    let url = '/eval/records?class_name=' + encodeURIComponent(className);
+    let url = '/eval/records?class_name=' + encodeURIComponent(className)
+      + '&refresh_auto=1';  // 2026-09-05：下载前让后端重算本周系统自动分（兴趣/效果），班级雷达才有完整五维
     if(term) url += '&term=' + encodeURIComponent(term);
     const resp = await fetch(CLOUD_API_BASE + url, {
       headers:{'Authorization':'Bearer ' + getCloudToken()}
