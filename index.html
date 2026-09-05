@@ -2211,7 +2211,7 @@ function showChangePinUI() {
 }
 
 // Click outside to close
-console.log('%c青花微课 v20260816-21 数据管理仅教师端可见', 'color:#4A90D9;font-size:14px;font-weight:bold');
+console.log('%c青花微课 v20260905-22 数据管理仅教师端可见', 'color:#4A90D9;font-size:14px;font-weight:bold');
 document.addEventListener("DOMContentLoaded", function() {
   document.getElementById("authModal").addEventListener("click", function(e) {
     if (e.target === this) closeAuthModal();
@@ -8597,6 +8597,7 @@ async function loadHwTeacherList(filter) {
         (h.status === 'graded' ? '<button class="btn btn-primary" style="padding:6px 14px;font-size:13px;" onclick="reviewHw(' + h.id + ')">📝 复核确认</button>' : '') +
         (h.status === 'graded' || h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="viewHwDetail(' + h.id + ')">👁️ 查看详情</button>' : '') +
         (h.status !== 'grading' && h.title && answerKeyTitles.indexOf(h.title) >= 0 ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--primary);" onclick="regradeHw(' + h.id + ')">🔄 重新批改</button>' : '') +
+        (h.status === 'failed' ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--warning);" onclick="regradeHw(' + h.id + ')">🔄 重新批改</button>' : '') +
         '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--danger);" onclick="deleteHw(' + h.id + ')">🗑️ 删除</button>' +
         '</div></div></div>';
     }).join('');
