@@ -4565,7 +4565,7 @@ function getClassDashTopStudent() {
     var state = JSON.parse(raw);
     if (!state || !Array.isArray(state.students) || state.students.length === 0 || !state.currentWeek) return null;
     var week = state.currentWeek;
-    var dims = [{key:'think', name:'思维'}, {key:'attitude', name:'态度'}, {key:'habit', name:'习惯'}];
+    var dims = [{key:'think', name:'思维'}, {key:'coop', name:'合作'}, {key:'habit', name:'习惯'}];
     var top = null, topAvg = -1;
     state.students.forEach(function(s){
       if (!s || !Array.isArray(s.weeks)) return;
@@ -4705,11 +4705,11 @@ async function renderStudentEval() {
   html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">2026秋季学期 · 第 ' + getTeachWeek() + ' 周 · 403班</p>';
   html += '<div style="font-size:14px;color:var(--text-secondary);line-height:2.2;">';
   html += '<p>🎯 五维总分：<b style="color:var(--primary);font-size:18px;">' + parseFloat(evalData.total).toFixed(1) + '</b> 分</p>';
-  html += '<p>❤️ 学习兴趣：' + evalData.interest + ' 分 <span style="color:var(--text-muted);font-size:12px;">（完整观看视频）</span></p>';
-  html += '<p>✅ 学习效果：' + evalData.effect + ' 分 <span style="color:var(--text-muted);font-size:12px;">（作业正确率+订正）</span></p>';
-  html += '<p>🧠 思维品质：' + evalData.think + ' 分 <span style="color:var(--text-muted);font-size:12px;">（课堂举手+课堂回答+合作交流）</span></p>';
-  html += '<p>🙋 学习态度：' + evalData.attitude + ' 分 <span style="color:var(--text-muted);font-size:12px;">（作业完成+课堂纪律）</span></p>';
-  html += '<p>📖 学习习惯：' + evalData.habit + ' 分 <span style="color:var(--text-muted);font-size:12px;">（使用草稿+作业书写）</span></p>';
+  html += '<p>❤️ 学习兴趣：' + evalData.interest + ' 分 <span style="color:var(--text-muted);font-size:12px;">（同步课堂/培优微课 · 完整观看）</span></p>';
+  html += '<p>✅ 学习效果：' + evalData.effect + ' 分 <span style="color:var(--text-muted);font-size:12px;">（周末作业正确率+错题订正）</span></p>';
+  html += '<p>🧠 思维品质：' + evalData.think + ' 分 <span style="color:var(--text-muted);font-size:12px;">（回答/质疑/补充+素养题得分）</span></p>';
+  html += '<p>🤝 合作交流：' + evalData.coop + ' 分 <span style="color:var(--text-muted);font-size:12px;">（小组交流+师徒互助）</span></p>';
+  html += '<p>📖 学习习惯：' + evalData.habit + ' 分 <span style="color:var(--text-muted);font-size:12px;">（作业提交+书写+草稿）</span></p>';
   html += '</div></div></div>';
 
   // 本周学习任务（按分层推送的视频）
@@ -5514,8 +5514,8 @@ function draw5DRadar() {
   if (window._studentEval) {
     // 学生真实五维数据（各维度满分 10 分）
     var ev = window._studentEval;
-    labels = ['学习兴趣', '学习效果', '思维品质', '学习态度', '学习习惯'];
-    values = [ev.interest, ev.effect, ev.think, ev.attitude, ev.habit].map(function(v) {
+    labels = ['学习兴趣', '学习效果', '思维品质', '合作交流', '学习习惯'];
+    values = [ev.interest, ev.effect, ev.think, ev.coop, ev.habit].map(function(v) {
       return Math.max(0, Math.min(1, (Number(v) || 0) / 10));
     });
   } else {
