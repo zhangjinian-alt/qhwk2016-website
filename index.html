@@ -8291,7 +8291,7 @@ async function loadHwMyList() {
             : '<p style="font-size:13px;color:var(--text-muted);">' + (h.status === 'failed' ? '批改失败，可撤回后重新拍清晰的再交' : '老师正在批改中，请稍候') + '</p>') +
           '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0, 10) + '</p>' +
           '<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">' +
-          (h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;" onclick="viewHwFeedback(' + h.id + ')">查看详细反馈</button>' : '') +
+          (h.status === 'graded' || h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;" onclick="viewHwFeedback(' + h.id + ')">查看详细反馈</button>' : '') +
           '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;color:var(--danger);" onclick="withdrawHw(' + h.id + ',\'' + h.status + '\')">↩️ 撤回重交</button>' +
           '</div></div></div>';
       }).join('');
