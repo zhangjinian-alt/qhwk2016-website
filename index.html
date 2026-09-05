@@ -1050,7 +1050,7 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
 <div class="container section">
   <h2 class="section-title"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f4ca" xlink:href="#tw-1f4ca"/></svg> 学习反馈</h2>
   <div class="time-filter" id="feedbackTimeFilter">
-    <button class="time-filter-btn active" onclick="setFeedbackTimeRange('week',this)">近一周</button>
+    <button class="time-filter-btn active" onclick="setFeedbackTimeRange('week',this)">本周</button>
     <button class="time-filter-btn" onclick="setFeedbackTimeRange('month',this)">近一月</button>
     <button class="time-filter-btn" onclick="setFeedbackTimeRange('all',this)">全部</button>
   </div>
@@ -1494,6 +1494,27 @@ function getTeachWeek(d) {
   var cur = new Date(d.getTime()); cur.setHours(0,0,0,0);
   var w = Math.floor((cur - start) / 86400000 / 7) + 1;
   return w < 1 ? 1 : w;
+}
+
+// 当前教学周的起始日（YYYY-MM-DD，周日起算），"当周"数据分组统一用它，与后端 _teach_week_start_date 一致
+function getTeachWeekStartDate() {
+  var now = new Date();
+  var start = new Date(TEACH_WEEK_START + 'T00:00:00');
+  var days = Math.floor((now - start) / 86400000);
+  if (days < 0) days = 0;
+  var ws = new Date(start.getTime() + (Math.floor(days / 7) * 7) * 86400000);
+  var m = (ws.getMonth() + 1), dd = ws.getDate();
+  return ws.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (dd < 10 ? '0' + dd : dd);
+}
+
+// created_at（SQLite UTC "YYYY-MM-DD HH:MM:SS"）→ 北京时间日期 "YYYY-MM-DD"
+function hwBeijingDate(utcStr) {
+  if (!utcStr) return '';
+  var d = new Date(String(utcStr).replace(' ', 'T') + (String(utcStr).indexOf('Z') < 0 ? 'Z' : ''));
+  if (isNaN(d.getTime())) return String(utcStr).slice(0, 10);
+  var bj = new Date(d.getTime() + 8 * 3600 * 1000);
+  var m = (bj.getMonth() + 1), dd = bj.getDate();
+  return bj.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (dd < 10 ? '0' + dd : dd);
 }
 
 // 本地记录的云端数据版本号（用于乐观锁）
@@ -4283,7 +4304,9 @@ function renderReviewRecommendations() {
   }
 }
 
-// 从云端拉取真实错题数据（AI批改 grade_result 提取，教师=全班，学生=本人）
+// 从云端拉取真实错题数据（AI批改 grade_result 提取；服务端已强制：学生只返回本人）
+// 展示规则：默认只显示本周（当前教学周）错题，历史错题一键展开/收起
+var _mistakeHistoryOpen = false;
 async function loadCloudMistakes(studentName) {
   var list = document.getElementById('mistakeList');
   if (!list) return;
@@ -4292,29 +4315,57 @@ async function loadCloudMistakes(studentName) {
     var resp = await fetchWithAuth('/mistakes' + query);
     if (!resp.ok) throw new Error('请求失败');
     var data = await resp.json();
-    if (!data.mistakes || data.mistakes.length === 0) {
+    var all = data.mistakes || [];
+    // 按教学周分组：本周（北京时间 >= 本周起始日）vs 历史
+    var weekStart = getTeachWeekStartDate();
+    var weekMistakes = [], historyMistakes = [];
+    all.forEach(function(m) {
+      (hwBeijingDate(m.created_at) >= weekStart ? weekMistakes : historyMistakes).push(m);
+    });
+    if (all.length === 0) {
       list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);"><div style="font-size:36px;margin-bottom:8px;">✅</div><p>暂无错题记录，继续保持！</p></div>';
       return;
     }
-    // 高频错误类型标签
-    var statsHtml = '';
-    if (data.error_stats && data.error_stats.length) {
-      statsHtml = data.error_stats.slice(0, 5).map(function(s) {
-        return '<span style="display:inline-block;background:#FCEBEB;color:#A32D2D;border-radius:12px;padding:2px 10px;font-size:12px;margin:2px 6px 2px 0;">' + s.type + ' ×' + s.count + '</span>';
-      }).join('');
-    }
-    var html = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;">' +
-      '<h4 style="margin-bottom:8px;">📈 错题统计（来自 AI 批改）</h4>' +
-      '<p style="font-size:14px;color:var(--text-secondary);">共 ' + data.total + ' 道错题</p>' +
-      (statsHtml ? '<div style="margin-top:8px;font-size:13px;color:var(--text-secondary);">高频错误：</div><div style="margin-top:4px;">' + statsHtml + '</div>' : '') +
-      '</div>';
-    html += data.mistakes.map(function(m) {
-      var who = m.student_name ? ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">— ' + m.student_name + ' · ' + (m.title || '') + '</span>' : '';
+    // 本周错误类型统计（只统计本周）
+    var weekStats = {};
+    weekMistakes.forEach(function(m) {
+      var t = m.error_type || '其他错误';
+      weekStats[t] = (weekStats[t] || 0) + 1;
+    });
+    var statsArr = Object.keys(weekStats).map(function(k) { return { type: k, count: weekStats[k] }; })
+      .sort(function(a, b) { return b.count - a.count; }).slice(0, 5);
+    var statsHtml = statsArr.map(function(s) {
+      return '<span style="display:inline-block;background:#FCEBEB;color:#A32D2D;border-radius:12px;padding:2px 10px;font-size:12px;margin:2px 6px 2px 0;">' + escHtmlSafe(s.type) + ' ×' + s.count + '</span>';
+    }).join('');
+    var isSelfView = getCurrentRole() !== 'teacher';
+    function mistakeHtml(m) {
+      var who = (!isSelfView && m.student_name) ? ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">— ' + escHtmlSafe(m.student_name) + ' · ' + escHtmlSafe(m.title || '') + '</span>' : '';
       var hint = m.hint ? ' <span style="font-size:12px;color:var(--text-secondary);">（' + fmtFrac(escapeHtml(m.hint)) + '）</span>' : '';
       return '<div class="mistake-item"><div class="question">❌ ' + fmtFrac(escapeHtml(m.question || '')) + who + '</div>' +
         '<div class="reason">⚠️ 错误原因：' + fmtFrac(escapeHtml(m.error_reason || m.error_type || '')) + '</div>' +
         '<div class="solution">✅ 正确解法：' + fmtFrac(escapeHtml(m.correct_answer || '')) + hint + '</div></div>';
-    }).join('');
+    }
+    var html = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;">' +
+      '<h4 style="margin-bottom:8px;">📈 本周错题（第' + getTeachWeek() + '周 · 来自 AI 批改）</h4>' +
+      '<p style="font-size:14px;color:var(--text-secondary);">本周错题 <strong>' + weekMistakes.length + '</strong> 道' +
+      (historyMistakes.length ? ' · 历史累计 ' + historyMistakes.length + ' 道' : '') + '</p>' +
+      (statsHtml ? '<div style="margin-top:8px;font-size:13px;color:var(--text-secondary);">本周高频错误：</div><div style="margin-top:4px;">' + statsHtml + '</div>' : '') +
+      '</div>';
+    if (weekMistakes.length === 0) {
+      html += '<div style="text-align:center;padding:24px;color:var(--text-muted);"><div style="font-size:32px;margin-bottom:8px;">🌟</div><p>本周暂无错题，继续保持！</p></div>';
+    } else {
+      html += weekMistakes.map(mistakeHtml).join('');
+    }
+    // 历史错题：一键收起（默认收起）
+    if (historyMistakes.length > 0) {
+      html += '<div style="margin-top:20px;">' +
+        '<button class="btn btn-outline" style="width:100%;padding:10px;font-size:14px;" onclick="toggleMistakeHistory()">' +
+        (_mistakeHistoryOpen ? '📂 收起历史错题（' + historyMistakes.length + ' 道）' : '📁 展开历史错题（' + historyMistakes.length + ' 道）') +
+        '</button>' +
+        '<div id="mistakeHistoryBox" style="' + (_mistakeHistoryOpen ? '' : 'display:none;') + 'margin-top:12px;">' +
+        historyMistakes.map(mistakeHtml).join('') + '</div></div>';
+    }
+    window._mistakeHistoryCache = { weekMistakes: weekMistakes, historyMistakes: historyMistakes };
     list.innerHTML = html;
   } catch (e) {
     console.log('错题加载失败:', e.message);
@@ -4322,14 +4373,30 @@ async function loadCloudMistakes(studentName) {
   }
 }
 
-// 从云端拉取智能复习推荐（基于AI批改错误类型统计）
+function toggleMistakeHistory() {
+  _mistakeHistoryOpen = !_mistakeHistoryOpen;
+  var box = document.getElementById('mistakeHistoryBox');
+  if (box) box.style.display = _mistakeHistoryOpen ? '' : 'none';
+  // 重绘按钮文案
+  var cache = window._mistakeHistoryCache;
+  var btns = document.querySelectorAll('#mistakeList button.btn-outline');
+  if (btns.length && cache) {
+    btns[btns.length - 1].textContent = _mistakeHistoryOpen
+      ? '📂 收起历史错题（' + cache.historyMistakes.length + ' 道）'
+      : '📁 展开历史错题（' + cache.historyMistakes.length + ' 道）';
+  }
+}
+
+// 从云端拉取智能复习推荐（基于当周/所选时间范围内 AI 批改的错误类型统计；服务端已强制学生只算本人）
 async function loadCloudReview(studentName) {
   var list = document.getElementById('reviewList');
   var tip = document.getElementById('lightningTip');
   var controller = null;
   var timeoutId = null;
   try {
-    var query = studentName ? '?student_name=' + encodeURIComponent(studentName) : '';
+    var range = feedbackTimeRange || 'week';
+    var query = '?time_range=' + encodeURIComponent(range);
+    if (studentName) query += '&student_name=' + encodeURIComponent(studentName);
     controller = new AbortController();
     timeoutId = setTimeout(function() { controller.abort(); }, 12000);
     var resp = await fetchWithAuth('/review' + query, { signal: controller.signal });
@@ -4379,7 +4446,7 @@ async function loadCloudReview(studentName) {
         '<button class="btn btn-primary" style="margin-top:12px;padding:6px 16px;font-size:13px;" onclick="renderReviewRecommendations()">🔄 重新加载</button>' +
         '</div>';
     }
-    if (tip) tip.innerHTML = '本周建议复习：<strong>分数的通分与约分</strong>';
+    if (tip) tip.innerHTML = '本周建议复习：<strong>数据加载失败，请稍后重试</strong>';
   }
 }
 
@@ -8182,18 +8249,23 @@ async function loadHwMyList() {
       renderPendingHint();
       return;
     }
-    // 只显示自己提交的作业（姓名匹配规则与五维评价一致）
+    // 只显示自己提交的作业：学生账号由服务端强制过滤（只返回本人），前端直接展示；
+    // 其余情况（如教师账号体验学生视图）按姓名匹配兜底
     var myName = '';
     var stuProfile = getStudentProfile();
+    var serverScoped = false;
     if (getCurrentRole() === 'student' && stuProfile && stuProfile.display_name) {
       myName = stuProfile.display_name;
+      serverScoped = true; // 学生账号：/homework/list 服务端已只返回本人
     }
     if (!myName) {
       var nameEl = document.getElementById('hwStudentName');
       myName = (nameEl && nameEl.value.trim()) || (appData.userName || '');
     }
     var mine = [];
-    if (myName) {
+    if (serverScoped) {
+      mine = items;
+    } else if (myName) {
       mine = items.filter(function(h) {
         var owner = h.student_name || '';
         return owner === myName || owner.indexOf(myName) >= 0 || myName.indexOf(owner) >= 0;
@@ -8476,7 +8548,7 @@ function renderHwGrading() {
     section.innerHTML = '';
     // 汇总显示已复核的作业
     if (isCloudLoggedIn()) {
-      section.innerHTML = '<h3 style="margin-bottom:16px;">📝 作业反馈</h3><div id="hwFeedbackList"></div>';
+      section.innerHTML = '<h3 style="margin-bottom:16px;">📝 作业反馈（本周）</h3><div id="hwFeedbackList"></div>';
       loadHwFeedbackList();
     }
   }
@@ -8537,11 +8609,12 @@ async function loadHwFeedbackList() {
   var list = document.getElementById('hwFeedbackList');
   if (!list) return;
   try {
-    var resp = await fetchWithAuth('/homework/list?status=reviewed');
+    // 服务端强制：学生只返回本人作业；scope=week 再按当前教学周过滤
+    var resp = await fetchWithAuth('/homework/list?status=reviewed&scope=week');
     if (!resp.ok) return;
     var items = await resp.json();
     if (items.length === 0) {
-      list.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px;">暂无已批改的作业反馈</p>';
+      list.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px;">本周暂无已复核的作业反馈</p>';
       return;
     }
     list.innerHTML = items.map(function(h) {
