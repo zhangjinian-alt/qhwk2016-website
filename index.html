@@ -701,6 +701,28 @@ img { max-width:100%; display:block; }
 .hw-filter-btn { padding:6px 14px; border-radius:16px; font-size:13px; font-weight:500; background:var(--bg); color:var(--text-secondary); cursor:pointer; transition:var(--transition); border:none; }
 .hw-filter-btn.active { background:var(--primary); color:white; }
 
+/* ===== 多图作业（2026-09-05）：上传预览网格 ===== */
+.hw-preview-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
+.hw-preview-cell { position:relative; aspect-ratio:1/1; border-radius:8px; overflow:hidden; background:var(--bg); }
+.hw-preview-cell img { width:100%; height:100%; object-fit:cover; display:block; }
+.hw-preview-remove { position:absolute; top:4px; right:4px; width:22px; height:22px; border-radius:50%; border:none; background:rgba(0,0,0,.55); color:#fff; font-size:13px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.hw-preview-remove:hover { background:rgba(200,40,40,.85); }
+.hw-preview-count { font-size:12px; color:var(--text-muted); text-align:center; margin-top:6px; }
+.hw-thumb-wrap { position:relative; flex-shrink:0; cursor:zoom-in; }
+.hw-thumb-badge { position:absolute; right:-6px; bottom:-6px; background:var(--primary); color:#fff; font-size:11px; min-width:20px; height:20px; border-radius:10px; display:flex; align-items:center; justify-content:center; padding:0 5px; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+
+/* ===== 作业图片灯箱（点击放大，2026-09-05） ===== */
+.hw-lightbox { position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.92); display:flex; align-items:center; justify-content:center; flex-direction:column; }
+.hw-lightbox img { max-width:94vw; max-height:82vh; object-fit:contain; border-radius:6px; box-shadow:0 4px 30px rgba(0,0,0,.5); }
+.hw-lightbox-close { position:absolute; top:14px; right:18px; background:none; border:none; color:#fff; font-size:32px; line-height:1; cursor:pointer; opacity:.85; }
+.hw-lightbox-close:hover { opacity:1; }
+.hw-lightbox-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.14); border:none; color:#fff; font-size:30px; width:52px; height:52px; border-radius:50%; cursor:pointer; }
+.hw-lightbox-nav:hover { background:rgba(255,255,255,.28); }
+.hw-lightbox-prev { left:14px; }
+.hw-lightbox-next { right:14px; }
+.hw-lightbox-counter { color:rgba(255,255,255,.75); font-size:13px; margin-top:12px; }
+.hw-lightbox-hint { color:rgba(255,255,255,.45); font-size:12px; margin-top:4px; }
+
 /* ===== Answer Key Styles ===== */
 .ak-card { background:var(--bg-card); border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow-sm); margin-bottom:20px; }
 .ak-list-item { display:flex; gap:12px; align-items:center; padding:10px 12px; background:var(--bg); border-radius:var(--radius); margin-bottom:8px; }
@@ -7468,24 +7490,25 @@ function renderHwUpload() {
     '<input type="hidden" id="hwClassName" value="' + (stuProfile && stuProfile.class_name ? stuProfile.class_name : '') + '">' +
     '<div class="hw-upload-area" id="hwDropZone" onclick="document.getElementById(\'hwFileInput\').click()">' +
     '<div style="font-size:36px;margin-bottom:8px;">📷</div>' +
-    '<p style="font-size:14px;font-weight:500;color:var(--text-secondary);">点击拍照或选择图片</p>' +
-    '<p style="font-size:12px;color:var(--text-muted);">支持 JPG/PNG，建议横拍清晰照片</p>' +
+    '<p style="font-size:14px;font-weight:500;color:var(--text-secondary);">点击拍照或选择图片（可多选）</p>' +
+    '<p style="font-size:12px;color:var(--text-muted);">支持 JPG/PNG，一次最多 9 张，建议横拍清晰照片</p>' +
     '</div>' +
-    '<input type="file" id="hwFileInput" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="previewHwImage(this)">' +
-    '<img id="hwPreview" class="hw-preview" style="display:none;">' +
-    '<button type="button" id="hwBackBtn" class="btn btn-outline" style="width:100%;margin-top:12px;display:none;" onclick="resetHwForm(document.getElementById(\'hwFileInput\'))">↩️ 返回上一步（重新选择图片）</button>' +
+    '<input type="file" id="hwFileInput" accept="image/jpeg,image/png,image/webp" multiple style="display:none;" onchange="previewHwImages(this)">' +
+    '<div id="hwPreviewGrid" class="hw-preview-grid" style="display:none;"></div>' +
+    '<p id="hwPreviewCount" class="hw-preview-count" style="display:none;"></p>' +
+    '<button type="button" id="hwBackBtn" class="btn btn-outline" style="width:100%;margin-top:12px;display:none;" onclick="resetHwForm(document.getElementById(\'hwFileInput\'))">↩️ 清空重选（重新选择图片）</button>' +
     '<div id="hwUploadStatus" style="text-align:center;margin-top:8px;"></div>' +
     '<button type="submit" class="btn btn-primary" style="width:100%;margin-top:16px;" id="hwSubmitBtn">📤 提交作业</button>' +
     '</form></div>' +
     // 已提交的作业列表
     '<div id="hwMyList" style="margin-top:20px;"></div>';
 
-  // 拖拽上传支持
+  // 拖拽上传支持（多选：追加到已选列表）
   var dropZone = document.getElementById('hwDropZone');
   if (dropZone) {
     dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('active'); });
     dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('active'); });
-    dropZone.addEventListener('drop', function(e) { e.preventDefault(); dropZone.classList.remove('active'); var files = e.dataTransfer.files; if (files.length) { document.getElementById('hwFileInput').files = files; previewHwImage(document.getElementById('hwFileInput')); } });
+    dropZone.addEventListener('drop', function(e) { e.preventDefault(); dropZone.classList.remove('active'); var files = e.dataTransfer.files; if (files.length) addHwFiles(files); });
   }
   renderPendingHint();
   loadHwMyList();
@@ -7744,20 +7767,151 @@ async function deleteMaterial(matId) {
   }
 }
 
-function previewHwImage(input) {
+// ===== 多图作业（2026-09-05）：选择/预览/移除 =====
+var hwSelectedFiles = [];   // 当前已选的作业图片（File 数组）
+var HW_MAX_IMAGES = 9;      // 一次最多提交张数（与后端一致）
+
+function previewHwImages(input) {
   if (!requireCloudLogin()) { if (input) input.value = ''; return; }
-  var file = input.files[0];
-  if (!file) return;
-  var preview = document.getElementById('hwPreview');
+  if (input && input.files && input.files.length) addHwFiles(input.files);
+  if (input) input.value = '';  // 允许重复选择同一文件（追加模式）
+}
+
+// 旧函数名兼容（离线重试等其他入口可能引用）
+function previewHwImage(input) { previewHwImages(input); }
+
+function addHwFiles(fileList) {
+  var arr = Array.prototype.slice.call(fileList || []);
+  for (var i = 0; i < arr.length; i++) {
+    if (hwSelectedFiles.length >= HW_MAX_IMAGES) {
+      showToast('一次最多提交 ' + HW_MAX_IMAGES + ' 张图片，已选满', 'error');
+      break;
+    }
+    hwSelectedFiles.push(arr[i]);
+  }
+  renderHwPreviewGrid();
+}
+
+function removeHwImage(idx) {
+  hwSelectedFiles.splice(idx, 1);
+  renderHwPreviewGrid();
+}
+
+function renderHwPreviewGrid() {
+  var grid = document.getElementById('hwPreviewGrid');
+  var count = document.getElementById('hwPreviewCount');
   var dropZone = document.getElementById('hwDropZone');
   var backBtn = document.getElementById('hwBackBtn');
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
-    if (dropZone) dropZone.style.display = 'none';
-    if (backBtn) backBtn.style.display = '';
-  };
-  reader.readAsDataURL(file);
+  if (!grid) return;
+  if (!hwSelectedFiles.length) {
+    grid.style.display = 'none'; grid.innerHTML = '';
+    if (count) count.style.display = 'none';
+    if (backBtn) backBtn.style.display = 'none';
+    if (dropZone) dropZone.style.display = '';
+    return;
+  }
+  grid.innerHTML = hwSelectedFiles.map(function(f, i) {
+    return '<div class="hw-preview-cell" id="hwPrevCell' + i + '"></div>';
+  }).join('');
+  hwSelectedFiles.forEach(function(f, i) {
+    var cell = document.getElementById('hwPrevCell' + i);
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      if (cell) cell.innerHTML = '<img src="' + e.target.result + '" alt="作业图' + (i + 1) + '">' +
+        '<button type="button" class="hw-preview-remove" title="移除这张" onclick="removeHwImage(' + i + ')">✕</button>';
+    };
+    reader.readAsDataURL(f);
+  });
+  grid.style.display = '';
+  if (count) {
+    count.style.display = '';
+    count.textContent = '已选 ' + hwSelectedFiles.length + ' / ' + HW_MAX_IMAGES + ' 张（点击缩略图右上角 ✕ 可移除，可继续添加）';
+  }
+  if (backBtn) backBtn.style.display = '';
+  if (dropZone) dropZone.style.display = '';  // 保留选图入口，方便继续追加
+}
+
+// ===== 作业图片灯箱（2026-09-05：老师复核/学生查看点击放大） =====
+var _hwLightboxState = { urls: [], idx: 0 };
+
+function openHwLightbox(urls, idx) {
+  var list = (urls && urls.length) ? urls.filter(function(u) { return !!u; }) : [];
+  if (!list.length) return;
+  _hwLightboxState.urls = list;
+  _hwLightboxState.idx = Math.min(idx || 0, list.length - 1);
+  var ov = document.getElementById('hwLightbox');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'hwLightbox';
+    ov.className = 'hw-lightbox';
+    ov.style.display = 'none';
+    ov.addEventListener('click', function(e) { if (e.target === ov) closeHwLightbox(); });
+    document.body.appendChild(ov);
+  }
+  renderHwLightbox();
+  ov.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function renderHwLightbox() {
+  var ov = document.getElementById('hwLightbox');
+  if (!ov) return;
+  var s = _hwLightboxState;
+  var multi = s.urls.length > 1;
+  ov.innerHTML = '<button class="hw-lightbox-close" onclick="closeHwLightbox()" title="关闭">✕</button>' +
+    (multi ? '<button class="hw-lightbox-nav hw-lightbox-prev" onclick="hwLightboxNav(-1)" title="上一张">‹</button>' : '') +
+    '<img src="' + s.urls[s.idx] + '" alt="作业大图（第' + (s.idx + 1) + '张）" onclick="event.stopPropagation()">' +
+    (multi ? '<button class="hw-lightbox-nav hw-lightbox-next" onclick="hwLightboxNav(1)" title="下一张">›</button>' : '') +
+    (multi
+      ? '<div class="hw-lightbox-counter">第 ' + (s.idx + 1) + ' / ' + s.urls.length + ' 张 · ← → 键切换</div>'
+      : '<div class="hw-lightbox-hint">点击空白处关闭</div>');
+}
+
+function hwLightboxNav(d) {
+  var s = _hwLightboxState;
+  if (!s.urls.length) return;
+  s.idx = (s.idx + d + s.urls.length) % s.urls.length;
+  renderHwLightbox();
+}
+
+function closeHwLightbox() {
+  var ov = document.getElementById('hwLightbox');
+  if (ov) ov.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', function(e) {
+  var ov = document.getElementById('hwLightbox');
+  if (!ov || ov.style.display === 'none') return;
+  if (e.key === 'Escape') closeHwLightbox();
+  else if (e.key === 'ArrowLeft') hwLightboxNav(-1);
+  else if (e.key === 'ArrowRight') hwLightboxNav(1);
+});
+
+// 列表缩略图点击放大（自动拉详情取全部图片）
+async function hwThumbLightbox(hwId) {
+  try {
+    var resp = await fetchWithAuth('/homework/' + hwId);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    var hw = await resp.json();
+    var urls = (hw.images && hw.images.length) ? hw.images : [hw.image_url];
+    openHwLightbox(urls, 0);
+  } catch (e) {
+    showToast('加载大图失败：' + e.message, 'error');
+  }
+}
+
+// 详情弹窗用的多图 HTML（每张可点击放大）
+function hwDetailImagesHtml(imgs) {
+  var list = (imgs && imgs.length) ? imgs : [];
+  window._hwDetailImages = list;
+  if (!list.length) return '';
+  return '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:16px;">' +
+    list.map(function(u, i) {
+      return '<img src="' + u + '" alt="作业图' + (i + 1) + '" style="width:110px;height:110px;object-fit:cover;border-radius:8px;cursor:zoom-in;border:1.5px solid var(--border);" onclick="openHwLightbox(window._hwDetailImages,' + i + ')">';
+    }).join('') +
+    '</div>' +
+    (list.length > 1 ? '<p style="font-size:12px;color:var(--text-muted);text-align:center;margin:-8px 0 12px;">共 ' + list.length + ' 张，点击任意图片可放大查看</p>' : '');
 }
 
 // 作业上传离线队列的 storage key
@@ -7792,9 +7946,9 @@ async function submitHwUpload(e) {
   var name = document.getElementById('hwStudentName').value.trim();
   var title = document.getElementById('hwTitle').value.trim();
   var fileInput = document.getElementById('hwFileInput');
-  var file = fileInput.files[0];
+  var files = hwSelectedFiles.slice();  // 多图提交（2026-09-05）
   if (!name) { showToast('请输入姓名'); return; }
-  if (!file) { showToast('请选择作业图片'); return; }
+  if (!files.length) { showToast('请选择作业图片'); return; }
 
   var btn = document.getElementById('hwSubmitBtn');
   var status = document.getElementById('hwUploadStatus');
@@ -7803,7 +7957,7 @@ async function submitHwUpload(e) {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     showToast('当前网络未连接，作业已暂存到本地，恢复网络后可重试', 'error');
     if (status) status.innerHTML = '<p style="color:var(--warning);font-size:13px;">📦 作业已暂存到本地（离线队列）</p>';
-    savePendingHomework(name, title, file);
+    files.forEach(function(f) { savePendingHomework(name, title, f); });
     resetHwForm(fileInput);
     return;
   }
@@ -7816,10 +7970,12 @@ async function submitHwUpload(e) {
   }
 
   btn.textContent = '⏳ 上传中...'; btn.disabled = true;
-  if (status) status.innerHTML = '<p style="color:var(--primary);font-size:13px;">正在上传作业图片...</p>';
+  if (status) status.innerHTML = '<p style="color:var(--primary);font-size:13px;">正在上传 ' + files.length + ' 张作业图片...</p>';
 
   var formData = new FormData();
-  formData.append('file', file);
+  for (var fi = 0; fi < files.length; fi++) {
+    formData.append('files', files[fi]);
+  }
   formData.append('student_name', name);
   formData.append('title', title);
   // 五维"学习效果"匹配用：班级（学生登录自动带）+ 本周（ISO 周数）
@@ -7845,7 +8001,7 @@ async function submitHwUpload(e) {
         showToast('上传失败：' + friendly + '（作业已暂存到本地）', 'error');
         if (status) status.innerHTML = '<p style="color:var(--danger);font-size:13px;">❌ ' + friendly + '</p>' +
           '<p style="color:var(--warning);font-size:12px;margin-top:6px;">📦 作业已暂存到本地，网络恢复后可点击"重试暂存作业"重新上传</p>';
-        savePendingHomework(name, title, file);
+        files.forEach(function(f) { savePendingHomework(name, title, f); });
         btn.textContent = '📤 提交作业'; btn.disabled = false;
         renderPendingHint();
         return;
@@ -7892,13 +8048,9 @@ async function submitHwUpload(e) {
 
 function resetHwForm(fileInput) {
   if (fileInput) fileInput.value = '';
-  var preview = document.getElementById('hwPreview');
-  var dropZone = document.getElementById('hwDropZone');
-  var backBtn = document.getElementById('hwBackBtn');
+  hwSelectedFiles = [];      // 清空多图选择
+  renderHwPreviewGrid();
   var status = document.getElementById('hwUploadStatus');
-  if (preview) preview.style.display = 'none';
-  if (dropZone) dropZone.style.display = '';
-  if (backBtn) backBtn.style.display = 'none';
   if (status) status.innerHTML = '';
 }
 
@@ -8009,7 +8161,7 @@ async function retryAllPendingHw() {
   loadHwMyList();
 }
 
-// 加载我提交的作业列表（学生/家长视角）
+// 加载我提交的作业列表（学生/家长视角，2026-09-05 起含撤回功能）
 async function loadHwMyList() {
   var container = document.getElementById('hwMyList');
   if (!container) return;
@@ -8030,32 +8182,72 @@ async function loadHwMyList() {
       renderPendingHint();
       return;
     }
-    // 只显示 reviewed 状态的作业（学生/家长只能看已复核的）
-    var reviewed = items.filter(function(h) { return h.status === 'reviewed'; });
-    if (reviewed.length === 0) {
+    // 只显示自己提交的作业（姓名匹配规则与五维评价一致）
+    var myName = '';
+    var stuProfile = getStudentProfile();
+    if (getCurrentRole() === 'student' && stuProfile && stuProfile.display_name) {
+      myName = stuProfile.display_name;
+    }
+    if (!myName) {
+      var nameEl = document.getElementById('hwStudentName');
+      myName = (nameEl && nameEl.value.trim()) || (appData.userName || '');
+    }
+    var mine = [];
+    if (myName) {
+      mine = items.filter(function(h) {
+        var owner = h.student_name || '';
+        return owner === myName || owner.indexOf(myName) >= 0 || myName.indexOf(owner) >= 0;
+      });
+    }
+    if (mine.length === 0) {
       container.innerHTML = '<h4 style="margin-bottom:12px;">📦 我的作业</h4>' +
-        '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px;">作业已提交，老师正在批改中，稍后可查看反馈</p>';
+        '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px;">还没有提交记录，拍照上传后这里可以看到批改进度和反馈</p>';
       renderPendingHint();
       return;
     }
-    container.innerHTML = '<h4 style="margin-bottom:12px;">📦 我的作业反馈</h4>' +
-      reviewed.map(function(h) {
+    container.innerHTML = '<h4 style="margin-bottom:12px;">📦 我的作业</h4>' +
+      mine.map(function(h) {
+        var imgCount = h.image_count > 1 ? '<span class="hw-thumb-badge">' + h.image_count + '图</span>' : '';
         return '<div class="hw-list-item">' +
-          '<img class="hw-thumb" src="' + h.image_url + '" alt="作业">' +
+          '<div class="hw-thumb-wrap" title="点击放大查看" onclick="hwThumbLightbox(' + h.id + ')"><img class="hw-thumb" src="' + h.image_url + '" alt="作业">' + imgCount + '</div>' +
           '<div class="hw-info">' +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
           '<span style="font-weight:500;font-size:14px;">' + (h.title || '数学作业') + '</span>' +
-          '<span class="hw-status reviewed">' + hwStatusIcon[h.status] + ' ' + hwStatusLabel[h.status] + '</span></div>' +
-          '<p style="font-size:13px;color:var(--text-secondary);">正确率：<strong style="color:var(--success);">' + h.accuracy + '%</strong> (' + scoreFrac(h.total_correct, h.total_count) + ')</p>' +
-          '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0,10) + '</p>' +
-          '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;margin-top:4px;" onclick="viewHwFeedback(' + h.id + ')">查看详细反馈</button>' +
-          '</div></div>';
+          '<span class="hw-status ' + h.status + '">' + hwStatusIcon[h.status] + ' ' + hwStatusLabel[h.status] + '</span></div>' +
+          (h.status === 'graded' || h.status === 'reviewed'
+            ? '<p style="font-size:13px;color:var(--text-secondary);">正确率：<strong style="color:var(--success);">' + h.accuracy + '%</strong> (' + scoreFrac(h.total_correct, h.total_count) + ')</p>'
+            : '<p style="font-size:13px;color:var(--text-muted);">' + (h.status === 'failed' ? '批改失败，可撤回后重新拍清晰的再交' : '老师正在批改中，请稍候') + '</p>') +
+          '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0, 10) + '</p>' +
+          '<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">' +
+          (h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;" onclick="viewHwFeedback(' + h.id + ')">查看详细反馈</button>' : '') +
+          '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;color:var(--danger);" onclick="withdrawHw(' + h.id + ',\'' + h.status + '\')">↩️ 撤回重交</button>' +
+          '</div></div></div>';
       }).join('');
   } catch (e) {
     container.innerHTML = '';
   }
   // 始终在最前面渲染暂存作业（避免被覆盖）
   renderPendingHint();
+}
+
+// 撤回作业（2026-09-05：提交有误可撤回再交，后端校验只能撤自己的）
+async function withdrawHw(hwId, status) {
+  var msg = status === 'reviewed'
+    ? '这份作业老师已复核，撤回后批改与复核记录都会删除。确定撤回吗？'
+    : '撤回后这份作业的图片和批改记录都会删除，撤回后可重新拍照提交。确定撤回吗？';
+  if (!window.confirm(msg)) return;
+  try {
+    var resp = await fetchWithAuth('/homework/' + hwId, { method: 'DELETE' });
+    if (!resp.ok) {
+      var d = await resp.json().catch(function() { return {}; });
+      showToast('撤回失败：' + (extractErrorDetail(d) || ('HTTP ' + resp.status)), 'error');
+      return;
+    }
+    showToast('已撤回，可以重新提交了', 'success');
+    loadHwMyList();
+  } catch (e) {
+    showToast('撤回失败：' + friendlyFetchError(e), 'error');
+  }
 }
 
 // 查看作业详细反馈
@@ -8082,7 +8274,7 @@ async function viewHwFeedback(hwId) {
     }
 
     var html = '<div class="hw-detail">' +
-      '<div style="text-align:center;margin-bottom:16px;"><img src="' + hw.image_url + '" style="max-width:300px;border-radius:var(--radius);"></div>' +
+      hwDetailImagesHtml(hw.images && hw.images.length ? hw.images : [hw.image_url]) +
       '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;text-align:center;">' +
       '<p style="font-size:18px;font-weight:600;">正确率：' + finalResult.accuracy + '% (' + scoreFrac(finalResult.total_correct, finalResult.total_count) + ')</p>' +
       '</div>' +
@@ -8317,8 +8509,9 @@ async function loadHwTeacherList(filter) {
     }
 
     list.innerHTML = items.map(function(h) {
+      var imgCount = h.image_count > 1 ? '<span class="hw-thumb-badge">' + h.image_count + '图</span>' : '';
       return '<div class="hw-list-item">' +
-        '<img class="hw-thumb" src="' + h.image_url + '" alt="作业">' +
+        '<div class="hw-thumb-wrap" title="点击放大查看" onclick="hwThumbLightbox(' + h.id + ')"><img class="hw-thumb" src="' + h.image_url + '" alt="作业">' + imgCount + '</div>' +
         '<div class="hw-info">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
         '<span style="font-weight:500;font-size:14px;">' + h.student_name + ' — ' + (h.title || '数学作业') +
@@ -8352,8 +8545,9 @@ async function loadHwFeedbackList() {
       return;
     }
     list.innerHTML = items.map(function(h) {
+      var imgCount = h.image_count > 1 ? '<span class="hw-thumb-badge">' + h.image_count + '图</span>' : '';
       return '<div class="hw-list-item">' +
-        '<img class="hw-thumb" src="' + h.image_url + '" alt="作业">' +
+        '<div class="hw-thumb-wrap" title="点击放大查看" onclick="hwThumbLightbox(' + h.id + ')"><img class="hw-thumb" src="' + h.image_url + '" alt="作业">' + imgCount + '</div>' +
         '<div class="hw-info">' +
         '<span style="font-weight:500;font-size:14px;">' + (h.title || '数学作业') + '</span>' +
         '<span class="hw-status reviewed" style="margin-left:8px;">✅ 已批改</span>' +
@@ -8389,7 +8583,7 @@ async function viewHwDetail(hwId) {
     }
 
     var html = '<div class="hw-detail">' +
-      '<div style="text-align:center;margin-bottom:16px;"><img src="' + hw.image_url + '" style="max-width:300px;border-radius:var(--radius);"></div>' +
+      hwDetailImagesHtml(hw.images && hw.images.length ? hw.images : [hw.image_url]) +
       '<h4 style="margin-bottom:4px;">' + hw.student_name + ' — ' + (hw.title || '数学作业') + '</h4>' +
       '<p style="font-size:12px;color:var(--text-muted);">提交时间：' + hw.created_at.slice(0,10) + ' · 状态：' + hwStatusLabel[hw.status] + '</p>' +
       (grade.accuracy != null ? '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:12px;margin:12px 0;text-align:center;font-size:16px;font-weight:600;">正确率：' + grade.accuracy + '%</div>' : '') +
@@ -8429,7 +8623,7 @@ async function reviewHw(hwId) {
 
     var html = '<div class="hw-detail">' +
       '<h3 style="margin-bottom:16px;">📝 复核批改结果</h3>' +
-      '<div style="text-align:center;margin-bottom:16px;"><img src="' + hw.image_url + '" style="max-width:240px;border-radius:var(--radius);"></div>' +
+      hwDetailImagesHtml(hw.images && hw.images.length ? hw.images : [hw.image_url]) +
       '<p style="font-size:14px;"><strong>' + hw.student_name + '</strong> — ' + (hw.title || '数学作业') + '</p>' +
       (grade.accuracy ? '<p style="font-size:16px;font-weight:600;margin:8px 0;">AI批改正确率：' + grade.accuracy + '% (' + scoreFrac(grade.total_correct, grade.total_count) + ')</p>' : '') +
       (problemsHtml ? '<h4 style="margin:12px 0 8px;">AI逐题结果</h4>' + problemsHtml : '') +
