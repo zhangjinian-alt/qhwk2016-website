@@ -8630,6 +8630,15 @@ function renderHwGrading() {
       '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">先上传标准答案，学生提交同标题作业时 AI 会对照答案批改，准确率更高</p>' +
       '<div id="answerKeyList"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p></div>' +
       '</div>' +
+      // 未交 / 未订正管理区（2026-09-13）
+      '<div class="ak-card" style="margin-top:16px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+      '<h4 style="margin:0;">📌 未交 / 未订正管理</h4>' +
+      '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="loadHwPendingManage(true)">🔄 刷新</button>' +
+      '</div>' +
+      '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">未交名单按本周班级作业提交情况自动统计（全班都没交时无法推断作业项）；催办将发布一条全班可见的作业通知，内容可编辑</p>' +
+      '<div id="hwPendingManage"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p></div>' +
+      '</div>' +
       // 作业列表区
       '<div class="hw-filter-bar" id="hwFilterBar">' +
       '<button class="hw-filter-btn active" onclick="filterHw(\'all\',this)">全部</button>' +
@@ -8642,13 +8651,15 @@ function renderHwGrading() {
       '<div id="hwTeacherList"></div>';
     loadAnswerKeyList();
     loadHwTeacherList('all');
+    loadHwPendingManage();
   } else {
     // 学生/家长模式：我的作业与反馈（2026-09-05 起承接原「我的作业」全部职责：全状态+撤回+订正入口）
     section.innerHTML = '';
     // 汇总显示全部作业（批改进度、反馈、订正、撤回统一在此）
     if (isCloudLoggedIn()) {
-      section.innerHTML = '<h3 style="margin-bottom:16px;">📝 作业反馈</h3><div id="hwFeedbackList"></div>';
+      section.innerHTML = '<h3 style="margin-bottom:16px;">📝 作业反馈</h3><div id="hwPendingCard"></div><div id="hwFeedbackList"></div>';
       loadHwFeedbackList();
+      loadStudentPendingCard();
     }
   }
 }
@@ -8702,6 +8713,134 @@ async function loadHwTeacherList(filter) {
     }).join('');
   } catch (e) {
     list.innerHTML = '<p style="text-align:center;color:var(--danger);">加载失败：' + e.message + '</p>';
+  }
+}
+
+// ===== 未交 / 未订正管理（教师端，2026-09-13） =====
+var _hwPendingData = null;
+
+async function loadHwPendingManage(force) {
+  var box = document.getElementById('hwPendingManage');
+  if (!box) return;
+  if (!isCloudLoggedIn()) {
+    box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">请先登录云端账号</p>';
+    return;
+  }
+  try {
+    var resp = await fetchWithAuth('/homework/pending-list');
+    if (!resp.ok) throw new Error('获取名单失败（HTTP ' + resp.status + '）');
+    var data = await resp.json();
+    _hwPendingData = data;
+    if (!data.classes || data.classes.length === 0) {
+      box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">本周暂无本班作业提交记录，还无法统计未交名单</p>';
+      return;
+    }
+    box.innerHTML = data.classes.map(renderPendingClassCard).join('');
+  } catch (e) {
+    box.innerHTML = '<p style="font-size:13px;color:var(--danger);text-align:center;padding:12px;">加载失败：' + e.message + '</p>';
+  }
+}
+
+function renderPendingClassCard(c) {
+  var unsub = c.unsubmitted || [];
+  var unc = c.uncorrected || [];
+  var titles = c.expected_titles || [];
+  var unsubHtml = unsub.length
+    ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;">' + unsub.map(function(u) {
+        return '<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;background:#FFF1F0;color:#CF1322;border:1px solid #FFA39E;" title="缺交：' + escHtmlSafe((u.missing_titles || []).join('、')) + '">' + escHtmlSafe(u.student_name) + '</span>';
+      }).join('') + '</div>'
+    : '<p style="font-size:13px;color:var(--success);margin-bottom:4px;">✅ 本周作业全班都已提交</p>';
+  var uncHtml = unc.length
+    ? '<div style="display:flex;flex-wrap:wrap;gap:6px;">' + unc.map(function(u) {
+        var detail = (u.items || []).map(function(i) { return escHtmlSafe(i.title) + ' 正确率 ' + i.accuracy + '%（' + i.created_at.slice(0, 10) + '）'; }).join('；');
+        return '<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;background:#FFF7E6;color:#D46B08;border:1px solid #FFD591;" title="' + detail + '">' + escHtmlSafe(u.student_name) + '（' + (u.items || []).length + ' 份）</span>';
+      }).join('') + '</div>'
+    : '<p style="font-size:13px;color:var(--success);">✅ 没有待订正的作业</p>';
+  return '<div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px;">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">' +
+    '<strong style="font-size:14px;">🏫 ' + escHtmlSafe(c.class_name) + '</strong>' +
+    '<span style="font-size:12px;color:var(--text-muted);">本周作业：' + (titles.length ? escHtmlSafe(titles.join('、')) : '—') + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+    '<span style="font-size:13px;font-weight:600;">📤 未交（' + unsub.length + ' 人）</span>' +
+    (unsub.length ? '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;" onclick="urgeHomeworkNotice(\'unsubmitted\',\'' + escHtmlSafe(c.class_name) + '\')">📣 一键催交</button>' : '') +
+    '</div>' + unsubHtml +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 4px;">' +
+    '<span style="font-size:13px;font-weight:600;">✏️ 未订正（' + unc.length + ' 人）</span>' +
+    (unc.length ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;color:var(--warning);" onclick="urgeHomeworkNotice(\'uncorrected\',\'' + escHtmlSafe(c.class_name) + '\')">📣 一键催订正</button>' : '') +
+    '</div>' + uncHtml +
+    '</div>';
+}
+
+// 一键催办：预填通知文案，教师可编辑后发布（学生/家长登录即可见）
+function urgeHomeworkNotice(kind, className) {
+  var cls = null;
+  if (_hwPendingData && _hwPendingData.classes) {
+    for (var i = 0; i < _hwPendingData.classes.length; i++) {
+      if (_hwPendingData.classes[i].class_name === className) { cls = _hwPendingData.classes[i]; break; }
+    }
+  }
+  if (!cls) return;
+  var today = new Date().toISOString().slice(0, 10);
+  var title, content;
+  if (kind === 'unsubmitted') {
+    var missNames = (cls.unsubmitted || []).map(function(u) { return u.student_name; });
+    title = '【作业催交】' + className + '本周作业提交提醒';
+    content = '亲爱的同学和家长：\n截至今天，以下同学的本周作业（' + (cls.expected_titles || []).join('、') + '）还未提交：\n' + missNames.join('、') + '\n\n请尽快完成作业并拍照上传到「家校互通 → 提交作业」，老师收到后会及时批改反馈。如已提交请忽略本提醒。';
+  } else {
+    var fixNames = (cls.uncorrected || []).map(function(u) { return u.student_name + '（' + (u.items || []).length + ' 份）'; });
+    title = '【错题订正提醒】' + className + '错题订正提醒';
+    content = '亲爱的同学和家长：\n以下同学的作业有错题还未订正：\n' + fixNames.join('、') + '\n\n请登录后到「学习反馈 → 作业反馈」，点击「查看详细反馈」，在弹窗底部完成错题订正（拍照 / 视频 / 文字均可）。订正完成后才能提交新的作业哦。';
+  }
+  openFormModal('发布催办通知', [
+    { label: '通知类型', name: 'type', type: 'select', value: '作业通知', options: [
+      {value:'作业通知',text:'作业通知'},{value:'考试提醒',text:'考试提醒'},{value:'表扬信',text:'表扬信'}
+    ]},
+    { label: '标题', name: 'title', type: 'text', value: title, required: true },
+    { label: '日期', name: 'date', type: 'text', value: today, required: true },
+    { label: '内容', name: 'content', type: 'textarea', value: content, required: true }
+  ], async function(data) {
+    try {
+      var resp = await fetchWithAuth('/notices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (resp.ok) {
+        showToast('催办通知已发布，学生端登录即可见');
+        return;
+      }
+      showToast('发布失败，请稍后重试');
+    } catch (e) {
+      showToast('网络异常，请稍后重试');
+    }
+  }, '发布催办通知');
+}
+
+// ===== 学生个人待办卡片（未交作业 + 未订正提醒，2026-09-13） =====
+async function loadStudentPendingCard() {
+  var card = document.getElementById('hwPendingCard');
+  if (!card) return;
+  if (!isCloudLoggedIn()) { card.innerHTML = ''; return; }
+  try {
+    var resp = await fetchWithAuth('/student/pending');
+    if (!resp.ok) { card.innerHTML = ''; return; }
+    var data = await resp.json();
+    var parts = [];
+    if (data.unsubmitted && data.unsubmitted.length) {
+      parts.push('<div style="background:#FFF7E6;border:1.5px solid #FFD591;border-radius:var(--radius);padding:12px 16px;margin-bottom:10px;">' +
+        '<p style="font-size:14px;font-weight:600;color:#D46B08;">📤 本周作业还未提交：' + escHtmlSafe(data.unsubmitted.join('、')) + '</p>' +
+        '<p style="font-size:12px;color:var(--text-muted);margin-top:4px;">请到「家校互通 → 提交作业」拍照上传，老师批改后这里会显示反馈</p></div>');
+    }
+    if (data.uncorrected && data.uncorrected.length) {
+      var first = data.uncorrected[0];
+      parts.push('<div style="background:#FFF1F0;border:1.5px solid #FFA39E;border-radius:var(--radius);padding:12px 16px;margin-bottom:10px;">' +
+        '<p style="font-size:14px;font-weight:600;color:#CF1322;">✏️ 你有 ' + data.uncorrected.length + ' 份作业的错题还没订正</p>' +
+        '<p style="font-size:12px;color:var(--text-secondary);margin-top:4px;">点击下方作业卡片的「查看详细反馈」，拉到弹窗底部即可完成错题订正（拍照 / 视频 / 文字均可）</p>' +
+        '<button class="btn btn-primary" style="margin-top:8px;padding:6px 16px;font-size:13px;" onclick="viewHwFeedback(' + first.id + ')">✏️ 点击此处去订正错题</button></div>');
+    }
+    card.innerHTML = parts.join('');
+  } catch (e) {
+    card.innerHTML = '';
   }
 }
 
