@@ -2215,7 +2215,7 @@ function showChangePinUI() {
 }
 
 // Click outside to close
-console.log('%c青花微课 v20260905-24 数据管理仅教师端可见', 'color:#4A90D9;font-size:14px;font-weight:bold');
+console.log('%c青花微课 v20260905-25 数据管理仅教师端可见', 'color:#4A90D9;font-size:14px;font-weight:bold');
 document.addEventListener("DOMContentLoaded", function() {
   document.getElementById("authModal").addEventListener("click", function(e) {
     if (e.target === this) closeAuthModal();
@@ -8112,6 +8112,21 @@ async function submitHwUpload(e) {
       updateCloudSyncUI();
       showToast('登录已过期，请重新登录云端账号后重试', 'error');
       if (status) status.innerHTML = '<p style="color:var(--danger);font-size:13px;">🔒 登录已过期，请点击右上角"云同步"重新登录后再次提交</p>';
+    } else if (resp.status === 409) {
+      // 重复提交判重（2026-09-05 三层：短时/同图/未订正）
+      var dupDetail = (errData && errData.detail && typeof errData.detail === 'object') ? errData.detail : {};
+      if (dupDetail.code === 'DUPLICATE_UNCORRECTED') {
+        showToast('该作业已有未订正的提交，请先完成错题订正', 'error');
+        if (status) status.innerHTML = '<p style="color:var(--danger);font-size:13px;">⚠️ ' + (dupDetail.message || '该作业已提交且尚未订正') + '</p>' +
+          '<p style="color:var(--primary);font-size:13px;margin-top:6px;">✏️ 请到「我的作业」找到这份作业，点击查看详情，在底部完成<strong>错题订正</strong>（拍照/视频/文字三种方式均可）。订正完成后再提交新作业。</p>';
+        loadHwMyList();  // 刷新列表，让学生直接看到那份未订正的作业
+      } else if (dupDetail.code === 'DUPLICATE_SAME_IMAGE') {
+        showToast('同一张作业照片近期已提交过，请勿重复上传', 'error');
+        if (status) status.innerHTML = '<p style="color:var(--danger);font-size:13px;">📷 ' + (dupDetail.message || '这张图片已提交过') + '</p>';
+      } else {
+        showToast(dupDetail.message || errMsg || '提交太频繁，请稍候再试', 'error');
+        if (status) status.innerHTML = '<p style="color:var(--warning);font-size:13px;">⏳ ' + (dupDetail.message || errMsg || '提交太频繁') + '</p>';
+      }
     } else if (resp.status === 413) {
       showToast('图片太大（>20MB），请压缩后重试', 'error');
       if (status) status.innerHTML = '<p style="color:var(--danger);font-size:13px;">图片太大，请压缩到 20MB 以内</p>';
