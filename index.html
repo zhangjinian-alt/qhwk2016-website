@@ -988,7 +988,7 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
   <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;" id="noticeFilter">
     <button class="btn btn-primary" style="padding:8px 18px;font-size:14px;" onclick="filterNotices('all')">全部</button>
     <button class="btn btn-outline" style="padding:8px 18px;font-size:14px;" onclick="filterNotices('作业通知')">作业通知</button>
-    <button class="btn btn-outline" style="padding:8px 18px;font-size:14px;" onclick="filterNotices('考试提醒')">考试提醒</button>
+    <button class="btn btn-outline" style="padding:8px 18px;font-size:14px;" onclick="filterNotices('温馨提示')">温馨提示</button>
     <button class="btn btn-outline" style="padding:8px 18px;font-size:14px;" onclick="filterNotices('表扬信')">表扬信</button>
   </div>
   <div class="notice-list" id="noticeList"></div>
@@ -2354,7 +2354,7 @@ function getDefaultData() {
     ],
     notices: [
       { type: '作业通知', title: '本周数学作业安排', date: '2026-07-06', content: '请完成课本第45-47页练习题，下周一检查。' },
-      { type: '考试提醒', title: '期末考试通知', date: '2026-07-03', content: '期末考试定于7月15日，请同学们认真复习。' },
+      { type: '温馨提示', title: '期末考试通知', date: '2026-07-03', content: '期末考试定于7月15日，请同学们认真复习。' },
       { type: '表扬信', title: '表扬：小明同学', date: '2026-07-01', content: '小明同学在本周数学思维拓展活动中表现优异，特此表扬！' },
       { type: '作业通知', title: '暑假数学阅读推荐', date: '2026-06-28', content: '推荐阅读《数学帮帮忙》系列绘本，开学后分享读后感。' },
     ],
@@ -3397,7 +3397,7 @@ function renderParent() {
   if (role === 'teacher') {
     list.innerHTML = '<div style="margin-bottom:16px;"><button class="btn btn-primary" onclick="publishNotice()">➕ 发布通知</button></div>' +
       filtered.map(function(n, i) {
-        var tagClass = n.type==='作业通知'?'tag-notice':n.type==='考试提醒'?'tag-exam':'tag-praise';
+        var tagClass = n.type==='作业通知'?'tag-notice':n.type==='温馨提示'?'tag-exam':'tag-praise';
         return '<div class="notice-item" style="position:relative;">' +
           '<span class="tag ' + tagClass + '">' + n.type + '</span>' +
           '<span style="font-size:13px;color:var(--text-muted);">' + n.date + '</span>' +
@@ -3410,7 +3410,7 @@ function renderParent() {
       }).join('');
   } else {
     list.innerHTML = filtered.map(function(n) {
-      var tagClass = n.type==='作业通知'?'tag-notice':n.type==='考试提醒'?'tag-exam':'tag-praise';
+      var tagClass = n.type==='作业通知'?'tag-notice':n.type==='温馨提示'?'tag-exam':'tag-praise';
       return '<div class="notice-item">' +
         '<span class="tag ' + tagClass + '">' + n.type + '</span>' +
         '<span style="font-size:13px;color:var(--text-muted);">' + n.date + '</span>' +
@@ -4079,7 +4079,7 @@ function publishNotice() {
   var today = new Date().toISOString().slice(0,10);
   openFormModal('发布通知', [
     { label: '通知类型', name: 'type', type: 'select', value: '作业通知', options: [
-      {value:'作业通知',text:'作业通知'},{value:'考试提醒',text:'考试提醒'},{value:'表扬信',text:'表扬信'}
+      {value:'作业通知',text:'作业通知'},{value:'温馨提示',text:'温馨提示'},{value:'表扬信',text:'表扬信'}
     ]},
     { label: '标题', name: 'title', type: 'text', required: true, placeholder: '通知标题' },
     { label: '日期', name: 'date', type: 'text', value: today, required: true },
@@ -4117,7 +4117,7 @@ function editNotice(idx) {
   if (!n) return;
   openFormModal('编辑通知', [
     { label: '通知类型', name: 'type', type: 'select', value: n.type, options: [
-      {value:'作业通知',text:'作业通知'},{value:'考试提醒',text:'考试提醒'},{value:'表扬信',text:'表扬信'}
+      {value:'作业通知',text:'作业通知'},{value:'温馨提示',text:'温馨提示'},{value:'表扬信',text:'表扬信'}
     ]},
     { label: '标题', name: 'title', type: 'text', value: n.title, required: true },
     { label: '日期', name: 'date', type: 'text', value: n.date, required: true },
@@ -8793,7 +8793,7 @@ function urgeHomeworkNotice(kind, className) {
   }
   openFormModal('发布催办通知', [
     { label: '通知类型', name: 'type', type: 'select', value: '作业通知', options: [
-      {value:'作业通知',text:'作业通知'},{value:'考试提醒',text:'考试提醒'},{value:'表扬信',text:'表扬信'}
+      {value:'作业通知',text:'作业通知'},{value:'温馨提示',text:'温馨提示'},{value:'表扬信',text:'表扬信'}
     ]},
     { label: '标题', name: 'title', type: 'text', value: title, required: true },
     { label: '日期', name: 'date', type: 'text', value: today, required: true },
