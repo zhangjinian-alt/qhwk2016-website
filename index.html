@@ -1657,6 +1657,10 @@ function cloudLogout() {
   clearStudentProfile();
   // 清雷达缓存：避免下次不同账号登入看到上家残留
   _radarValues = null; _radarRange = 'week'; _radarOwnerKey = '';
+  // 清首页统计缓存（积分/勋章/连续天数，跨账号隔离）
+  clearHomeStatsCache();
+  // 清云端通知缓存，避免下次不同账号登入看到上家的通知
+  _cloudNotices = null;
   if (periodicSyncInterval) { clearInterval(periodicSyncInterval); periodicSyncInterval = null; }
   showToast("已退出云端登录");
 }
@@ -1695,6 +1699,10 @@ async function doCloudLogin() {
     closeCloudLoginModal(); setSyncStatus("syncing");
     // 切换账号前清雷达缓存，避免上个用户的数据闪现
     _radarValues = null; _radarRange = 'week'; _radarOwnerKey = '';
+    // 同样清首页统计缓存，避免上个账号的积分/勋章残留
+    clearHomeStatsCache();
+    // 清云端通知缓存，切账号后重新拉取
+    _cloudNotices = null;
     // 识别学生身份：调 /api/student/me，成功则保存学生档案（教师/普通账号 403）
     try {
       const meResp = await fetch(API_BASE + "/student/me", {
@@ -2626,9 +2634,48 @@ function updateHomeStats() {
     if (p) p.textContent = appData.points + ' 积分';
     if (m) m.textContent = appData.medals.filter(x => x.unlocked).length + ' 枚勋章';
     if (s) s.textContent = '连续 ' + appData.streak + ' 天';
+    // 学生端登录后：积分/勋章/连续学习天数改用后端真实数据（2026-09-05）
+    if (isCloudLoggedIn()) loadStudentHomeStats();
   }
   updateWelcome();
   renderHomeByRole(role);
+}
+
+// ===== 学生首页数据看板：积分/勋章/连续学习天数接后端真实数据 =====
+// 跨账号缓存隔离三件套（2026-09-05 硬规则）：owner 校验 + 切账号主动清
+var _homeStatsCache = null;
+var _homeStatsOwnerKey = '';
+function _homeStatsOwner() {
+  var profile = getStudentProfile();
+  if (profile && profile.user_id) return 'student:' + profile.user_id;
+  return 'cloud:' + (getCloudToken() || '').slice(-8);
+}
+function clearHomeStatsCache() { _homeStatsCache = null; _homeStatsOwnerKey = ''; }
+
+async function loadStudentHomeStats() {
+  var owner = _homeStatsOwner();
+  if (_homeStatsCache && _homeStatsOwnerKey === owner) { applyStudentHomeStats(_homeStatsCache); return; }
+  try {
+    var resp = await fetchWithAuth('/student/home-stats');
+    if (!resp.ok) return;  // 静默失败，保留本地展示，不打扰学生
+    var data = await resp.json();
+    _homeStatsCache = data;
+    _homeStatsOwnerKey = owner;
+    // 响应回来时可能已切账号，双重校验后再上屏
+    if (_homeStatsOwner() === owner) applyStudentHomeStats(data);
+  } catch (e) {
+    console.log('首页统计加载失败:', e.message);
+  }
+}
+
+function applyStudentHomeStats(data) {
+  if (!data) return;
+  var p = document.getElementById('totalPoints');
+  var m = document.getElementById('totalMedals');
+  var s = document.getElementById('streakDays');
+  if (p) p.textContent = (Number(data.points) || 0) + ' 积分';
+  if (m) m.textContent = (Number(data.medals) || 0) + ' 枚勋章';
+  if (s) s.textContent = '连续 ' + (Number(data.streak) || 0) + ' 天';
 }
 
 function updateWelcome() {
@@ -3303,6 +3350,36 @@ function openEnrichmentVideo(idx) {
 
 // ===== PARENT =====
 let noticeFilter = 'all';
+// 云端通知缓存（2026-09-05：教师发布的通知存后端，学生/家长登录即可见，解决两端不互通）
+var _cloudNotices = null;
+var _cloudNoticesLoading = false;
+
+function currentNotices() {
+  // 已登录且云端通知已拉到 → 用云端；否则回退本地演示数据
+  if (isCloudLoggedIn() && _cloudNotices) return _cloudNotices;
+  return appData.notices;
+}
+
+async function loadCloudNotices(force) {
+  if (!isCloudLoggedIn() || (_cloudNoticesLoading && !force)) return;
+  _cloudNoticesLoading = true;
+  try {
+    var resp = await fetchWithAuth('/notices');
+    if (resp.ok) {
+      var rows = await resp.json();
+      _cloudNotices = (rows || []).map(function(n) {
+        return { id: n.id, type: n.type, title: n.title, content: n.content, date: n.date || String(n.created_at || '').slice(0, 10) };
+      });
+      // 数据回来后刷新列表（仍在通知页时才刷）
+      var list = document.getElementById('noticeList');
+      if (list && noticeFilter !== undefined) renderParent();
+    }
+  } catch (e) {
+    console.log('云端通知加载失败:', e.message);
+  } finally {
+    _cloudNoticesLoading = false;
+  }
+}
 
 function filterNotices(type) {
   noticeFilter = type;
@@ -3312,7 +3389,10 @@ function renderParent() {
   const role = getCurrentRole();
   const list = document.getElementById('noticeList');
   if (!list) return;
-  const filtered = noticeFilter === 'all' ? appData.notices : appData.notices.filter(function(n) { return n.type === noticeFilter; });
+  // 登录状态：异步拉云端通知（教师端发布后学生端立即可见）
+  if (isCloudLoggedIn() && _cloudNotices === null) loadCloudNotices();
+  const allNotices = currentNotices();
+  const filtered = noticeFilter === 'all' ? allNotices : allNotices.filter(function(n) { return n.type === noticeFilter; });
 
   if (role === 'teacher') {
     list.innerHTML = '<div style="margin-bottom:16px;"><button class="btn btn-primary" onclick="publishNotice()">➕ 发布通知</button></div>' +
@@ -4004,7 +4084,27 @@ function publishNotice() {
     { label: '标题', name: 'title', type: 'text', required: true, placeholder: '通知标题' },
     { label: '日期', name: 'date', type: 'text', value: today, required: true },
     { label: '内容', name: 'content', type: 'textarea', required: true, placeholder: '通知内容...' }
-  ], function(data) {
+  ], async function(data) {
+    // 教师云端登录 → 写后端，学生/家长登录即可见；否则回退本地演示数据
+    if (isCloudLoggedIn()) {
+      try {
+        var resp = await fetchWithAuth('/notices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (resp.ok) {
+          await loadCloudNotices(true);
+          showToast('通知已发布');
+          return;
+        }
+        var errText = '';
+        try { var errJson = await resp.json(); errText = errJson.detail || errJson.message || ''; } catch(e) {}
+        showToast('发布失败' + (errText ? '：' + errText : '，已保存到本地'));
+      } catch(e) {
+        showToast('网络异常，已保存到本地');
+      }
+    }
     appData.notices.unshift(data);
     saveData();
     renderParent();
@@ -4012,7 +4112,9 @@ function publishNotice() {
   }, '发布');
 }
 function editNotice(idx) {
-  var n = appData.notices[idx];
+  var list = currentNotices();
+  var n = list[idx] || appData.notices[idx];
+  if (!n) return;
   openFormModal('编辑通知', [
     { label: '通知类型', name: 'type', type: 'select', value: n.type, options: [
       {value:'作业通知',text:'作业通知'},{value:'考试提醒',text:'考试提醒'},{value:'表扬信',text:'表扬信'}
@@ -4020,8 +4122,30 @@ function editNotice(idx) {
     { label: '标题', name: 'title', type: 'text', value: n.title, required: true },
     { label: '日期', name: 'date', type: 'text', value: n.date, required: true },
     { label: '内容', name: 'content', type: 'textarea', value: n.content, required: true }
-  ], function(data) {
-    appData.notices[idx] = data;
+  ], async function(data) {
+    if (n.id) {
+      // 云端通知：PUT 到后端
+      try {
+        var resp = await fetchWithAuth('/notices/' + n.id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (resp.ok) {
+          await loadCloudNotices(true);
+          showToast('通知已更新');
+          return;
+        }
+        showToast('更新失败，请稍后重试');
+        return;
+      } catch(e) {
+        showToast('网络异常，请稍后重试');
+        return;
+      }
+    }
+    var localIdx = appData.notices.indexOf(n);
+    if (localIdx === -1) return;
+    appData.notices[localIdx] = data;
     saveData();
     renderParent();
     showToast('通知已更新');
@@ -4029,7 +4153,24 @@ function editNotice(idx) {
 }
 function deleteNotice(idx) {
   if (!confirm('确定删除这条通知吗？')) return;
-  appData.notices.splice(idx, 1);
+  var list = currentNotices();
+  var n = list[idx] || appData.notices[idx];
+  if (!n) return;
+  if (n.id) {
+    // 云端通知：DELETE 到后端
+    fetchWithAuth('/notices/' + n.id, { method: 'DELETE' }).then(function(resp) {
+      if (resp.ok) {
+        loadCloudNotices(true);
+        showToast('通知已删除');
+      } else {
+        showToast('删除失败，请稍后重试');
+      }
+    }).catch(function() { showToast('网络异常，请稍后重试'); });
+    return;
+  }
+  var localIdx = appData.notices.indexOf(n);
+  if (localIdx === -1) return;
+  appData.notices.splice(localIdx, 1);
   saveData();
   renderParent();
   showToast('通知已删除');
@@ -7588,8 +7729,8 @@ function renderHwUpload() {
     '<div id="hwUploadStatus" style="text-align:center;margin-top:8px;"></div>' +
     '<button type="submit" class="btn btn-primary" style="width:100%;margin-top:16px;" id="hwSubmitBtn">📤 提交作业</button>' +
     '</form></div>' +
-    // 已提交的作业列表
-    '<div id="hwMyList" style="margin-top:20px;"></div>';
+    // 2026-09-05：移除「我的作业」列表（与学习反馈-作业反馈重复）；此容器仅承载离线暂存作业提示
+    '<div id="hwPendingWrap" style="margin-top:20px;"></div>';
 
   // 拖拽上传支持（多选：追加到已选列表）
   var dropZone = document.getElementById('hwDropZone');
@@ -7599,7 +7740,6 @@ function renderHwUpload() {
     dropZone.addEventListener('drop', function(e) { e.preventDefault(); dropZone.classList.remove('active'); var files = e.dataTransfer.files; if (files.length) addHwFiles(files); });
   }
   renderPendingHint();
-  loadHwMyList();
 }
 
 // ===== 资料下载（家校互通：讲义/试卷/教辅） =====
@@ -8118,8 +8258,7 @@ async function submitHwUpload(e) {
       if (dupDetail.code === 'DUPLICATE_UNCORRECTED') {
         showToast('该作业已有未订正的提交，请先完成错题订正', 'error');
         if (status) status.innerHTML = '<p style="color:var(--danger);font-size:13px;">⚠️ ' + (dupDetail.message || '该作业已提交且尚未订正') + '</p>' +
-          '<p style="color:var(--primary);font-size:13px;margin-top:6px;">✏️ 请到「我的作业」找到这份作业，点击查看详情，在底部完成<strong>错题订正</strong>（拍照/视频/文字三种方式均可）。订正完成后再提交新作业。</p>';
-        loadHwMyList();  // 刷新列表，让学生直接看到那份未订正的作业
+          '<p style="color:var(--primary);font-size:13px;margin-top:6px;">✏️ 请到<strong>「学习反馈」- 作业反馈</strong>找到这份作业，点击"查看详细反馈"，在底部完成<strong>错题订正</strong>（拍照/视频/文字三种方式均可）。订正完成后再提交新作业。</p>';
       } else if (dupDetail.code === 'DUPLICATE_SAME_IMAGE') {
         showToast('同一张作业照片近期已提交过，请勿重复上传', 'error');
         if (status) status.innerHTML = '<p style="color:var(--danger);font-size:13px;">📷 ' + (dupDetail.message || '这张图片已提交过') + '</p>';
@@ -8146,7 +8285,6 @@ async function submitHwUpload(e) {
   if (status) status.innerHTML = '<p style="color:var(--success);font-size:13px;">✅ 上传成功，AI正在自动批改，稍后可查看结果</p>';
   btn.textContent = '📤 提交作业'; btn.disabled = false;
   resetHwForm(fileInput);
-  loadHwMyList();
 }
 
 function resetHwForm(fileInput) {
@@ -8186,7 +8324,7 @@ function renderPendingHint() {
   try {
     var list = JSON.parse(localStorage.getItem(HW_PENDING_KEY) || '[]');
     if (list.length === 0) return;
-    var container = document.getElementById('hwMyList');
+    var container = document.getElementById('hwPendingWrap');
     if (!container) return;
     var html = '<div id="hwPendingBox" style="background:#FFF8E1;border:1px solid #FFD54F;border-radius:8px;padding:12px;margin-top:16px;">' +
       '<h4 style="margin:0 0 8px 0;font-size:14px;color:#F57C00;">📦 暂存的作业（' + list.length + ' 份）</h4>' +
@@ -8232,7 +8370,6 @@ async function retryPendingHw(id) {
       localStorage.setItem(HW_PENDING_KEY, JSON.stringify(newList));
       showToast('暂存作业已重新上传成功！');
       renderPendingHint();
-      loadHwMyList();
     } else if (resp.status === 401) {
       clearCloudToken();
       updateCloudSyncUI();
@@ -8261,86 +8398,9 @@ async function retryAllPendingHw() {
     await retryPendingHw(list[i].id);
     await new Promise(function(r) { setTimeout(r, 500); });
   }
-  loadHwMyList();
 }
 
-// 加载我提交的作业列表（学生/家长视角，2026-09-05 起含撤回功能）
-async function loadHwMyList() {
-  var container = document.getElementById('hwMyList');
-  if (!container) return;
-  if (!isCloudLoggedIn()) { container.innerHTML = ''; renderPendingHint(); return; }
-
-  try {
-    var resp = await fetchWithAuth('/homework/list?status=all');
-    if (!resp.ok) {
-      // 不弹 toast 打扰用户；只控制台记录
-      console.log('拉取作业列表失败: HTTP ' + resp.status);
-      container.innerHTML = '';
-      renderPendingHint();
-      return;
-    }
-    var items = await resp.json();
-    if (items.length === 0) {
-      container.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px;">还没有提交过作业，快来试试吧！</p>';
-      renderPendingHint();
-      return;
-    }
-    // 只显示自己提交的作业：学生账号由服务端强制过滤（只返回本人），前端直接展示；
-    // 其余情况（如教师账号体验学生视图）按姓名匹配兜底
-    var myName = '';
-    var stuProfile = getStudentProfile();
-    var serverScoped = false;
-    if (getCurrentRole() === 'student' && stuProfile && stuProfile.display_name) {
-      myName = stuProfile.display_name;
-      serverScoped = true; // 学生账号：/homework/list 服务端已只返回本人
-    }
-    if (!myName) {
-      var nameEl = document.getElementById('hwStudentName');
-      myName = (nameEl && nameEl.value.trim()) || (appData.userName || '');
-    }
-    var mine = [];
-    if (serverScoped) {
-      mine = items;
-    } else if (myName) {
-      mine = items.filter(function(h) {
-        var owner = h.student_name || '';
-        return owner === myName || owner.indexOf(myName) >= 0 || myName.indexOf(owner) >= 0;
-      });
-    }
-    if (mine.length === 0) {
-      container.innerHTML = '<h4 style="margin-bottom:12px;">📦 我的作业</h4>' +
-        '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px;">还没有提交记录，拍照上传后这里可以看到批改进度和反馈</p>';
-      renderPendingHint();
-      return;
-    }
-    container.innerHTML = '<h4 style="margin-bottom:12px;">📦 我的作业</h4>' +
-      mine.map(function(h) {
-        var imgCount = h.image_count > 1 ? '<span class="hw-thumb-badge">' + h.image_count + '图</span>' : '';
-        var correctedBadge = (h.corrected && h.status !== 'pending' && h.status !== 'grading' && h.status !== 'failed')
-          ? ' <span class="ak-badge" style="background:#F6FFED;color:#389E0D;border-color:#B7EB8F;">✅ 已订正</span>'
-          : ((h.status === 'graded' || h.status === 'reviewed') ? ' <span class="ak-badge" style="background:#FFF7E6;color:#D46B08;border-color:#FFD591;">⏳ 待订正</span>' : '');
-        return '<div class="hw-list-item">' +
-          '<div class="hw-thumb-wrap" title="点击放大查看" onclick="hwThumbLightbox(' + h.id + ')"><img class="hw-thumb" src="' + h.image_url + '" alt="作业">' + imgCount + '</div>' +
-          '<div class="hw-info">' +
-          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
-          '<span style="font-weight:500;font-size:14px;">' + (h.title || '数学作业') + correctedBadge + '</span>' +
-          '<span class="hw-status ' + h.status + '">' + hwStatusIcon[h.status] + ' ' + hwStatusLabel[h.status] + '</span></div>' +
-          (h.status === 'graded' || h.status === 'reviewed'
-            ? '<p style="font-size:13px;color:var(--text-secondary);">正确率：<strong style="color:var(--success);">' + h.accuracy + '%</strong> (' + scoreFrac(h.total_correct, h.total_count) + ')</p>'
-            : '<p style="font-size:13px;color:var(--text-muted);">' + (h.status === 'failed' ? '批改失败，可撤回后重新拍清晰的再交' : '老师正在批改中，请稍候') + '</p>') +
-          '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0, 10) + '</p>' +
-          '<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">' +
-          (h.status === 'graded' || h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;" onclick="viewHwFeedback(' + h.id + ')">查看详细反馈</button>' : '') +
-          '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;color:var(--danger);" onclick="withdrawHw(' + h.id + ',\'' + h.status + '\')">↩️ 撤回重交</button>' +
-          '</div></div></div>';
-      }).join('');
-  } catch (e) {
-    container.innerHTML = '';
-  }
-  // 始终在最前面渲染暂存作业（避免被覆盖）
-  renderPendingHint();
-}
-
+// 2026-09-05：「我的作业」模块已从家校互通移除（与学习反馈-作业反馈重复）
 // 撤回作业（2026-09-05：提交有误可撤回再交，后端校验只能撤自己的）
 async function withdrawHw(hwId, status) {
   var msg = status === 'reviewed'
@@ -8355,7 +8415,7 @@ async function withdrawHw(hwId, status) {
       return;
     }
     showToast('已撤回，可以重新提交了', 'success');
-    loadHwMyList();
+    loadHwFeedbackList();
   } catch (e) {
     showToast('撤回失败：' + friendlyFetchError(e), 'error');
   }
@@ -8583,11 +8643,11 @@ function renderHwGrading() {
     loadAnswerKeyList();
     loadHwTeacherList('all');
   } else {
-    // 学生/家长模式：已复核的作业反馈列表
+    // 学生/家长模式：我的作业与反馈（2026-09-05 起承接原「我的作业」全部职责：全状态+撤回+订正入口）
     section.innerHTML = '';
-    // 汇总显示已复核的作业
+    // 汇总显示全部作业（批改进度、反馈、订正、撤回统一在此）
     if (isCloudLoggedIn()) {
-      section.innerHTML = '<h3 style="margin-bottom:16px;">📝 作业反馈（本周）</h3><div id="hwFeedbackList"></div>';
+      section.innerHTML = '<h3 style="margin-bottom:16px;">📝 作业反馈</h3><div id="hwFeedbackList"></div>';
       loadHwFeedbackList();
     }
   }
@@ -8649,25 +8709,54 @@ async function loadHwFeedbackList() {
   var list = document.getElementById('hwFeedbackList');
   if (!list) return;
   try {
-    // 服务端强制：学生只返回本人作业；scope=week 再按当前教学周过滤
-    var resp = await fetchWithAuth('/homework/list?status=reviewed&scope=week');
+    // 2026-09-05：status=all 承接原「我的作业」职责（全状态展示），学生账号由服务端强制只返回本人
+    var resp = await fetchWithAuth('/homework/list?status=all');
     if (!resp.ok) return;
     var items = await resp.json();
-    if (items.length === 0) {
-      list.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px;">本周暂无已复核的作业反馈</p>';
+    // 教师账号体验学生视图时按姓名匹配兜底（学生账号服务端已过滤）
+    var myName = '';
+    var stuProfile = getStudentProfile();
+    var serverScoped = false;
+    if (getCurrentRole() === 'student' && stuProfile && stuProfile.display_name) {
+      myName = stuProfile.display_name;
+      serverScoped = true;
+    }
+    if (!myName) {
+      var nameEl = document.getElementById('hwStudentName');
+      myName = (nameEl && nameEl.value.trim()) || (appData.userName || '');
+    }
+    var mine = [];
+    if (serverScoped) {
+      mine = items;
+    } else if (myName) {
+      mine = items.filter(function(h) {
+        var owner = h.student_name || '';
+        return owner === myName || owner.indexOf(myName) >= 0 || myName.indexOf(owner) >= 0;
+      });
+    }
+    if (mine.length === 0) {
+      list.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px;">还没有提交记录，去「家校互通」拍照上传作业后，这里可以看到批改进度和反馈</p>';
       return;
     }
-    list.innerHTML = items.map(function(h) {
+    list.innerHTML = mine.map(function(h) {
       var imgCount = h.image_count > 1 ? '<span class="hw-thumb-badge">' + h.image_count + '图</span>' : '';
+      var correctedBadge = (h.corrected && h.status !== 'pending' && h.status !== 'grading' && h.status !== 'failed')
+        ? ' <span class="ak-badge" style="background:#F6FFED;color:#389E0D;border-color:#B7EB8F;">✅ 已订正</span>'
+        : ((h.status === 'graded' || h.status === 'reviewed') ? ' <span class="ak-badge" style="background:#FFF7E6;color:#D46B08;border-color:#FFD591;">⏳ 待订正</span>' : '');
       return '<div class="hw-list-item">' +
         '<div class="hw-thumb-wrap" title="点击放大查看" onclick="hwThumbLightbox(' + h.id + ')"><img class="hw-thumb" src="' + h.image_url + '" alt="作业">' + imgCount + '</div>' +
         '<div class="hw-info">' +
-        '<span style="font-weight:500;font-size:14px;">' + (h.title || '数学作业') + '</span>' +
-        '<span class="hw-status reviewed" style="margin-left:8px;">✅ 已批改</span>' +
-        '<p style="font-size:13px;color:var(--text-secondary);">正确率：' + h.accuracy + '% (' + scoreFrac(h.total_correct, h.total_count) + ')</p>' +
-        '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0,10) + '</p>' +
-        '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;" onclick="viewHwFeedback(' + h.id + ')">查看反馈</button>' +
-        '</div></div>';
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+        '<span style="font-weight:500;font-size:14px;">' + (h.title || '数学作业') + correctedBadge + '</span>' +
+        '<span class="hw-status ' + h.status + '">' + hwStatusIcon[h.status] + ' ' + hwStatusLabel[h.status] + '</span></div>' +
+        (h.status === 'graded' || h.status === 'reviewed'
+          ? '<p style="font-size:13px;color:var(--text-secondary);">正确率：<strong style="color:var(--success);">' + h.accuracy + '%</strong> (' + scoreFrac(h.total_correct, h.total_count) + ')</p>'
+          : '<p style="font-size:13px;color:var(--text-muted);">' + (h.status === 'failed' ? '批改失败，可撤回后重新拍清晰的再交' : '老师正在批改中，请稍候') + '</p>') +
+        '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0, 10) + '</p>' +
+        '<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">' +
+        (h.status === 'graded' || h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;" onclick="viewHwFeedback(' + h.id + ')">查看详细反馈</button>' : '') +
+        '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;color:var(--danger);" onclick="withdrawHw(' + h.id + ',\'' + h.status + '\')">↩️ 撤回重交</button>' +
+        '</div></div></div>';
     }).join('');
   } catch (e) { list.innerHTML = ''; }
 }
