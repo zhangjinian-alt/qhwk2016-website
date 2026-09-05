@@ -1655,6 +1655,8 @@ async function cloudLogin(username, password) {
 function cloudLogout() {
   clearCloudToken(); cloudDataVersion = 0; setSyncStatus("disconnected");
   clearStudentProfile();
+  // 清雷达缓存：避免下次不同账号登入看到上家残留
+  _radarValues = null; _radarRange = 'week'; _radarOwnerKey = '';
   if (periodicSyncInterval) { clearInterval(periodicSyncInterval); periodicSyncInterval = null; }
   showToast("已退出云端登录");
 }
@@ -1691,6 +1693,8 @@ async function doCloudLogin() {
   btn.textContent = "登录"; btn.disabled = false;
   if (ok) {
     closeCloudLoginModal(); setSyncStatus("syncing");
+    // 切换账号前清雷达缓存，避免上个用户的数据闪现
+    _radarValues = null; _radarRange = 'week'; _radarOwnerKey = '';
     // 识别学生身份：调 /api/student/me，成功则保存学生档案（教师/普通账号 403）
     try {
       const meResp = await fetch(API_BASE + "/student/me", {
@@ -2211,7 +2215,7 @@ function showChangePinUI() {
 }
 
 // Click outside to close
-console.log('%c青花微课 v20260905-22 数据管理仅教师端可见', 'color:#4A90D9;font-size:14px;font-weight:bold');
+console.log('%c青花微课 v20260905-23 数据管理仅教师端可见', 'color:#4A90D9;font-size:14px;font-weight:bold');
 document.addEventListener("DOMContentLoaded", function() {
   document.getElementById("authModal").addEventListener("click", function(e) {
     if (e.target === this) closeAuthModal();
@@ -4163,8 +4167,19 @@ function renderFeedback() {
   }
 }
 
-var _radarValues = null;   // 云端真实五维能力缓存
-var _radarRange = 'week';  // 当前缓存对应的时间范围
+var _radarValues = null;        // 云端真实五维能力缓存
+var _radarRange = 'week';       // 当前缓存对应的时间范围
+var _radarOwnerKey = '';        // 当前缓存对应账号身份（教师/具体学生），防止跨账号串数据
+
+// 当前账号身份标识：教师 PIN 视为同一身份；学生以 userId 区分
+function _currentRadarOwnerKey() {
+  if (!isCloudLoggedIn()) return '';
+  var profile = getStudentProfile();
+  if (profile && profile.user_id) return 'student:' + profile.user_id;
+  // 教师或非学生账号：以 token 末 8 位作为弱身份（避免教师不同账号互串）
+  var tok = getCloudToken() || '';
+  return 'cloud:' + tok.slice(-8);
+}
 
 function draw3DRadar() {
   const canvas = document.getElementById('radar3D');
@@ -4174,9 +4189,13 @@ function draw3DRadar() {
   const labels = ['计算能力', '理解能力', '应用能力', '审题能力', '答题速度'];
 
   // 已登录云端且缓存失效时，先显示加载中并异步加载真实能力数据
-  if (isCloudLoggedIn() && (_radarValues === null || _radarRange !== feedbackTimeRange)) {
+  var ownerKey = _currentRadarOwnerKey();
+  if (isCloudLoggedIn() && (_radarValues === null || _radarRange !== feedbackTimeRange || _radarOwnerKey !== ownerKey)) {
     var role = getCurrentRole();
     var stuName = role === 'student' ? ((getStudentProfile() || {}).display_name || '') : '';
+    // 账号切换/缓存失效：清旧缓存，避免教师-学生之间串数据
+    _radarValues = null;
+    _radarOwnerKey = ownerKey;
     // 清空画布，显示加载中，避免一闪而过的演示数据
     ctx.clearRect(0, 0, 460, 460);
     ctx.fillStyle = 'var(--text-muted)';
@@ -4188,7 +4207,7 @@ function draw3DRadar() {
   }
 
   var values;
-  if (_radarValues && _radarValues.values && _radarRange === feedbackTimeRange) {
+  if (_radarValues && _radarValues.values && _radarRange === feedbackTimeRange && _radarOwnerKey === ownerKey) {
     values = _radarValues.values;
   } else {
     // 未登录或加载失败时的兜底演示数据
@@ -4279,6 +4298,7 @@ function setFeedbackTimeRange(range, btn) {
   // 切换时间范围后清空缓存，强制重新拉取云端数据
   _radarValues = null;
   _radarRange = range;
+  _radarOwnerKey = '';
   draw3DRadar();
   // 复习推荐也按新范围刷新
   if (isCloudLoggedIn()) {
@@ -4526,6 +4546,7 @@ async function loadCloudAbilityRadar(studentName) {
     if (data && data.values && data.values.length === 5) {
       _radarValues = data;
       _radarRange = feedbackTimeRange || 'week';
+      _radarOwnerKey = _currentRadarOwnerKey();
       draw3DRadar(); // 加载完成后用真实数据重绘
       var analysis = document.getElementById('radarAnalysis');
       if (analysis && data.analysis) {
