@@ -668,7 +668,7 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
           <label style="font-size:12px;font-weight:600;color:var(--slate-600);">班级</label>
-          <input id="cloudClassName" placeholder="如：303班" style="flex:1;min-width:120px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;" value="">
+          <input id="cloudClassName" placeholder="如：403班" style="flex:1;min-width:120px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;" value="">
           <span style="font-size:12px;color:var(--slate-500);">上传/下载：<strong id="cloudTermLabel" style="color:var(--slate-700);"></strong> · 第 <strong id="cloudWeekLabel" style="color:var(--slate-700);"></strong> 周</span>
         </div>
         <div style="display:flex;gap:10px;">
@@ -708,7 +708,7 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
         <!-- 班级与操作 -->
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
           <label style="font-size:12px;font-weight:600;color:var(--slate-600);">班级</label>
-          <input id="stuClassName" placeholder="如：303班" style="flex:1;min-width:120px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;">
+          <input id="stuClassName" placeholder="如：403班" style="flex:1;min-width:120px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;">
           <button id="stuRefreshBtn" class="modal-btn modal-btn-cancel" style="padding:9px 14px;">刷新列表</button>
           <button id="stuCreateBtn" class="modal-btn modal-btn-primary" style="padding:9px 16px;">批量创建账号</button>
           <button id="stuExcelBtn" class="modal-btn modal-btn-primary" style="padding:9px 16px;background:var(--green-d);">Excel 导入</button>
@@ -931,9 +931,9 @@ function getISOWeek(d){
   return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
 }
 
-// 教学周起点：第1周的周一（例：2026-08-10 → 8/10-8/16 为第1周）
+// 教学周起点：第1周的起点日（2026-08-30 → 8/30-9/5 为2026秋季学期第1周）
 // 云端 eval_records 按教学周存取，与后端 _teach_week()、主站 getTeachWeek() 一致
-const TEACH_WEEK_START = '2026-08-10';
+const TEACH_WEEK_START = '2026-08-30';
 function getTeachWeek(d){
   const start = new Date(TEACH_WEEK_START + 'T00:00:00');
   const cur = new Date(d.getTime()); cur.setHours(0, 0, 0, 0);
@@ -970,9 +970,9 @@ function loadState(){
     obj.totalWeeks = Math.max(obj.totalWeeks || 0, nowWeek);
     obj.totalWeeks = Math.min(obj.totalWeeks, MAX_WEEKS);
     changed = true;
-    // 旧测试班级 403班 已统一为真实班级 303班，做一次性迁移
-    if(obj.className === '403班'){
-      obj.className = '303班';
+    // 旧测试班级 303班 已统一为真实班级 403班，做一次性迁移
+    if(obj.className === '303班'){
+      obj.className = '403班';
       changed = true;
     }
     if(changed){
@@ -999,7 +999,7 @@ let STATE = (function(){
       currentWeek: cw,
       totalWeeks: Math.min(saved.totalWeeks || cw, MAX_WEEKS),
       selectedTerm: saved.selectedTerm || '',
-      className: saved.className || '303班',
+      className: saved.className || '403班',
       view: saved.view || 'class',
       selectedStudent: saved.selectedStudent || 0,
       sortKey: 'avg',
@@ -1013,7 +1013,7 @@ let STATE = (function(){
     currentWeek: defaultWeek,
     totalWeeks: Math.min(Math.max(nowWeek, 1), MAX_WEEKS),
     selectedTerm: '',
-    className: '303班',
+    className: '403班',
     view: 'class',
     selectedStudent: 0,
     sortKey: 'avg',
@@ -1809,7 +1809,7 @@ function updateCloudUI(){
     }catch(e){ username = '教师'; }
     $('#cloudUserLabel').textContent = username;
   }
-  $('#cloudClassName').value = STATE.className || '303班';
+  $('#cloudClassName').value = STATE.className || '403班';
   $('#cloudTermLabel').textContent = STATE.selectedTerm || '未选择学期';
   $('#cloudWeekLabel').textContent = STATE.currentWeek || '—';
   // 渲染上次同步状态
@@ -2031,7 +2031,7 @@ let _stuListRows = []; // 当前列表缓存
 
 function openStudentManager(){
   $('#studentModal').classList.add('show');
-  $('#stuClassName').value = STATE.className || '303班';
+  $('#stuClassName').value = STATE.className || '403班';
   $('#stuNamesInput').value = '';
   $('#stuCreateMsg').style.display = 'none';
   $('#stuExcelHint').style.display = 'none';
@@ -2289,7 +2289,7 @@ function handleStudentExcelFile(input){
         (topCount ? '（优生 ' + topCount : '') + (normalCount ? '、中等生 ' + normalCount : '') +
         (unsetCount ? '、未分层 ' + unsetCount : '') + '）。正在导入…';
       // 按分层分组，分批调用 API
-      importStudentsByBatch(students, $('#stuClassName').value.trim() || STATE.className || '303班');
+      importStudentsByBatch(students, $('#stuClassName').value.trim() || STATE.className || '403班');
     }catch(err){
       msg.style.color = '#ef4444';
       msg.textContent = 'Excel 解析失败：' + err.message;
@@ -2974,7 +2974,7 @@ function bindEvents(){
   $('#cloudUploadBtn').addEventListener('click',cloudUpload);
   $('#cloudDownloadBtn').addEventListener('click',cloudDownload);
   $('#cloudClassName').addEventListener('change',function(){
-    STATE.className = this.value.trim() || '303班';
+    STATE.className = this.value.trim() || '403班';
     saveState();
   });
 
