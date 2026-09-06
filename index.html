@@ -1667,6 +1667,7 @@ function cloudLogout() {
   clearStudentProfile();
   // 清雷达缓存：避免下次不同账号登入看到上家残留
   _radarValues = null; _radarRange = 'week'; _radarOwnerKey = '';
+  window._teacherRadar = null;
   // 清首页统计缓存（积分/勋章/连续天数，跨账号隔离）
   clearHomeStatsCache();
   // 清云端通知缓存，避免下次不同账号登入看到上家的通知
@@ -1725,6 +1726,7 @@ async function doCloudLogin() {
     }
     // 切换账号前清雷达缓存，避免上个用户的数据闪现
     _radarValues = null; _radarRange = 'week'; _radarOwnerKey = '';
+    window._teacherRadar = null;
     // 同样清首页统计缓存，避免上个账号的积分/勋章残留
     clearHomeStatsCache();
     // 清云端通知缓存，切账号后重新拉取
@@ -4972,6 +4974,8 @@ function renderEvaluate() {
 
   // 切换页面时清除学生五维缓存，避免教师模式误用学生数据
   window._studentEval = null;
+  // 切换页面时清除教师班级五维缓存，避免学生/未登录态误用班级汇总数据
+  window._teacherRadar = null;
 
   // 检查是否已登录（教师 PIN 或云端账号）
   const isLoggedIn = isAuthenticated() || isCloudLoggedIn();
@@ -4987,6 +4991,7 @@ function renderEvaluate() {
     html += '<button onclick="openAvatarManager()" style="background:var(--primary);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;">📷 导入学生头像</button>';
     html += '</div>';
     html += '<div id="evalLeaderboard" style="min-height:120px;"><p style="text-align:center;color:var(--text-muted);padding:20px;">⏳ 正在加载喜报数据...</p></div>';
+    html += '<div style="margin-top:20px;"><h4 style="margin:0 0 10px;font-size:15px;">📋 班级五维分析</h4><div id="teacherRadarAnalysis" style="font-size:14px;color:var(--text-secondary);line-height:1.8;">⏳ 正在加载班级五维数据...</div></div>';
     html += '</div></div>';
 
     // 功勋墙（真实数据，教师端显示班级聚合）
@@ -4999,7 +5004,7 @@ function renderEvaluate() {
     html += '</div></div>';
 
     content.innerHTML = html;
-    setTimeout(draw5DRadar, 100);
+    setTimeout(loadTeacherAbilityRadar, 100);
 
     // 加载电子喜报排行榜
     loadEvalLeaderboard();
@@ -5888,7 +5893,11 @@ function draw5DRadar() {
   const ctx = canvas.getContext('2d');
   const cx = 230, cy = 230, r = 150;
   var labels, values;
-  if (window._studentEval) {
+  if (window._teacherRadar && window._teacherRadar.values) {
+    // 教师端：全班真实五维能力数据（来自 /api/ability-radar 汇总）
+    labels = window._teacherRadar.labels || ['计算能力', '理解能力', '应用能力', '审题能力', '答题速度'];
+    values = window._teacherRadar.values;
+  } else if (window._studentEval) {
     // 学生真实五维数据（各维度满分 10 分）
     var ev = window._studentEval;
     labels = ['学习兴趣', '学习效果', '思维品质', '合作交流', '学习习惯'];
@@ -5896,7 +5905,7 @@ function draw5DRadar() {
       return Math.max(0, Math.min(1, (Number(v) || 0) / 10));
     });
   } else {
-    // 教师/本地模式：动态计算各维度
+    // 本地模式：动态计算各维度
     labels = (appData.evalLabels || ['计算小达人', '思考小诸葛', '表达小讲师', '书写小标兵', '应用小能手']).map(function(l) {
       if (l.length > 4) { var mid = Math.ceil(l.length / 2); return l.slice(0, mid) + '\n' + l.slice(mid); }
       return l;
@@ -5959,6 +5968,33 @@ function draw5DRadar() {
     const lines = labels[i].split('\n');
     lines.forEach((line, j) => ctx.fillText(line, x, y + j*16));
   });
+}
+
+// 教师端：从云端加载全班五维能力雷达图数据
+async function loadTeacherAbilityRadar() {
+  var analysisEl = document.getElementById('teacherRadarAnalysis');
+  try {
+    var resp = await fetchWithAuth('/ability-radar?time_range=week');
+    if (!resp.ok) {
+      var friendly = '请求失败';
+      if (resp.status === 401) friendly = '登录已过期，请重新登录';
+      if (resp.status === 403) friendly = '当前账号无权查看能力雷达图';
+      throw new Error(friendly);
+    }
+    var data = await resp.json();
+    if (data && data.values && data.values.length === 5) {
+      window._teacherRadar = data;
+      draw5DRadar();
+      if (analysisEl) analysisEl.innerHTML = data.analysis || '暂无分析数据。';
+      return;
+    }
+    throw new Error('数据格式异常');
+  } catch (e) {
+    console.log('班级五维雷达加载失败:', e.message);
+    // 失败时仍用本地兜底数据绘制，避免白屏
+    draw5DRadar();
+    if (analysisEl) analysisEl.innerHTML = '班级五维数据加载失败，请刷新后重试。';
+  }
 }
 
 function editEvalLabels() {
