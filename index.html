@@ -1062,7 +1062,7 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
   </div>
   <div class="radar-section">
     <div class="chart-container">
-      <h3 style="margin-bottom:16px;">周末作业五维能力雷达图</h3>
+      <h3 id="feedbackRadarTitle" style="margin-bottom:16px;">周末作业五维能力雷达图</h3>
       <canvas id="radar3D" width="460" height="460"></canvas>
       <div id="radarAnalysis" style="margin-top:12px;font-size:13px;color:var(--text-muted);"></div>
     </div>
@@ -4427,6 +4427,12 @@ function renderFeedback() {
   } else if (isLoggedIn) {
     // 已登录的学生：显示个人学习数据
     if (title) title.textContent = '📊 学习反馈';
+    // 2026-09-06：学生端个人雷达图标题前加当前学生姓名（如「杨羽涵周末作业五维能力雷达图」）
+    var radTitle = document.getElementById('feedbackRadarTitle');
+    if (radTitle) {
+      var _stuName = (getStudentProfile() || {}).display_name || '';
+      radTitle.textContent = _stuName ? (_stuName + '周末作业五维能力雷达图') : '周末作业五维能力雷达图';
+    }
     list.innerHTML = appData.mistakes.map(function(m) {
       return '<div class="mistake-item"><div class="question">❌ ' + fmtFrac(escapeHtml(m.question + ' = ' + m.wrongAnswer)) + '</div>' +
         '<div class="reason">⚠️ 错误原因：' + fmtFrac(escapeHtml(m.reason || '')) + '</div>' +
