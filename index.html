@@ -7978,7 +7978,7 @@ function renderHwUpload() {
     '<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">拍照上传你的数学作业，AI 会自动批改并给出反馈，老师还会复核哦！提交后系统按正确率自动计入"学习效果"维度（正确率80% = 6.4分，订正错题再+2分）。</p>' +
     '<form id="hwUploadForm" onsubmit="submitHwUpload(event)">' +
     '<div class="form-group"><label>姓名</label><input type="text" id="hwStudentName" value="' + studentName + '" required placeholder="输入你的姓名"' + (role === 'student' && stuProfile ? ' readonly style="background:var(--bg);color:var(--text-secondary);"' : '') + '></div>' +
-    '<div class="form-group"><label>作业标题</label><input type="text" id="hwTitle" placeholder="如：分数练习第3页（与老师发的作业标题一致更易匹配标准答案）"></div>' +
+    '<div class="form-group"><label>作业标题</label><input type="text" id="hwTitle" value="第' + getTeachWeek() + '周周末作业" placeholder="如：第' + getTeachWeek() + '周周末作业（与老师发的作业标题一致更易匹配标准答案）"></div>' +
     classHint +
     '<input type="hidden" id="hwClassName" value="' + (stuProfile && stuProfile.class_name ? stuProfile.class_name : '') + '">' +
     '<div class="hw-upload-area" id="hwDropZone" onclick="document.getElementById(\'hwFileInput\').click()">' +
@@ -9395,10 +9395,10 @@ async function loadAnswerKeyList() {
 function showAnswerKeyUpload() {
   var html = '<div class="hw-detail">' +
     '<h3 style="margin-bottom:16px;">🔑 上传标准答案</h3>' +
-    '<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">标准答案通过<strong>标题</strong>与学生作业关联，请确保标题一致。同一标题重复上传会覆盖旧答案。</p>' +
+    '<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">标准答案通过<strong>标题</strong>与学生作业关联，请确保标题一致。同一标题重复上传会覆盖旧答案。<br>2026-09-06 起学生提交作业默认标题为「第' + getTeachWeek() + '周周末作业」，已为你预填，周末作业直接上传即可匹配。</p>' +
     '<form onsubmit="submitAnswerKeyUpload(event)">' +
     '<div class="form-group"><label>作业标题 <span style="color:var(--danger);">*</span></label>' +
-    '<input type="text" id="akTitle" placeholder="如：分数加减法练习第3页" required style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;"></div>' +
+    '<input type="text" id="akTitle" value="第' + getTeachWeek() + '周周末作业" placeholder="如：分数加减法练习第3页" required style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;"></div>' +
     '<div class="form-group"><label>标准答案图片或PDF（推荐，拍正确答案照片或上传PDF）</label>' +
     '<div class="hw-upload-area" id="akDropZone" onclick="document.getElementById(\'akFileInput\').click()" style="padding:20px;">' +
     '<p id="akFileLabel" style="font-size:13px;color:var(--text-muted);margin:0;">点击选择答案图片（jpg/png）或PDF</p>' +
