@@ -1238,7 +1238,7 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
     <div id="cloudLoginView">
       <h3 style="margin:0 0 8px;font-size:20px;text-align:center;color:#333;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-2601" xlink:href="#tw-2601"/></svg> 云端同步登录</h3>
       <p style="color:#888;font-size:13px;margin:0 0 12px;text-align:center;line-height:1.5;">登录后数据自动同步云端，换设备不丢失</p>
-      <p style="background:#FFF7E6;border:1px solid #FFE7BA;color:#D48806;font-size:12px;margin:0 0 16px;padding:8px 10px;border-radius:8px;line-height:1.6;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f393" xlink:href="#tw-1f393"/></svg> 学生请用学校账号登录（如 <b>S29301YZX</b>），初始密码 <b>123456</b>，登录后可查看个人五维评价</p>
+      <p style="background:#FFF7E6;border:1px solid #FFE7BA;color:#D48806;font-size:12px;margin:0 0 16px;padding:8px 10px;border-radius:8px;line-height:1.6;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f393" xlink:href="#tw-1f393"/></svg> 学生请使用学校分配的账号登录，登录后可查看个人五维评价与学习数据</p>
       <input type="text" id="cloudUsername" placeholder="用户名" autocomplete="username" style="width:100%;padding:12px;margin-bottom:12px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
       <input type="password" id="cloudPassword" placeholder="密码" autocomplete="current-password" style="width:100%;padding:12px;margin-bottom:16px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
       <button id="cloudLoginBtn" onclick="doCloudLogin()" style="width:100%;padding:12px;background:#4A90D9;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600;">登录</button>
@@ -1729,7 +1729,11 @@ async function doCloudLogin() {
     showToast("云端登录成功！正在同步数据...");
     const cloudData = await loadFromCloud();
     if (cloudData && Object.keys(cloudData).length > 0) {
-      appData = migrateData(cloudData); localStorage.setItem(DATA_KEY, encryptData(appData));
+      appData = migrateData(cloudData);
+      // 学生真实姓名不应被云端默认数据覆盖：重新应用学生档案里的姓名
+      var _sp = getStudentProfile();
+      if (_sp && _sp.display_name) appData.userName = _sp.display_name;
+      localStorage.setItem(DATA_KEY, encryptData(appData));
       updateHomeStats(); draw3DRadar();
       setSyncStatus("synced");
       showToast("云端数据已同步到本地");
@@ -1746,6 +1750,9 @@ async function doCloudLogin() {
       sharedCoursesLoaded = false;
       loadSharedCourses();
     }
+    // 登录成功后刷新当前页（首页问候语、学习反馈等按新身份重绘，避免显示旧用户名）
+    var _act = document.querySelector('.page.active');
+    if (_act) renderPageContent(_act.id.replace('page-', ''));
   } else { setSyncStatus("disconnected"); showToast("登录失败，请检查用户名和密码"); }
 }
 
@@ -2382,11 +2389,13 @@ function getDefaultData() {
     userName: '小明同学',
     messages: [],
     profile: {
-      philosophy: '我相信每个孩子都有学好数学的潜力。数学不是冰冷的公式，而是理解世界的语言。在我的课堂上，我注重培养孩子们的数学思维和学习兴趣，让每个孩子都能在轻松愉快的氛围中掌握数学知识，建立自信。',
+      philosophy: '我坚信每个孩子都有学好数学的潜力。数学不是冰冷的公式，而是理解世界的语言。在我的课堂上，我始终秉持"教—学—评"双一致性的教学理念，以《义务教育数学课程标准（2022年版）》核心素养为指引，把教学目标、学习活动与评价反馈拧成一股绳，让每一次学习都有明确的落点。我注重保护孩子的好奇心与成就感，着力培养他们的数学思维、学习习惯与解决真实问题的能力，让每个孩子都能在轻松愉悦的氛围中掌握知识、建立自信。',
       honors: [
         '教龄 12 年，一直从事小学数学教学工作',
+        '东莞市东华小学数学教师、教导处副主任（主抓生态园校区数学科教学教研，分管两校区教科研，重点抓数学拓展兴趣班）',
         '市级骨干教师、优秀班主任',
         '多次获得市级优质课比赛一等奖',
+        '主持市级课题《基于核心素养理念下小学数学教学评"双一致性"实践研究》',
         '开发的"青花微课"系列微课资源覆盖三年级至六年级全部知识点'
       ]
     },
@@ -2706,7 +2715,9 @@ function updateWelcome() {
     if (sub) sub.textContent = '管理课程内容、发布通知、查看学生数据';
     if (cta) cta.innerHTML = '<button class="btn btn-primary" onclick="navigate(\'classroom\')">📚 管理课程</button><button class="btn btn-outline" onclick="navigate(\'parent\')">📢 发布通知</button>';
   } else {
-    if (msg) msg.textContent = '欢迎回来，' + appData.userName + '！';
+    var _stu = getStudentProfile();
+    var _welcomeName = (_stu && _stu.display_name) ? _stu.display_name : appData.userName;
+    if (msg) msg.textContent = '欢迎回来，' + _welcomeName + '！';
     if (title) title.innerHTML = '本周' + heroRoleImg() + '带来了"巧算乘法"';
     if (sub) sub.textContent = '每周进步一点点，数学其实很好玩！';
     if (cta) cta.innerHTML = '<button class="btn btn-primary" onclick="navigate(\'classroom\')">📖 开始本周的学习</button><button class="btn btn-outline" onclick="navigate(\'feedback\')">📊 查看学习报告</button>';
@@ -4491,8 +4502,9 @@ function renderReviewRecommendations() {
 }
 
 // 从云端拉取真实错题数据（AI批改 grade_result 提取；服务端已强制：学生只返回本人）
-// 展示规则：默认只显示本周（当前教学周）错题，历史错题一键展开/收起
-var _mistakeHistoryOpen = false;
+// 展示规则：按教学周分组，周次从高到低，每周可独立展开/收起（默认展开本周）
+var _mistakeWeekOpen = {};   // { 周次: 是否展开 }
+var _mistakeWeekAll = null;  // 最近一次拉取的错题全量，供折叠时原地重绘
 async function loadCloudMistakes(studentName) {
   var list = document.getElementById('mistakeList');
   if (!list) return;
@@ -4502,75 +4514,82 @@ async function loadCloudMistakes(studentName) {
     if (!resp.ok) throw new Error('请求失败');
     var data = await resp.json();
     var all = data.mistakes || [];
-    // 按教学周分组：本周（北京时间 >= 本周起始日）vs 历史
-    var weekStart = getTeachWeekStartDate();
-    var weekMistakes = [], historyMistakes = [];
-    all.forEach(function(m) {
-      (hwBeijingDate(m.created_at) >= weekStart ? weekMistakes : historyMistakes).push(m);
-    });
     if (all.length === 0) {
       list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);"><div style="font-size:36px;margin-bottom:8px;">✅</div><p>暂无错题记录，继续保持！</p></div>';
       return;
     }
-    // 本周错误类型统计（只统计本周）
-    var weekStats = {};
-    weekMistakes.forEach(function(m) {
-      var t = m.error_type || '其他错误';
-      weekStats[t] = (weekStats[t] || 0) + 1;
-    });
-    var statsArr = Object.keys(weekStats).map(function(k) { return { type: k, count: weekStats[k] }; })
-      .sort(function(a, b) { return b.count - a.count; }).slice(0, 5);
-    var statsHtml = statsArr.map(function(s) {
-      return '<span style="display:inline-block;background:#FCEBEB;color:#A32D2D;border-radius:12px;padding:2px 10px;font-size:12px;margin:2px 6px 2px 0;">' + escHtmlSafe(s.type) + ' ×' + s.count + '</span>';
-    }).join('');
-    var isSelfView = getCurrentRole() !== 'teacher';
-    function mistakeHtml(m) {
-      var who = (!isSelfView && m.student_name) ? ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">— ' + escHtmlSafe(m.student_name) + ' · ' + escHtmlSafe(m.title || '') + '</span>' : '';
-      var hint = m.hint ? ' <span style="font-size:12px;color:var(--text-secondary);">（' + fmtFrac(escapeHtml(m.hint)) + '）</span>' : '';
-      return '<div class="mistake-item"><div class="question">❌ ' + fmtFrac(escapeHtml(m.question || '')) + who + '</div>' +
-        '<div class="reason">⚠️ 错误原因：' + fmtFrac(escapeHtml(m.error_reason || m.error_type || '')) + '</div>' +
-        '<div class="solution">✅ 正确解法：' + fmtFrac(escapeHtml(m.correct_answer || '')) + hint + '</div></div>';
-    }
-    var html = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;">' +
-      '<h4 style="margin-bottom:8px;">📈 本周错题（第' + getTeachWeek() + '周 · 来自 AI 批改）</h4>' +
-      '<p style="font-size:14px;color:var(--text-secondary);">本周错题 <strong>' + weekMistakes.length + '</strong> 道' +
-      (historyMistakes.length ? ' · 历史累计 ' + historyMistakes.length + ' 道' : '') + '</p>' +
-      (statsHtml ? '<div style="margin-top:8px;font-size:13px;color:var(--text-secondary);">本周高频错误：</div><div style="margin-top:4px;">' + statsHtml + '</div>' : '') +
-      '</div>';
-    if (weekMistakes.length === 0) {
-      html += '<div style="text-align:center;padding:24px;color:var(--text-muted);"><div style="font-size:32px;margin-bottom:8px;">🌟</div><p>本周暂无错题，继续保持！</p></div>';
-    } else {
-      html += weekMistakes.map(mistakeHtml).join('');
-    }
-    // 历史错题：一键收起（默认收起）
-    if (historyMistakes.length > 0) {
-      html += '<div style="margin-top:20px;">' +
-        '<button class="btn btn-outline" style="width:100%;padding:10px;font-size:14px;" onclick="toggleMistakeHistory()">' +
-        (_mistakeHistoryOpen ? '📂 收起历史错题（' + historyMistakes.length + ' 道）' : '📁 展开历史错题（' + historyMistakes.length + ' 道）') +
-        '</button>' +
-        '<div id="mistakeHistoryBox" style="' + (_mistakeHistoryOpen ? '' : 'display:none;') + 'margin-top:12px;">' +
-        historyMistakes.map(mistakeHtml).join('') + '</div></div>';
-    }
-    window._mistakeHistoryCache = { weekMistakes: weekMistakes, historyMistakes: historyMistakes };
-    list.innerHTML = html;
+    window._mistakeWeekAll = all;
+    list.innerHTML = buildMistakeWeekHtml(all);
   } catch (e) {
     console.log('错题加载失败:', e.message);
     // 加载失败时保留现有演示数据，仅记录日志
   }
 }
 
-function toggleMistakeHistory() {
-  _mistakeHistoryOpen = !_mistakeHistoryOpen;
-  var box = document.getElementById('mistakeHistoryBox');
-  if (box) box.style.display = _mistakeHistoryOpen ? '' : 'none';
-  // 重绘按钮文案
-  var cache = window._mistakeHistoryCache;
-  var btns = document.querySelectorAll('#mistakeList button.btn-outline');
-  if (btns.length && cache) {
-    btns[btns.length - 1].textContent = _mistakeHistoryOpen
-      ? '📂 收起历史错题（' + cache.historyMistakes.length + ' 道）'
-      : '📁 展开历史错题（' + cache.historyMistakes.length + ' 道）';
+// 按教学周分组渲染错题本（每周一个可折叠区块）
+function mistakeWeekOf(m) {
+  var d = hwBeijingDate(m.created_at);
+  if (!d) return getTeachWeek();
+  var dt = new Date(d + 'T00:00:00');
+  return isNaN(dt.getTime()) ? getTeachWeek() : getTeachWeek(dt);
+}
+function mistakeWeekStatsHtml(ms) {
+  var s = {};
+  ms.forEach(function(m) {
+    var t = m.error_type || '其他错误';
+    s[t] = (s[t] || 0) + 1;
+  });
+  var arr = Object.keys(s).map(function(k) { return { type: k, count: s[k] }; })
+    .sort(function(a, b) { return b.count - a.count; }).slice(0, 5);
+  if (!arr.length) return '';
+  return arr.map(function(x) {
+    return '<span style="display:inline-block;background:#FCEBEB;color:#A32D2D;border-radius:12px;padding:2px 10px;font-size:12px;margin:2px 6px 2px 0;">' + escHtmlSafe(x.type) + ' ×' + x.count + '</span>';
+  }).join('');
+}
+function buildMistakeWeekHtml(all) {
+  var list = document.getElementById('mistakeList');
+  var isSelfView = getCurrentRole() !== 'teacher';
+  function mistakeHtml(m) {
+    var who = (!isSelfView && m.student_name) ? ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">— ' + escHtmlSafe(m.student_name) + ' · ' + escHtmlSafe(m.title || '') + '</span>' : '';
+    var hint = m.hint ? ' <span style="font-size:12px;color:var(--text-secondary);">（' + fmtFrac(escapeHtml(m.hint)) + '）</span>' : '';
+    return '<div class="mistake-item"><div class="question">❌ ' + fmtFrac(escapeHtml(m.question || '')) + who + '</div>' +
+      '<div class="reason">⚠️ 错误原因：' + fmtFrac(escapeHtml(m.error_reason || m.error_type || '')) + '</div>' +
+      '<div class="solution">✅ 正确解法：' + fmtFrac(escapeHtml(m.correct_answer || '')) + hint + '</div></div>';
   }
+  var curWeek = getTeachWeek();
+  var groups = {};
+  all.forEach(function(m) {
+    var w = mistakeWeekOf(m);
+    (groups[w] = groups[w] || []).push(m);
+  });
+  var weeks = Object.keys(groups).map(Number).sort(function(a, b) { return b - a; });
+  // 默认展开本周
+  if (!(curWeek in _mistakeWeekOpen)) _mistakeWeekOpen[curWeek] = true;
+  var html = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;">' +
+    '<h4 style="margin-bottom:8px;">📈 错题本（按教学周分组 · 来自 AI 批改）</h4>' +
+    '<p style="font-size:14px;color:var(--text-secondary);">共 <strong>' + all.length + '</strong> 道错题 · 覆盖 ' + weeks.length + ' 个教学周，点击周次可展开/收起</p>' +
+    '</div>';
+  html += weeks.map(function(w) {
+    var ms = groups[w];
+    var isCur = (w === curWeek);
+    var open = !!_mistakeWeekOpen[w];
+    var stat = mistakeWeekStatsHtml(ms);
+    var body = '<div id="mistakeWeekBody_' + w + '" style="' + (open ? '' : 'display:none;') + '">' +
+      (stat ? '<div style="padding:10px 14px 0;font-size:13px;color:var(--text-secondary);">' + (isCur ? '本周' : '该周') + '高频错误：</div><div style="padding:0 14px;">' + stat + '</div>' : '') +
+      '<div style="padding:2px 14px 14px;">' + ms.map(mistakeHtml).join('') + '</div>' +
+      '</div>';
+    return '<div style="margin-bottom:14px;">' +
+      '<button class="btn btn-outline" style="width:100%;padding:11px 14px;font-size:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleMistakeWeek(' + w + ')">' +
+      '<span>📅 第' + w + '周' + (isCur ? '（本周）' : '') + ' · ' + ms.length + ' 道</span>' +
+      '<span>' + (open ? '▾ 收起' : '▸ 展开') + '</span>' +
+      '</button>' + body + '</div>';
+  }).join('');
+  return html;
+}
+function toggleMistakeWeek(week) {
+  _mistakeWeekOpen[week] = !_mistakeWeekOpen[week];
+  var list = document.getElementById('mistakeList');
+  if (list && _mistakeWeekAll) list.innerHTML = buildMistakeWeekHtml(_mistakeWeekAll);
 }
 
 // 从云端拉取智能复习推荐（基于当周/所选时间范围内 AI 批改的错误类型统计；服务端已强制学生只算本人）
@@ -7847,6 +7866,20 @@ async function renderMaterials() {
     var descHtml = m.description ? '<p style="font-size:13px;color:var(--text-secondary);margin:4px 0 0;">' + escapeHtml(m.description) + '</p>' : '';
     var time = (m.created_at || '').slice(0, 10);
 
+    // 资料下载是否需登录：公网未登录（非云端登录）仅可查看，点击提示登录
+    var loggedIn = isCloudLoggedIn();
+    var titleEl;
+    if (loggedIn) {
+      titleEl = '<a href="' + url + '" download="' + escapeHtml(m.original_name || '') + '" target="_blank" rel="noopener" ' +
+        'style="color:var(--primary);text-decoration:none;font-size:15px;font-weight:500;word-break:break-all;">' +
+        escapeHtml(m.title) + '</a>';
+    } else {
+      titleEl = '<span onclick="openCloudLoginModal()" title="登录后才能下载" ' +
+        'style="color:var(--text-secondary);font-size:15px;font-weight:500;cursor:pointer;word-break:break-all;">🔒 ' +
+        escapeHtml(m.title) + '</span>';
+    }
+    var lockHint = loggedIn ? '' : '<span style="font-size:12px;color:var(--primary);background:rgba(74,144,217,0.08);padding:2px 8px;border-radius:10px;">🔒 登录后才能下载</span>';
+
     var teacherBtns = '';
     if (role === 'teacher') {
       teacherBtns = '<div style="display:flex;gap:6px;flex-shrink:0;">' +
@@ -7858,10 +7891,7 @@ async function renderMaterials() {
     return '<div style="display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px dashed var(--border);' + (idx === list.length - 1 ? 'border-bottom:none;' : '') + '">' +
       '<div style="font-size:28px;flex-shrink:0;line-height:1;">' + icon + '</div>' +
       '<div style="flex:1;min-width:0;">' +
-        '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:2px;">' + catTag +
-          '<a href="' + url + '" download="' + escapeHtml(m.original_name || '') + '" target="_blank" rel="noopener" ' +
-             'style="color:var(--primary);text-decoration:none;font-size:15px;font-weight:500;word-break:break-all;">' +
-            escapeHtml(m.title) + '</a>' +
+        '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:2px;">' + catTag + titleEl + lockHint +
         '</div>' +
         descHtml +
         '<p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">' +
