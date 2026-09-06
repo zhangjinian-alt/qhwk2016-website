@@ -2025,11 +2025,11 @@ async function cloudUpload(){
   }
 }
 
-async function cloudDownload(){
-  if(!isCloudLoggedIn()){ showToast('请先登录云端','error'); return; }
+async function cloudDownload(silent){
+  if(!isCloudLoggedIn()){ if(!silent) showToast('请先登录云端','error'); return; }
   const className = $('#cloudClassName').value.trim() || STATE.className || '';
   const term = STATE.selectedTerm;
-  if(!className){ showToast('请填写班级名称','error'); return; }
+  if(!className){ if(!silent) showToast('请填写班级名称','error'); return; }
   try{
     let url = '/eval/records?class_name=' + encodeURIComponent(className)
       + '&refresh_auto=1';  // 2026-09-05：下载前让后端重算本周系统自动分（兴趣/效果），班级雷达才有完整五维
@@ -2039,12 +2039,12 @@ async function cloudDownload(){
     });
     if(!resp.ok){
       const data = await resp.json().catch(function(){ return {}; });
-      showToast(data.detail || '下载失败','error');
+      if(!silent) showToast(data.detail || '下载失败','error');
       if(resp.status===401){ clearCloudToken(); updateCloudUI(); }
       return;
     }
     const rows = await resp.json();
-    if(!rows || !rows.length){ showToast('云端暂无该班级评分数据','info'); return; }
+    if(!rows || !rows.length){ if(!silent) showToast('云端暂无该班级评分数据','info'); return; }
     // 合并到本地（云端同周同学生覆盖本地）
     var newCount = 0;
     rows.forEach(function(r){
@@ -2077,9 +2077,9 @@ async function cloudDownload(){
     STATE.className = className;
     saveState();
     refreshAll();
-    showToast('已下载并合并 ' + rows.length + ' 条评分记录','success');
+    if(!silent) showToast('已下载并合并 ' + rows.length + ' 条评分记录','success');
   }catch(e){
-    showToast('网络错误：' + e.message,'error');
+    if(!silent) showToast('网络错误：' + e.message,'error');
   }
 }
 
@@ -3342,6 +3342,11 @@ function init(){
   }
   bindEvents();
   refreshAll();
+  // 2026-09-06：教师已登录云端且本地当前周缺少系统自动分（兴趣/效果）时，
+  // 自动静默拉取云端真实数据（后端会重算全班均值），避免雷达图兴趣/效果恒为 0。
+  if(isTeacher && isCloudLoggedIn() && !weekHasAutoData(STATE.currentWeek)){
+    cloudDownload(true);
+  }
 }
 
 // 启动
