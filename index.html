@@ -1653,8 +1653,12 @@ async function cloudLogin(username, password) {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password })
   });
-  if (resp.ok) { const r = await resp.json(); setCloudToken(r.access_token); return true; }
-  return false;
+  if (resp.ok) {
+    const r = await resp.json();
+    setCloudToken(r.access_token);
+    return { ok: true, role: r.role || 'teacher' };
+  }
+  return { ok: false };
 }
 
 // 登出
@@ -1667,6 +1671,9 @@ function cloudLogout() {
   clearHomeStatsCache();
   // 清云端通知缓存，避免下次不同账号登入看到上家的通知
   _cloudNotices = null;
+  // 退出云端时一并解除本地教师认证，避免学生拿到教师残留权限
+  sessionStorage.removeItem(SESSION_KEY);
+  if (appData.mode === 'teacher') { appData.mode = 'student'; saveData(); }
   if (periodicSyncInterval) { clearInterval(periodicSyncInterval); periodicSyncInterval = null; }
   showToast("已退出云端登录");
 }
@@ -1699,10 +1706,23 @@ async function doCloudLogin() {
   if (!username || !password) { showToast("请输入用户名和密码"); return; }
   const btn = document.getElementById("cloudLoginBtn");
   btn.textContent = "登录中..."; btn.disabled = true;
-  const ok = await cloudLogin(username, password);
+  const loginRes = await cloudLogin(username, password);
   btn.textContent = "登录"; btn.disabled = false;
-  if (ok) {
+  if (loginRes.ok) {
     closeCloudLoginModal(); setSyncStatus("syncing");
+    // 根据后端角色自动切换教师/学生模式（2026-09-06：教师云端登录后直接进管理模式）
+    if (loginRes.role === 'teacher') {
+      appData.mode = 'teacher';
+      sessionStorage.setItem(SESSION_KEY, "true");
+      saveData();
+    } else {
+      // 学生账号登录：解除教师模式残留
+      if (appData.mode === 'teacher') {
+        appData.mode = 'student';
+        sessionStorage.removeItem(SESSION_KEY);
+        saveData();
+      }
+    }
     // 切换账号前清雷达缓存，避免上个用户的数据闪现
     _radarValues = null; _radarRange = 'week'; _radarOwnerKey = '';
     // 同样清首页统计缓存，避免上个账号的积分/勋章残留
@@ -1783,6 +1803,10 @@ async function doCloudRegister() {
   try {
     const r = await cloudRegister(username, password, inviteCode);
     setCloudToken(r.access_token);
+    // 注册默认教师账号，直接切换到管理模式
+    appData.mode = 'teacher';
+    sessionStorage.setItem(SESSION_KEY, "true");
+    saveData();
     closeCloudLoginModal(); setSyncStatus("syncing");
     showToast("注册成功！正在同步本地数据...");
     await syncToCloud();
