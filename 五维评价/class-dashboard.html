@@ -932,9 +932,9 @@ function getISOWeek(d){
   return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
 }
 
-// 教学周起点：第1周的起点日（2026-08-30 → 8/30-9/5 为2026秋季学期第1周）
+// 教学周起点：第1周的起点日（2026-08-31 → 8/31-9/6 为2026秋季学期第1周，周一到周日为一周）
 // 云端 eval_records 按教学周存取，与后端 _teach_week()、主站 getTeachWeek() 一致
-const TEACH_WEEK_START = '2026-08-30';
+const TEACH_WEEK_START = '2026-08-31';
 function getTeachWeek(d){
   const start = new Date(TEACH_WEEK_START + 'T00:00:00');
   const cur = new Date(d.getTime()); cur.setHours(0, 0, 0, 0);
