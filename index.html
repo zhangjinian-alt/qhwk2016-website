@@ -3813,6 +3813,9 @@ function renderMemberSection(containerId, position, role, groups, students) {
 var _lecturePolling = false;
 // 作业按 ISO 自然周（getIsoWeek）入库，"本周易错题"取当前 ISO 周，与作业数据对齐
 var _lectureWeek = getIsoWeek();
+// 教师端按周折叠状态（ISO周号 -> bool）；_lectureAll 缓存全量数据，切换折叠免重新拉取
+var _lectureWeekOpen = {};
+var _lectureAll = [];
 
 async function renderAiLectures(role) {
   var el = document.getElementById('aiLectureList');
@@ -3829,7 +3832,9 @@ async function renderAiLectures(role) {
   el.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:16px;">加载中...</p>';
   var lectures = [];
   try {
-    var resp = await fetchWithAuth('/ai-lectures?week=' + _lectureWeek);
+    // 教师端拉全部周（按周分组折叠展示）；学生端只看本周
+    var url = role === 'teacher' ? '/ai-lectures?all_weeks=1' : '/ai-lectures?week=' + _lectureWeek;
+    var resp = await fetchWithAuth(url);
     if (resp.ok) {
       var data = await resp.json();
       lectures = data.lectures || [];
@@ -3837,11 +3842,26 @@ async function renderAiLectures(role) {
   } catch (e) {}
 
   var html = '';
-  // 教师端：错题榜 + 生成入口
   if (role === 'teacher') {
+    // 教师端：错题榜（本周） + 按周折叠的讲解列表
+    _lectureAll = lectures;
     html += '<div id="mistakesBoard"><p style="text-align:center;color:var(--text-muted);padding:12px;">正在统计本周错题…</p></div>';
+    html += buildLectureWeekHtml(lectures, role);
+  } else {
+    html += buildLectureFlatHtml(lectures, role);
   }
 
+  el.innerHTML = html;
+
+  // 教师端错题榜
+  if (role === 'teacher') renderMistakesBoard();
+  // 还有生成中的任务就继续轮询
+  if (lectures.some(function(l) { return l.status === 'generating'; })) startLecturePolling();
+}
+
+// 学生/未登录端：单周平铺展示（保持原样式）
+function buildLectureFlatHtml(lectures, role) {
+  var html = '';
   var ready = lectures.filter(function(l) { return l.status === 'ready'; });
   var generating = lectures.filter(function(l) { return l.status === 'generating'; });
   var failed = lectures.filter(function(l) { return l.status === 'failed'; });
@@ -3861,20 +3881,7 @@ async function renderAiLectures(role) {
   // 已完成的视频卡片
   if (ready.length > 0) {
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;">';
-    ready.forEach(function(l) {
-      var qShort = (l.question || '').length > 55 ? l.question.slice(0, 55) + '…' : l.question;
-      html += '<div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;">';
-      html += '<div style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:10px 14px;font-size:14px;font-weight:600;">🎯 ' + escHtmlSafe(l.title || '易错题精讲') + '</div>';
-      html += '<div style="padding:12px 14px;">';
-      html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">第' + (l.display_week || l.week) + '周 · ' + l.mistake_count + '人做错' + (l.error_type ? ' · ' + fmtFrac(escHtmlSafe(l.error_type)) : '') + '</p>';
-      html += '<p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.8;">' + fmtFrac(escHtmlSafe(qShort)) + '</p>';
-      html += '<div style="display:flex;gap:8px;">';
-      html += '<button onclick="openLectureVideo(\'' + l.video_url + '\',\'' + (l.title || '易错题精讲').replace(/'/g, "\\'") + '\')" style="flex:1;padding:8px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">▶ 观看讲解</button>';
-      if (role === 'teacher') {
-        html += '<button onclick="deleteAiLecture(' + l.id + ')" style="padding:8px 12px;background:#fff;color:#E03131;border:1.5px solid #FFC9C9;border-radius:8px;font-size:13px;cursor:pointer;">删除</button>';
-      }
-      html += '</div></div></div>';
-    });
+    ready.forEach(function(l) { html += buildLectureCard(l, role); });
     html += '</div>';
   }
 
@@ -3884,13 +3891,94 @@ async function renderAiLectures(role) {
       '<p style="font-size:13px;color:#E03131;font-weight:600;">⚠️ 生成失败</p>' +
       '<p style="font-size:11px;color:var(--text-muted);margin-top:4px;">' + escHtmlSafe(l.error || '未知错误') + '</p></div>';
   });
+  return html;
+}
 
-  el.innerHTML = html;
+// 单个讲解视频卡片（周内/平铺共用）
+function buildLectureCard(l, role) {
+  var qShort = (l.question || '').length > 55 ? l.question.slice(0, 55) + '…' : l.question;
+  var html = '<div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;">';
+  html += '<div style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:10px 14px;font-size:14px;font-weight:600;">🎯 ' + escHtmlSafe(l.title || '易错题精讲') + '</div>';
+  html += '<div style="padding:12px 14px;">';
+  html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">第' + (l.display_week || l.week) + '周 · ' + l.mistake_count + '人做错' + (l.error_type ? ' · ' + fmtFrac(escHtmlSafe(l.error_type)) : '') + '</p>';
+  html += '<p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.8;">' + fmtFrac(escHtmlSafe(qShort)) + '</p>';
+  html += '<div style="display:flex;gap:8px;">';
+  html += '<button onclick="openLectureVideo(\'' + l.video_url + '\',\'' + (l.title || '易错题精讲').replace(/'/g, "\\'") + '\')" style="flex:1;padding:8px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">▶ 观看讲解</button>';
+  if (role === 'teacher') {
+    html += '<button onclick="deleteAiLecture(' + l.id + ')" style="padding:8px 12px;background:#fff;color:#E03131;border:1.5px solid #FFC9C9;border-radius:8px;font-size:13px;cursor:pointer;">删除</button>';
+  }
+  html += '</div></div></div>';
+  return html;
+}
 
-  // 教师端错题榜
-  if (role === 'teacher') renderMistakesBoard();
-  // 还有生成中的任务就继续轮询
-  if (generating.length > 0) startLecturePolling();
+// 教师端：按教学周分组折叠展示全部讲解
+function buildLectureWeekHtml(lectures, role) {
+  var groups = {};
+  lectures.forEach(function(l) { (groups[l.week] = groups[l.week] || []).push(l); });
+  var weeks = Object.keys(groups).map(Number).sort(function(a, b) { return b - a; });
+  if (weeks.length === 0) {
+    return '<p style="text-align:center;color:var(--text-muted);padding:12px;">暂无讲解视频，请从上方错题榜选择题目生成</p>';
+  }
+  var readyTotal = lectures.filter(function(l) { return l.status === 'ready'; }).length;
+  var html = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
+    '<div><h4 style="margin:0 0 4px;">🎬 易错题精讲（按周分组）</h4>' +
+    '<p style="font-size:13px;color:var(--text-secondary);margin:0;">共 ' + readyTotal + ' 个讲解视频 · 覆盖 ' + weeks.length + ' 个教学周，点击周次展开/收起</p></div>' +
+    '<div style="display:flex;gap:8px;">' +
+    '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="toggleAllLectureWeeks(true)">全部展开</button>' +
+    '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="toggleAllLectureWeeks(false)">全部收起</button></div></div>';
+  weeks.forEach(function(w) {
+    var ls = groups[w];
+    var ready = ls.filter(function(l) { return l.status === 'ready'; });
+    var gen = ls.filter(function(l) { return l.status === 'generating'; });
+    var fail = ls.filter(function(l) { return l.status === 'failed'; });
+    var open = !!_lectureWeekOpen[w];
+    var dw = ls[0].display_week || w;
+    var arrow = open ? '▾' : '▸';
+    html += '<div style="border:1.5px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;background:var(--bg-card);">';
+    html += '<div onclick="toggleLectureWeek(' + w + ')" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;cursor:pointer;user-select:none;">' +
+      '<span style="font-weight:600;font-size:14px;">' + arrow + ' 📅 第' + dw + '周 · ' + ready.length + ' 个视频' +
+      (gen.length ? ' · ' + gen.length + ' 个生成中' : '') + (fail.length ? ' · ' + fail.length + ' 个失败' : '') + '</span>' +
+      '<span style="font-size:12px;color:var(--text-muted);">点击' + (open ? '收起' : '展开') + '</span></div>';
+    html += '<div id="lectureWeekBody_' + w + '" style="' + (open ? '' : 'display:none;') + 'padding:4px 14px 14px;">';
+    gen.forEach(function() {
+      html += '<div style="border:1.5px dashed var(--primary);border-radius:12px;padding:14px;text-align:center;background:#F4F9FF;margin-bottom:12px;">' +
+        '<p style="font-size:14px;color:var(--primary);font-weight:600;">⏳ 正在生成讲解视频…</p>' +
+        '<p style="font-size:12px;color:var(--text-muted);margin-top:6px;">AI 正在撰写讲稿并合成语音，约需 30~60 秒，本页会自动刷新</p></div>';
+    });
+    if (ready.length > 0) {
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;">';
+      ready.forEach(function(l) { html += buildLectureCard(l, role); });
+      html += '</div>';
+    }
+    fail.forEach(function(l) {
+      html += '<div style="border:1.5px solid #FFC9C9;border-radius:12px;padding:14px 16px;text-align:center;background:#FFF5F5;margin-top:12px;">' +
+        '<p style="font-size:13px;color:#E03131;font-weight:600;">⚠️ 生成失败</p>' +
+        '<p style="font-size:11px;color:var(--text-muted);margin-top:4px;">' + escHtmlSafe(l.error || '未知错误') + '</p></div>';
+    });
+    html += '</div></div>';
+  });
+  return html;
+}
+
+// 折叠切换：从缓存重绘，不重新拉取
+function rerenderLectureWeeks() {
+  var el = document.getElementById('aiLectureList');
+  if (!el) return;
+  var board = document.getElementById('mistakesBoard');
+  var boardHtml = board ? board.outerHTML : '<div id="mistakesBoard"></div>';
+  el.innerHTML = boardHtml + buildLectureWeekHtml(_lectureAll, 'teacher');
+}
+
+function toggleLectureWeek(w) {
+  _lectureWeekOpen[w] = !_lectureWeekOpen[w];
+  rerenderLectureWeeks();
+}
+
+function toggleAllLectureWeeks(open) {
+  var seen = {};
+  _lectureAll.forEach(function(l) { seen[l.week] = 1; });
+  Object.keys(seen).forEach(function(w) { _lectureWeekOpen[w] = open; });
+  rerenderLectureWeeks();
 }
 
 async function renderMistakesBoard() {
@@ -3970,7 +4058,8 @@ function startLecturePolling() {
   (function poll() {
     setTimeout(async function() {
       try {
-        var resp = await fetchWithAuth('/ai-lectures?week=' + _lectureWeek);
+        var url = getCurrentRole() === 'teacher' ? '/ai-lectures?all_weeks=1' : '/ai-lectures?week=' + _lectureWeek;
+        var resp = await fetchWithAuth(url);
         if (resp.ok) {
           var data = await resp.json();
           var lectures = data.lectures || [];
@@ -8776,6 +8865,15 @@ function renderHwGrading() {
       '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">未交名单按本周班级作业提交情况自动统计（全班都没交时无法推断作业项）；催办将发布一条全班可见的作业通知，内容可编辑</p>' +
       '<div id="hwPendingManage"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p></div>' +
       '</div>' +
+      // 已复核作业按周清理（2026-09-06）
+      '<div class="ak-card" style="margin-top:16px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+      '<h4 style="margin:0;">🗑️ 已复核作业清理（按周）</h4>' +
+      '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="loadReviewedWeeksManage(true)">🔄 刷新</button>' +
+      '</div>' +
+      '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">按教学周批量删除已完成复核的作业（含图片、AI 批改与复核记录），删除后学生端不再显示，操作不可恢复，请谨慎</p>' +
+      '<div id="hwReviewedWeeks"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p></div>' +
+      '</div>' +
       // 作业列表区
       '<div class="hw-filter-bar" id="hwFilterBar">' +
       '<button class="hw-filter-btn active" onclick="filterHw(\'all\',this)">全部</button>' +
@@ -8789,6 +8887,7 @@ function renderHwGrading() {
     loadAnswerKeyList();
     loadHwTeacherList('all');
     loadHwPendingManage();
+    loadReviewedWeeksManage();
   } else {
     // 学生/家长模式：我的作业与反馈（2026-09-05 起承接原「我的作业」全部职责：全状态+撤回+订正入口）
     section.innerHTML = '';
@@ -8850,6 +8949,51 @@ async function loadHwTeacherList(filter) {
     }).join('');
   } catch (e) {
     list.innerHTML = '<p style="text-align:center;color:var(--danger);">加载失败：' + e.message + '</p>';
+  }
+}
+
+// ===== 已复核作业按周清理（教师端，2026-09-06） =====
+async function loadReviewedWeeksManage(force) {
+  var box = document.getElementById('hwReviewedWeeks');
+  if (!box) return;
+  if (!isCloudLoggedIn()) {
+    box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">请先登录云端账号</p>';
+    return;
+  }
+  box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p>';
+  try {
+    var resp = await fetchWithAuth('/homework/reviewed-weeks');
+    if (!resp.ok) throw new Error('获取统计失败（HTTP ' + resp.status + '）');
+    var data = await resp.json();
+    var weeks = data.weeks || [];
+    if (weeks.length === 0) {
+      box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">暂无已复核的作业，无需清理</p>';
+      return;
+    }
+    box.innerHTML = weeks.map(function(w) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid var(--border);">' +
+        '<span style="font-size:14px;">📅 第 <strong>' + w.display_week + '</strong> 周 · <strong>' + w.count + '</strong> 份已复核作业</span>' +
+        '<button class="btn btn-outline" style="padding:5px 12px;font-size:12px;color:var(--danger);border-color:#FFC9C9;" onclick="deleteReviewedWeek(' + w.week + ', ' + w.display_week + ', ' + w.count + ')">🗑️ 全部删除</button>' +
+        '</div>';
+    }).join('');
+  } catch (e) {
+    box.innerHTML = '<p style="font-size:13px;color:var(--danger);text-align:center;padding:12px;">加载失败：' + e.message + '</p>';
+  }
+}
+
+async function deleteReviewedWeek(isoWeek, displayWeek, count) {
+  if (!confirm('⚠️ 此操作不可恢复！\n\n将删除第 ' + displayWeek + ' 周全部 ' + count + ' 份已复核作业，包括：\n· 作业图片文件\n· AI 批改结果与复核记录\n· 学生端将不再显示这些作业与反馈\n\n确定要全部删除吗？')) return;
+  try {
+    var resp = await fetchWithAuth('/homework/delete-reviewed-week?week=' + isoWeek, { method: 'POST' });
+    var d = await resp.json().catch(function() { return {}; });
+    if (!resp.ok) throw new Error(d.detail || '删除失败（HTTP ' + resp.status + '）');
+    showToast(d.message || '删除成功', 'success');
+    await loadReviewedWeeksManage();
+    // 作业列表同步刷新；同时清五维雷达缓存（作业数据变了，能力值会重算）
+    _radarValues = null; _radarOwnerKey = '';
+    if (document.getElementById('hwTeacherList')) loadHwTeacherList(hwCurrentFilter);
+  } catch (e) {
+    showToast('删除失败：' + e.message);
   }
 }
 
