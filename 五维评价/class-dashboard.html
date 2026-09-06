@@ -1085,62 +1085,73 @@ function calcAllWeeksDimAvgs(){
   });
   return avgs;
 }
+// 当前周有效维度：本周有系统自动分（兴趣/效果）→ 完整五维，否则老师三维（与班级雷达/柱状/折线口径一致）
+function effectiveDims(week){ return weekHasAutoData(week) ? ALL_DIMS : DIMS; }
+// 学生某周指定维度均分
+function studentDimAvg(student, week, dims){
+  const d = getWeekData(student, week) || {};
+  return avg(dims.map(dim=>d[dim.key]||0));
+}
+// 每个维度的班级均分（兴趣/效果只算有分学生，其余算全班，与雷达一致）
+function weekDimAvgs(week, dims){
+  const avgs = {};
+  dims.forEach(dim=>{
+    if(dim.key==='interest' || dim.key==='effect'){
+      avgs[dim.key] = autoDimAvgFor(dim.key, week);
+    } else {
+      avgs[dim.key] = avg(STATE.students.map(s=>(getWeekData(s,week)||{})[dim.key]||0));
+    }
+  });
+  return avgs;
+}
+// 学生某周有效五维均分（KPI3 迷你折线用）
+function studentWeekAvg5(stu, week){ return studentDimAvg(stu, week, effectiveDims(week)); }
+
 function calcKPIs(week){
   const sts = STATE.students;
   const prevWeek = week>1 ? week-1 : null;
+  const dims = effectiveDims(week);
+  const dimKeyList = dims.map(d=>d.key);
 
-  // KPI1: 班级综合均分
-  const allScores = [];
-  sts.forEach(s=>{
-    const d = getWeekData(s, week) || {};
-    DIM_KEYS.forEach(k=>allScores.push(d[k]||0));
-  });
-  const classAvg = avg(allScores);
+  // 2026-09-06：统一有效五维口径，四张 KPI 卡与班级雷达/柱状/折线完全一致（兴趣/效果不再被三维口径遗漏）
+  const dimAvgs = weekDimAvgs(week, dims);
+
+  // KPI1: 班级综合均分 = 有效维度均分求平均
+  const classAvg = avg(dimKeyList.map(k=>dimAvgs[k]));
   let prevClassAvg = null;
   if(prevWeek){
-    const prevScores = [];
-    sts.forEach(s=>{
-      const d = getWeekData(s, prevWeek) || {};
-      DIM_KEYS.forEach(k=>prevScores.push(d[k]||0));
-    });
-    prevClassAvg = avg(prevScores);
+    const prevDims = effectiveDims(prevWeek);
+    const prevAvgs = weekDimAvgs(prevWeek, prevDims);
+    prevClassAvg = avg(prevDims.map(d=>prevAvgs[d.key]));
   }
 
-  // KPI2: 五星全能王
-  const starStudents = sts.filter(s=>isAllStar(s, week));
+  // KPI2: 五星全能王（有效维度全部>=9）
+  const starStudents = sts.filter(s=>{
+    const d = getWeekData(s, week) || {};
+    return dimKeyList.every(k=>(d[k]||0)>=9);
+  });
   const starCount = starStudents.length;
   const starPct = sts.length>0 ? (starCount/sts.length*100) : 0;
 
-  // KPI3: 飞跃进步星 - 进步最大的5位
+  // KPI3: 飞跃进步星 - 进步最大的5位（有效五维均值）
   const progressions = [];
   if(prevWeek){
     sts.forEach(s=>{
-      const cur = studentWeekAvg(s, week);
-      const prev = studentWeekAvg(s, prevWeek);
+      const cur = studentDimAvg(s, week, dims);
+      const prev = studentDimAvg(s, prevWeek, effectiveDims(prevWeek));
       progressions.push({ name:s.name, delta: cur-prev, cur, prev });
     });
   }
   progressions.sort((a,b)=>b.delta-a.delta);
   const topProgress = progressions.slice(0,5);
 
-  // KPI4: 最强风气标 - 全班得分最高维度（按完整五维取最高）
-  const dimAvgs = {};
-  DIMS.forEach(dim=>{
-    const scores = sts.map(s=>(getWeekData(s,week)||{})[dim.key]||0);
-    dimAvgs[dim.key] = avg(scores);
-  });
-  // 2026-09-05：系统自动维度（兴趣/效果）并入班级五维，班级雷达/柱状/折线统一五维展示
-  const hasAutoData = weekHasAutoData(week);
-  AUTO_DIMS.forEach(dim=>{
-    dimAvgs[dim.key] = autoDimAvgFor(dim.key, week);
-  });
-  const bestDimPool = hasAutoData ? ALL_DIMS : DIMS;
-  let bestDim = bestDimPool[0], bestAvg = 0;
-  bestDimPool.forEach(dim=>{
+  // KPI4: 最强风气标 - 有效维度均分最高
+  let bestDim = dims[0], bestAvg = 0;
+  dims.forEach(dim=>{
     if(dimAvgs[dim.key] > bestAvg){ bestAvg = dimAvgs[dim.key]; bestDim = dim; }
   });
 
-  return { classAvg, prevClassAvg, starCount, starPct, topProgress, bestDim, bestAvg, dimAvgs, hasAutoData };
+  return { classAvg, prevClassAvg, starCount, starPct, topProgress, bestDim, bestAvg, dimAvgs, hasAutoData: weekHasAutoData(week) };
 }
 
 // ===== SVG 图表渲染 =====
@@ -1426,6 +1437,7 @@ function renderKPIs(){
 
   // KPI2: 五星全能王
   // KPI3: 飞跃进步星
+  const firstWeek = STATE.currentWeek <= 1;
   const topProgressNames = k.topProgress.map(p=>p.name).join('、');
   const topProgressDelta = k.topProgress.length>0 ? k.topProgress[0].delta : 0;
 
@@ -1446,9 +1458,9 @@ function renderKPIs(){
   }
   // KPI2: 迷你雷达 - 本周五维（有自动分时）均分
   const radarData = miniChartDims.map(d=>k.dimAvgs[d.key]);
-  // KPI3: 迷你折线 - top1学生的进步趋势
+  // KPI3: 迷你折线 - top1学生的进步趋势（有效五维）
   const top1Student = k.topProgress.length>0 ? STATE.students.find(s=>s.name===k.topProgress[0].name) : null;
-  const top1Trend = top1Student ? STATE.totalWeeks>0 ? Array.from({length:STATE.totalWeeks},(_,i)=>studentWeekAvg(top1Student,i+1)) : [] : [];
+  const top1Trend = top1Student ? STATE.totalWeeks>0 ? Array.from({length:STATE.totalWeeks},(_,i)=>studentWeekAvg5(top1Student,i+1)) : [] : [];
   // KPI4: 迷你柱状 - 本周五维（有自动分时）均分
   const barData = miniChartDims.map(d=>k.dimAvgs[d.key]);
 
@@ -1506,8 +1518,10 @@ function renderKPIs(){
       </div>
       <div class="kpi-body">
         <div class="kpi-main" style="min-width:0">
-          <div class="kpi-value"><span class="names">${topProgressNames || '暂无数据'}</span></div>
-          <div class="kpi-sub"><span class="delta-up">+${fmt(topProgressDelta)}分</span> <span class="label">最大进步幅度</span></div>
+          <div class="kpi-value"><span class="names">${firstWeek ? '开学第1周 · 暂无对比周' : (topProgressNames || '暂无进步')}</span></div>
+          <div class="kpi-sub">${firstWeek
+            ? '<span class="delta-flat">第2周起显示进步之星</span>'
+            : `<span class="delta-up">+${fmt(topProgressDelta)}分</span> <span class="label">最大进步幅度</span>`}</div>
         </div>
         <div class="kpi-mini" id="miniLine3"></div>
       </div>
