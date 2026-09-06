@@ -4576,20 +4576,25 @@ function buildMistakeWeekHtml(all) {
     (groups[w] = groups[w] || []).push(m);
   });
   var weeks = Object.keys(groups).map(Number).sort(function(a, b) { return b - a; });
-  // 默认展开本周
-  if (!(curWeek in _mistakeWeekOpen)) _mistakeWeekOpen[curWeek] = true;
+  // 默认：学生自视图展开本周；教师端全班内容多，默认全部收起
+  if (!(curWeek in _mistakeWeekOpen) && isSelfView) _mistakeWeekOpen[curWeek] = true;
   var html = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;">' +
     '<h4 style="margin-bottom:8px;">📈 错题本（按教学周分组 · 来自 AI 批改）</h4>' +
     '<p style="font-size:14px;color:var(--text-secondary);">共 <strong>' + all.length + '</strong> 道错题 · 覆盖 ' + weeks.length + ' 个教学周，点击周次可展开/收起</p>' +
-    '</div>';
+    '<div style="margin-top:10px;">' +
+    '<button class="btn btn-outline" style="padding:4px 14px;font-size:12px;margin-right:8px;" onclick="setAllMistakeWeeks(true)">全部展开</button>' +
+    '<button class="btn btn-outline" style="padding:4px 14px;font-size:12px;" onclick="setAllMistakeWeeks(false)">全部收起</button>' +
+    '</div></div>';
   html += weeks.map(function(w) {
     var ms = groups[w];
     var isCur = (w === curWeek);
     var open = !!_mistakeWeekOpen[w];
     var stat = mistakeWeekStatsHtml(ms);
+    var show = ms.slice(0, 30);
+    var restNote = ms.length > 30 ? '<div style="padding:8px 14px;font-size:12px;color:var(--text-muted);">该周共 ' + ms.length + ' 条，仅显示前 30 条，避免刷屏</div>' : '';
     var body = '<div id="mistakeWeekBody_' + w + '" style="' + (open ? '' : 'display:none;') + '">' +
       (stat ? '<div style="padding:10px 14px 0;font-size:13px;color:var(--text-secondary);">' + (isCur ? '本周' : '该周') + '高频错误：</div><div style="padding:0 14px;">' + stat + '</div>' : '') +
-      '<div style="padding:2px 14px 14px;">' + ms.map(mistakeHtml).join('') + '</div>' +
+      '<div style="padding:2px 14px 0;">' + show.map(mistakeHtml).join('') + '</div>' + restNote +
       '</div>';
     return '<div style="margin-bottom:14px;">' +
       '<button class="btn btn-outline" style="width:100%;padding:11px 14px;font-size:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleMistakeWeek(' + w + ')">' +
@@ -4604,16 +4609,25 @@ function toggleMistakeWeek(week) {
   var list = document.getElementById('mistakeList');
   if (list && _mistakeWeekAll) list.innerHTML = buildMistakeWeekHtml(_mistakeWeekAll);
 }
+function setAllMistakeWeeks(open) {
+  if (!_mistakeWeekAll) return;
+  _mistakeWeekAll.forEach(function(m) {
+    _mistakeWeekOpen[mistakeWeekOf(m)] = open;
+  });
+  var list = document.getElementById('mistakeList');
+  if (list) list.innerHTML = buildMistakeWeekHtml(_mistakeWeekAll);
+}
 
-// 从云端拉取智能复习推荐（基于当周/所选时间范围内 AI 批改的错误类型统计；服务端已强制学生只算本人）
+// 从云端拉取智能复习推荐（按教学周分组，每周可展开/收起；服务端已强制学生只算本人）
+var _reviewWeekOpen = {};    // { 周次: 是否展开 }
+var _reviewWeeksData = null; // 最近一次拉取的按周数据，供折叠时原地重绘
 async function loadCloudReview(studentName) {
   var list = document.getElementById('reviewList');
   var tip = document.getElementById('lightningTip');
   var controller = null;
   var timeoutId = null;
   try {
-    var range = feedbackTimeRange || 'week';
-    var query = '?time_range=' + encodeURIComponent(range);
+    var query = '?group_by_week=1';
     if (studentName) query += '&student_name=' + encodeURIComponent(studentName);
     controller = new AbortController();
     timeoutId = setTimeout(function() { controller.abort(); }, 12000);
@@ -4621,7 +4635,19 @@ async function loadCloudReview(studentName) {
     clearTimeout(timeoutId);
     if (!resp.ok) throw new Error('请求失败 (HTTP ' + resp.status + ')');
     var data = await resp.json();
-    if (!data.topics || data.topics.length === 0) {
+    _reviewWeeksData = data;
+    var weeks = data.weeks || [];
+    var curWeek = data.current_week || getTeachWeek();
+    // 避雷针建议：最新一周（本周）排名第一的推荐 topic
+    if (tip) {
+      if (weeks.length && weeks[0].topics && weeks[0].topics.length) {
+        tip.innerHTML = '本周建议复习：<strong>' + fmtFrac(escapeHtml(weeks[0].topics[0].topic)) + '</strong>。' +
+          '<span style="font-size:13px;color:var(--text-muted);">（' + fmtFrac(escapeHtml(weeks[0].topics[0].reason)) + '）</span>';
+      } else {
+        tip.innerHTML = '本周建议复习：<strong>暂无重点</strong>。';
+      }
+    }
+    if (!weeks.length) {
       if (list) {
         var sug = (data.suggestions && data.suggestions.length) ? data.suggestions[0] : '近期学习表现稳定，继续保持！';
         list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);">' +
@@ -4630,29 +4656,10 @@ async function loadCloudReview(studentName) {
           '<p style="font-size:13px;margin-top:8px;color:var(--text-secondary);">💡 ' + fmtFrac(escapeHtml(sug)) + '</p>' +
           '</div>';
       }
-      if (tip) tip.innerHTML = '本周建议复习：<strong>暂无重点</strong>。';
+      window._reviewTopics = [];
       return;
     }
-    // 避雷针建议：取排名第一的推荐 topic
-    if (tip) {
-      tip.innerHTML = '本周建议复习：<strong>' + fmtFrac(escapeHtml(data.topics[0].topic)) + '</strong>。' +
-        '<span style="font-size:13px;color:var(--text-muted);">（' + fmtFrac(escapeHtml(data.topics[0].reason)) + '）</span>';
-    }
-    // 缓存真实复习数据，供复习/练习 modal 使用
-    window._reviewTopics = data.topics;
-    if (list) {
-      list.innerHTML = data.topics.map(function(t, i) {
-        var rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : 'other';
-        return '<div class="review-item">' +
-          '<div class="review-rank ' + rankClass + '">' + (i + 1) + '</div>' +
-          '<div class="review-content"><div class="review-topic">' + fmtFrac(escapeHtml(t.topic)) + '</div>' +
-          '<div class="review-reason">' + fmtFrac(escapeHtml(t.reason)) + ' · 掌握度 ' + t.mastery + '%</div></div>' +
-          '<div class="review-actions">' +
-          '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="openReviewModal(' + i + ')">🎬 复习</button>' +
-          '<button class="btn btn-primary" style="padding:6px 14px;font-size:13px;" onclick="openPracticeModal(' + i + ')">✏️ 练习</button>' +
-          '</div></div>';
-      }).join('');
-    }
+    if (list) list.innerHTML = buildReviewWeekHtml(data);
   } catch (e) {
     if (timeoutId) clearTimeout(timeoutId);
     console.log('复习推荐加载失败:', e.message);
@@ -4666,6 +4673,68 @@ async function loadCloudReview(studentName) {
     }
     if (tip) tip.innerHTML = '本周建议复习：<strong>数据加载失败，请稍后重试</strong>';
   }
+}
+
+// 按教学周分组渲染智能复习推荐（每周一个可折叠区块）
+function buildReviewWeekHtml(data) {
+  var weeks = data.weeks || [];
+  var curWeek = data.current_week || getTeachWeek();
+  var isSelfView = getCurrentRole() !== 'teacher';
+  if (!(curWeek in _reviewWeekOpen) && isSelfView) _reviewWeekOpen[curWeek] = true;
+  var totalTopics = 0;
+  weeks.forEach(function(w) { totalTopics += (w.topics || []).length; });
+  // 展平所有 topic（周次从高到低），供复习/练习 modal 按 index 取用
+  var flat = [];
+  weeks.forEach(function(w) { (w.topics || []).forEach(function(t) { flat.push(t); }); });
+  window._reviewTopics = flat;
+  var html = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;">' +
+    '<h4 style="margin-bottom:8px;">🎯 智能复习推荐（按教学周分组 · 来自 AI 批改）</h4>' +
+    '<p style="font-size:14px;color:var(--text-secondary);">共 <strong>' + totalTopics + '</strong> 个重点 · 覆盖 ' + weeks.length + ' 个教学周，点击周次可展开/收起</p>' +
+    '<div style="margin-top:10px;">' +
+    '<button class="btn btn-outline" style="padding:4px 14px;font-size:12px;margin-right:8px;" onclick="setAllReviewWeeks(true)">全部展开</button>' +
+    '<button class="btn btn-outline" style="padding:4px 14px;font-size:12px;" onclick="setAllReviewWeeks(false)">全部收起</button>' +
+    '</div></div>';
+  var base = 0;
+  html += weeks.map(function(w) {
+    var ms = w.topics || [];
+    var isCur = (w.week === curWeek);
+    var open = !!_reviewWeekOpen[w.week];
+    var show = ms.slice(0, 10);
+    var restNote = ms.length > 10 ? '<div style="padding:8px 14px;font-size:12px;color:var(--text-muted);">该周共 ' + ms.length + ' 个重点，仅显示前 10 个（按错误次数排序）</div>' : '';
+    var body = '<div id="reviewWeekBody_' + w.week + '" style="' + (open ? '' : 'display:none;') + '">' +
+      '<div style="padding:2px 0 0;">' + show.map(function(t, i) {
+        var idx = base + i;
+        var rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : 'other';
+        return '<div class="review-item">' +
+          '<div class="review-rank ' + rankClass + '">' + (i + 1) + '</div>' +
+          '<div class="review-content"><div class="review-topic">' + fmtFrac(escapeHtml(t.topic)) + '</div>' +
+          '<div class="review-reason">' + fmtFrac(escapeHtml(t.reason)) + ' · 掌握度 ' + t.mastery + '%</div></div>' +
+          '<div class="review-actions">' +
+          '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="openReviewModal(' + idx + ')">🎬 复习</button>' +
+          '<button class="btn btn-primary" style="padding:6px 14px;font-size:13px;" onclick="openPracticeModal(' + idx + ')">✏️ 练习</button>' +
+          '</div></div>';
+      }).join('') + '</div>' + restNote + '</div>';
+    base += ms.length;
+    return '<div style="margin-bottom:14px;">' +
+      '<button class="btn btn-outline" style="width:100%;padding:11px 14px;font-size:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleReviewWeek(' + w.week + ')">' +
+      '<span>📅 第' + w.week + '周' + (isCur ? '（本周）' : '') + ' · ' + ms.length + ' 个重点</span>' +
+      '<span>' + (open ? '▾ 收起' : '▸ 展开') + '</span>' +
+      '</button>' + body + '</div>';
+  }).join('');
+  return html;
+}
+function toggleReviewWeek(week) {
+  _reviewWeekOpen[week] = !_reviewWeekOpen[week];
+  if (_reviewWeeksData) {
+    var list = document.getElementById('reviewList');
+    if (list) list.innerHTML = buildReviewWeekHtml(_reviewWeeksData);
+  }
+}
+function setAllReviewWeeks(open) {
+  if (!_reviewWeeksData) return;
+  (_reviewWeeksData.weeks || []).forEach(function(w) { _reviewWeekOpen[w.week] = open; });
+  var list = document.getElementById('reviewList');
+  if (list) list.innerHTML = buildReviewWeekHtml(_reviewWeeksData);
 }
 
 function openReviewModal(idx) {
