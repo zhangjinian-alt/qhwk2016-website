@@ -1098,7 +1098,7 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
 
 <!-- 个人评价（底部 - 需登录） -->
 <div class="container section" id="personalEvalSection">
-  <h2 class="section-title"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f464" xlink:href="#tw-1f464"/></svg> 个人综合素养五维评价</h2>
+  <h2 class="section-title" id="personalEvalTitle"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f464" xlink:href="#tw-1f464"/></svg> <span id="personalEvalTitleText">个人综合素养五维评价</span></h2>
   <div id="personalEvalContent"></div>
 </div>
 </section>
@@ -4980,6 +4980,10 @@ function renderEvaluate() {
   const role = getCurrentRole();
   const content = document.getElementById('personalEvalContent');
   if (!content) return;
+
+  // 2026-09-06：多元评价页顶部标题按角色区分——教师看全班，学生/未登录看个人
+  var peTitle = document.getElementById('personalEvalTitleText');
+  if (peTitle) peTitle.textContent = (role === 'teacher') ? '全班周末作业五维能力评价' : '个人综合素养五维评价';
 
   // 切换页面时清除学生五维缓存，避免教师模式误用学生数据
   window._studentEval = null;
