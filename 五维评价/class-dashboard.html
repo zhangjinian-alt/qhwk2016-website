@@ -533,7 +533,7 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
         <section class="charts-grid">
           <div class="chart-card">
             <div class="chart-header">
-              <div class="chart-title">班级五维雷达图<span class="sub">本周各维度均分</span></div>
+              <div class="chart-title">周综合素养五维雷达图<span class="sub">全部周均分</span></div>
             </div>
             <div class="chart-body" id="classRadarChart"></div>
           </div>
@@ -1065,6 +1065,21 @@ function weekHasAutoData(week){
     return (typeof d.interest === 'number' && d.interest > 0) || (typeof d.effect === 'number' && d.effect > 0);
   });
 }
+// 计算全部周（学期至今）的五维均值：有分则算，无分不拉低
+function calcAllWeeksDimAvgs(){
+  const avgs = {};
+  ALL_DIMS.forEach(dim=>{
+    const vals = [];
+    STATE.students.forEach(s=>{
+      for(let w=1; w<=STATE.totalWeeks; w++){
+        const v = (getWeekData(s,w)||{})[dim.key];
+        if(typeof v === 'number' && v > 0) vals.push(v);
+      }
+    });
+    avgs[dim.key] = vals.length ? avg(vals) : 0;
+  });
+  return avgs;
+}
 function calcKPIs(week){
   const sts = STATE.students;
   const prevWeek = week>1 ? week-1 : null;
@@ -1528,8 +1543,9 @@ function renderClassCharts(){
   // 2026-09-05：云端已下载系统自动分（兴趣/效果）→ 完整五维；否则回退老师三维
   const chartDims = k.hasAutoData ? ALL_DIMS : DIMS;
 
-  // 1. 雷达图 - 班级五维
-  const radarData = chartDims.map(d=>({ label:d.short, value:k.dimAvgs[d.key], color:d.color }));
+  // 1. 雷达图 - 周综合素养五维：固定展示完整五维，数据取全部周均值
+  const allWeeksAvgs = calcAllWeeksDimAvgs();
+  const radarData = ALL_DIMS.map(d=>({ label:d.short, value:allWeeksAvgs[d.key], color:d.color }));
   renderRadar($('#classRadarChart'), radarData, { fill:'rgba(37,99,235,.1)', stroke:'#2563eb' });
 
   // 2. 柱状图 - 班级五维
