@@ -4399,6 +4399,9 @@ function renderFeedback() {
 
   if (role === 'teacher') {
     if (title) title.textContent = '📊 全班学习分析';
+    // 2026-09-06：教师端学习反馈雷达图是全班均值，标题归位为无姓名（避免残留学生端标题）
+    var _radTitleT = document.getElementById('feedbackRadarTitle');
+    if (_radTitleT) _radTitleT.textContent = '周末作业五维能力雷达图';
     // 动态统计错题原因
     var reasonCount = {};
     appData.mistakes.forEach(function(m) {
