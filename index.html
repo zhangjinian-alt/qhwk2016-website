@@ -4411,19 +4411,8 @@ function draw3DRadar() {
   if (_radarValues && _radarValues.values && _radarRange === feedbackTimeRange && _radarOwnerKey === ownerKey) {
     values = _radarValues.values;
   } else {
-    // 未登录或加载失败时的兜底演示数据
-    var exerciseTotal = appData.exercises.length;
-    var exerciseDone = appData.exercises.filter(function(x){return x;}).length;
-    var calcRate = exerciseTotal > 0 ? exerciseDone / exerciseTotal : 0.5;
-    var medalTotal = appData.medals.length;
-    var medalUnlocked = appData.medals.filter(function(x){return x.unlocked;}).length;
-    var understandRate = medalTotal > 0 ? medalUnlocked / medalTotal : 0.5;
-    var thinkingTotal = appData.thinkingLevels.length;
-    var thinkingCleared = appData.thinkingLevels.filter(function(x){return x.state === 'cleared';}).length;
-    var applyRate = thinkingTotal > 0 ? thinkingCleared / thinkingTotal : 0.5;
-    var auditRate = appData.mistakes.length > 0 ? Math.max(0.3, 1 - appData.mistakes.length * 0.08) : 0.9;
-    var speedRate = Math.min(1, appData.streak / 14);
-    values = [calcRate, understandRate, applyRate, auditRate, speedRate];
+    // 未登录或加载失败时的兜底演示数据：五个维度都有起伏，不出现 0%
+    values = [0.75, 0.60, 0.85, 0.55, 0.70];
   }
   const angles = labels.map((_, i) => -Math.PI/2 + (2*Math.PI*i)/5);
   ctx.clearRect(0, 0, 460, 460);
