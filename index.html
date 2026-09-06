@@ -3404,8 +3404,8 @@ function renderParent() {
           '<h4 style="margin:8px 0;">' + n.title + '</h4>' +
           '<p style="font-size:14px;color:var(--text-secondary);">' + n.content + '</p>' +
           '<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px;">' +
-          '<button onclick="editNotice(' + i + ')" style="background:rgba(255,255,255,0.9);border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">✏️</button>' +
-          '<button onclick="deleteNotice(' + i + ')" style="background:rgba(255,77,79,0.1);border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;color:var(--danger);">🗑️</button>' +
+          '<button onclick="editNotice(' + n.id + ')" style="background:rgba(255,255,255,0.9);border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">✏️</button>' +
+          '<button onclick="deleteNotice(' + n.id + ')" style="background:rgba(255,77,79,0.1);border:none;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;color:var(--danger);">🗑️</button>' +
           '</div></div>';
       }).join('');
   } else {
@@ -4100,20 +4100,29 @@ function publishNotice() {
         }
         var errText = '';
         try { var errJson = await resp.json(); errText = errJson.detail || errJson.message || ''; } catch(e) {}
-        showToast('发布失败' + (errText ? '：' + errText : '，已保存到本地'));
+        // 云端发布失败：不静默存本地（会被云端缓存隐藏），明确提示并刷新云端让用户看清实况
+        showToast('发布失败' + (errText ? '：' + errText : '，请刷新后重试'));
+        await loadCloudNotices(true);
+        return;
       } catch(e) {
-        showToast('网络异常，已保存到本地');
+        // 网络异常/token失效：提示重新登录后再发布，仍保留本地草稿但明确告知
+        showToast('网络异常或登录已过期，通知未发布，请重新登录后重试');
+        appData.notices.unshift(Object.assign({}, data));
+        saveData();
+        renderParent();
+        return;
       }
     }
+    // 未登录云端：走本地演示数据（不涉及云端可见性）
     appData.notices.unshift(data);
     saveData();
     renderParent();
     showToast('通知已发布');
   }, '发布');
 }
-function editNotice(idx) {
+function editNotice(id) {
   var list = currentNotices();
-  var n = list[idx] || appData.notices[idx];
+  var n = list.find(function(x) { return x.id === id; }) || appData.notices.find(function(x) { return x.id === id; });
   if (!n) return;
   openFormModal('编辑通知', [
     { label: '通知类型', name: 'type', type: 'select', value: n.type, options: [
@@ -4151,10 +4160,10 @@ function editNotice(idx) {
     showToast('通知已更新');
   }, '保存修改');
 }
-function deleteNotice(idx) {
+function deleteNotice(id) {
   if (!confirm('确定删除这条通知吗？')) return;
   var list = currentNotices();
-  var n = list[idx] || appData.notices[idx];
+  var n = list.find(function(x) { return x.id === id; }) || appData.notices.find(function(x) { return x.id === id; });
   if (!n) return;
   if (n.id) {
     // 云端通知：DELETE 到后端
