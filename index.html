@@ -1485,9 +1485,9 @@ function getIsoWeek(d) {
   return 1 + Math.round(((t - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7);
 }
 
-// 教学周起点：第1周的起点日（2026-08-30 → 8/30-9/5 为2026秋季学期第1周）
+// 教学周起点：第1周的起点日（2026-08-31 → 8/31-9/6 为2026秋季学期第1周，周一到周日为一周）
 // 五维评价/喜报/功勋墙统一用教学周；与后端 _teach_week() 一致，改这里需同步后端 TEACH_WEEK_START
-var TEACH_WEEK_START = '2026-08-30';
+var TEACH_WEEK_START = '2026-08-31';
 function getTeachWeek(d) {
   d = d || new Date();
   var start = new Date(TEACH_WEEK_START + 'T00:00:00');
@@ -1496,7 +1496,7 @@ function getTeachWeek(d) {
   return w < 1 ? 1 : w;
 }
 
-// 当前教学周的起始日（YYYY-MM-DD，周日起算），"当周"数据分组统一用它，与后端 _teach_week_start_date 一致
+// 当前教学周的起始日（YYYY-MM-DD，周一起算），"当周"数据分组统一用它，与后端 _teach_week_start_date 一致
 function getTeachWeekStartDate() {
   var now = new Date();
   var start = new Date(TEACH_WEEK_START + 'T00:00:00');
