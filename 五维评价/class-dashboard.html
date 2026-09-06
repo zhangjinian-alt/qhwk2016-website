@@ -867,6 +867,9 @@ function generateData(){
         score = Math.max(5, Math.min(10, Math.round(score)));
         wkData[dim.key] = score;
       }
+      // 演示数据也带上系统自动维度（兴趣/效果），本地未下载云端时也能看到完整五维
+      wkData.interest = Math.max(0, Math.min(10, Math.round(4 + srand()*6)));
+      wkData.effect = Math.max(0, Math.min(10, Math.round(4 + srand()*6)));
       weeks.push(wkData);
     }
     students.push({ id:i+1, name, weeks });
@@ -1066,15 +1069,17 @@ function weekHasAutoData(week){
   });
 }
 // 计算全部周（学期至今）的五维均值：有分则算，无分不拉低
+// 2026-09-06：直接遍历每个学生实际有的 weeks 记录，不再依赖 getWeekData 的"回退到最近一周"，
+// 避免兴趣和效果被错误周次的数据覆盖或漏算。
 function calcAllWeeksDimAvgs(){
   const avgs = {};
   ALL_DIMS.forEach(dim=>{
     const vals = [];
     STATE.students.forEach(s=>{
-      for(let w=1; w<=STATE.totalWeeks; w++){
-        const v = (getWeekData(s,w)||{})[dim.key];
+      (s.weeks || []).forEach(function(wk){
+        const v = wk[dim.key];
         if(typeof v === 'number' && v > 0) vals.push(v);
-      }
+      });
     });
     avgs[dim.key] = vals.length ? avg(vals) : 0;
   });
