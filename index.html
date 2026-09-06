@@ -169,6 +169,12 @@ img { max-width:100%; display:block; }
   color:var(--text); margin-bottom:12px;
 }
 .hero p.subtitle { font-size:18px; color:#6B8299; margin-bottom:32px; }
+/* hero 标题里的角色形象：与文字等高一截，垂直居中 */
+.hero h1 .hero-role-img {
+  display:inline-block; height:1.35em; width:auto;
+  vertical-align:-0.35em; margin:0 2px;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.15));
+}
 .hero-cta { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
 .btn {
   display:inline-flex; align-items:center; gap:8px;
@@ -836,7 +842,7 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
     <div class="hero-badge">
       <img class="mascot" src="logo-2026.png" alt=""><span id="welcomeMsg">欢迎回来，小明同学！</span>
     </div>
-    <h1 id="heroTitle">今天角色带来了"有趣的分数"</h1>
+    <h1 id="heroTitle">今天<span class="hero-role-holder"></span>带来了"有趣的分数"</h1>
     <p class="subtitle">每天进步一点点，数学其实很好玩！</p>
     <div class="hero-cta">
       <button class="btn btn-primary" onclick="navigate('classroom')"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f4d6" xlink:href="#tw-1f4d6"/></svg> 开始今天的学习</button>
@@ -2678,12 +2684,22 @@ function applyStudentHomeStats(data) {
   if (s) s.textContent = '连续 ' + (Number(data.streak) || 0) + ' 天';
 }
 
+function heroRoleImg() {
+  // 首页 hero 标题里的角色形象（图片替代"角色"文字）
+  return '<img class="hero-role-img" src="role-mascot.png" alt="角色" loading="eager">';
+}
+
 function updateWelcome() {
   const role = getCurrentRole();
   const msg = document.getElementById('welcomeMsg');
   const title = document.getElementById('heroTitle');
   const sub = document.querySelector('#page-home .hero .subtitle');
   const cta = document.querySelector('.hero-cta');
+  // 静态初始标题里的占位也补上角色图
+  var titleHolder = document.querySelector('#page-home .hero h1 .hero-role-holder');
+  if (titleHolder && titleHolder.parentNode === title) {
+    titleHolder.outerHTML = heroRoleImg();
+  }
   if (role === 'teacher') {
     if (msg) msg.textContent = '教师管理后台';
     if (title) title.textContent = '教学管理控制台';
@@ -2691,7 +2707,7 @@ function updateWelcome() {
     if (cta) cta.innerHTML = '<button class="btn btn-primary" onclick="navigate(\'classroom\')">📚 管理课程</button><button class="btn btn-outline" onclick="navigate(\'parent\')">📢 发布通知</button>';
   } else {
     if (msg) msg.textContent = '欢迎回来，' + appData.userName + '！';
-    if (title) title.textContent = '本周角色带来了"巧算乘法"';
+    if (title) title.innerHTML = '本周' + heroRoleImg() + '带来了"巧算乘法"';
     if (sub) sub.textContent = '每周进步一点点，数学其实很好玩！';
     if (cta) cta.innerHTML = '<button class="btn btn-primary" onclick="navigate(\'classroom\')">📖 开始本周的学习</button><button class="btn btn-outline" onclick="navigate(\'feedback\')">📊 查看学习报告</button>';
 
@@ -2708,7 +2724,7 @@ function updateWelcome() {
       var task = tasks[0];
       var fallbackTopics = ['有趣的分数', '神奇的对称轴', '生活中的小数', '巧算乘法', '面积大冒险', '时间的奥秘'];
       var t = task && task.title ? task.title : fallbackTopics[Math.floor(Math.random() * fallbackTopics.length)];
-      if (title) title.textContent = '本周角色带来了"' + t + '"';
+      if (title) title.innerHTML = '本周' + heroRoleImg() + '带来了"' + t + '"';
       var btnAction = task && task.id ? 'openStudentTaskVideo(' + task.id + ')' : "navigate('classroom')";
       if (cta) cta.innerHTML = '<button class="btn btn-primary" onclick="' + btnAction + '">📖 开始本周的学习</button><button class="btn btn-outline" onclick="navigate(\'feedback\')">📊 查看学习报告</button>';
     })();
