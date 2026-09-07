@@ -5458,9 +5458,10 @@ function renderEvalLeaderboard(container, data) {
     }
     return '<div style="' + style + 'display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:700;font-size:' + (size*0.45) + 'px;">' + esc(item.name ? item.name.slice(-2) : '?') + '</div>';
   };
-  var renderList = function(title, icon, items, awardType, showImprovement) {
+  var renderList = function(title, icon, items, awardType, showImprovement, note) {
     if (!items || items.length === 0) {
-      return '<div style="margin-bottom:24px;"><h4 style="margin:0 0 12px;font-size:16px;color:var(--text-primary);display:flex;align-items:center;gap:8px;">' + icon + ' ' + esc(title) + '</h4><p style="color:var(--text-muted);font-size:13px;padding:8px 0;">暂无数据</p></div>';
+      var tip = note || '暂无数据';
+      return '<div style="margin-bottom:24px;"><h4 style="margin:0 0 12px;font-size:16px;color:var(--text-primary);display:flex;align-items:center;gap:8px;">' + icon + ' ' + esc(title) + '</h4><p style="color:var(--text-muted);font-size:13px;padding:8px 0;">' + esc(tip) + '</p></div>';
     }
     var borderColor = awardType === 'top' ? '#F5A623' : '#52C41A';
     var html = '<div style="margin-bottom:24px;">';
@@ -5488,9 +5489,9 @@ function renderEvalLeaderboard(container, data) {
   html += '<p style="font-size:13px;color:var(--text-muted);margin:0;">' + esc(data.class_name) + ' · 第 ' + data.week + ' 周</p>';
   html += '<p style="font-size:12px;color:var(--text-muted);margin:0;">👆 点击头像下载电子奖状</p>';
   html += '</div>';
-  html += renderList('本周数学学习标兵', '🏆', data.top_students, 'top', false);
-  html += renderList('本周数学进步之星', '🚀', data.progress_stars, 'progress', true);
-  html += '</div>';
+    html += renderList('本周数学学习标兵', '🏆', data.top_students, 'top', false, '');
+    html += renderList('本周数学进步之星', '🚀', data.progress_stars, 'progress', true, data.progress_note || '');
+    html += '</div>';
   container.innerHTML = html;
 }
 
