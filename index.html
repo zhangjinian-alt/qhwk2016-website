@@ -9319,9 +9319,10 @@ async function loadHwFeedbackList() {
     }
     list.innerHTML = mine.map(function(h) {
       var imgCount = h.image_count > 1 ? '<span class="hw-thumb-badge">' + h.image_count + '图</span>' : '';
+      var hasErrors = (h.total_count > 0 && h.total_correct < h.total_count);
       var correctedBadge = (h.corrected && h.status !== 'pending' && h.status !== 'grading' && h.status !== 'failed')
         ? ' <span class="ak-badge" style="background:#F6FFED;color:#389E0D;border-color:#B7EB8F;">✅ 已订正</span>'
-        : ((h.status === 'graded' || h.status === 'reviewed') ? ' <span class="ak-badge" style="background:#FFF7E6;color:#D46B08;border-color:#FFD591;">⏳ 待订正</span>' : '');
+        : (((h.status === 'graded' || h.status === 'reviewed') && hasErrors) ? ' <span class="ak-badge" style="background:#FFF7E6;color:#D46B08;border-color:#FFD591;">⏳ 待订正</span>' : '');
       return '<div class="hw-list-item">' +
         '<div class="hw-thumb-wrap" title="点击放大查看" onclick="hwThumbLightbox(' + h.id + ')"><img class="hw-thumb" src="' + h.image_url + '" alt="作业">' + imgCount + '</div>' +
         '<div class="hw-info">' +
