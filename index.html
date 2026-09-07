@@ -3481,72 +3481,18 @@ function renderParent() {
       if (formEl) formEl.style.display = 'none';
       var inbox = whisperSection.querySelector('#teacherInbox');
       if (!inbox) { inbox = document.createElement('div'); inbox.id = 'teacherInbox'; whisperSection.appendChild(inbox); }
-      var msgs = appData.messages || [];
-      var unreadCount = msgs.filter(function(m) { return !m.read; }).length;
-      if (msgs.length === 0) {
-        inbox.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:24px 0;">暂无留言</p>';
-      } else {
-        inbox.innerHTML = '<div style="margin-bottom:12px;font-size:13px;color:var(--text-secondary);">' +
-          (unreadCount > 0 ? '<span style="background:var(--primary);color:white;padding:2px 10px;border-radius:12px;font-size:12px;">未读 ' + unreadCount + ' 条</span> ' : '') +
-          '<span style="color:var(--text-muted);">共 ' + msgs.length + ' 条留言</span></div>' +
-          msgs.map(function(m, i) {
-            var borderStyle = m.read ? '' : 'border-left:3px solid var(--primary);';
-            var replyHtml = '';
-            if (m.replies && m.replies.length > 0) {
-              replyHtml = m.replies.map(function(r) {
-                return '<div style="margin-top:8px;padding:8px 12px;background:rgba(74,144,217,0.08);border-radius:6px;font-size:13px;">' +
-                  '<span style="color:var(--primary);font-weight:500;">老师回复：</span>' +
-                  '<span style="color:var(--text-secondary);">' + r.msg + '</span>' +
-                  '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">' + (r.time||'') + '</span></div>';
-              }).join('');
-            }
-            return '<div style="padding:12px;background:var(--bg);border-radius:8px;margin-bottom:8px;' + borderStyle + '">' +
-              '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
-              '<span style="font-weight:500;">' + (m.read ? '' : '<span style="color:var(--primary);">●</span> ') + m.name + '</span>' +
-              '<span style="font-size:12px;color:var(--text-muted);">' + (m.time || '') + '</span></div>' +
-              '<p style="font-size:14px;color:var(--text-secondary);">' + m.msg + '</p>' +
-              replyHtml +
-              '<div style="display:flex;gap:8px;margin-top:8px;">' +
-              '<button onclick="replyMessage(' + i + ')" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;background:white;">回复</button>' +
-              '<button onclick="deleteMessage(' + i + ')" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;background:white;color:var(--danger);">删除</button>' +
-              '</div></div>';
-          }).join('');
-      }
+      inbox.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:24px 0;">加载中...</p>';
+      loadTeacherInbox(inbox);
     } else {
       if (whisperTitle) whisperTitle.textContent = '💬 悄悄话';
       var formEl2 = whisperSection.querySelector('form');
       if (formEl2) formEl2.style.display = '';
       var oldInbox = whisperSection.querySelector('#teacherInbox');
       if (oldInbox) oldInbox.remove();
-      // 家长/学生查看自己的留言和老师回复
       var parentInbox = whisperSection.querySelector('#parentInbox');
       if (parentInbox) parentInbox.remove();
-      var msgs2 = appData.messages || [];
-      var myMsgs = msgs2.filter(function(m) { return true; });
-      if (myMsgs.length > 0) {
-        parentInbox = document.createElement('div');
-        parentInbox.id = 'parentInbox';
-        parentInbox.style.marginTop = '16px';
-        parentInbox.innerHTML = '<h4 style="font-size:14px;margin-bottom:8px;color:var(--text-secondary);">我的留言记录</h4>' +
-          myMsgs.map(function(m) {
-            var replyHtml = '';
-            if (m.replies && m.replies.length > 0) {
-              replyHtml = m.replies.map(function(r) {
-                return '<div style="margin-top:6px;padding:8px 12px;background:rgba(74,144,217,0.08);border-radius:6px;font-size:13px;">' +
-                  '<span style="color:var(--primary);font-weight:500;">老师回复：</span>' +
-                  '<span style="color:var(--text-secondary);">' + r.msg + '</span>' +
-                  '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">' + (r.time||'') + '</span></div>';
-              }).join('');
-            }
-            return '<div style="padding:10px 12px;background:var(--bg);border-radius:8px;margin-bottom:8px;">' +
-              '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
-              '<span style="font-weight:500;font-size:13px;">' + m.name + '</span>' +
-              '<span style="font-size:11px;color:var(--text-muted);">' + (m.time||'') + '</span></div>' +
-              '<p style="font-size:13px;color:var(--text-secondary);">' + m.msg + '</p>' +
-              replyHtml + '</div>';
-          }).join('');
-        whisperSection.appendChild(parentInbox);
-      }
+      // 学生/家长：从后端拉自己发出去的悄悄话及老师回复
+      loadStudentSentMessages(whisperSection);
     }
   }
 
@@ -4327,65 +4273,223 @@ function deleteNotice(id) {
   showToast('通知已删除');
 }
 
-function submitWhisper(e) {
+async function submitWhisper(e) {
   e.preventDefault();
   var name = document.getElementById('whisperName').value.trim();
   var msg = document.getElementById('whisperMsg').value.trim();
   if (!name) { showToast('请输入姓名'); return; }
   if (!msg) { showToast('请输入留言内容'); return; }
-  if (!appData.messages) appData.messages = [];
-  appData.messages.push({ name: name, msg: msg, time: new Date().toLocaleString(), read: false, replies: [] });
-  saveData();
+  if (!requireCloudLogin()) return;
 
-  // 三重反馈，确保用户一定能看到发送成功
-  // 1) 按钮状态变化
   var form = document.getElementById('whisperForm');
   var btn = form ? form.querySelector('button[type="submit"]') : null;
-  if (btn) {
-    var origText = btn.textContent;
-    btn.textContent = '✅ 已发送';
-    btn.disabled = true;
-    btn.style.background = 'var(--success)';
-    btn.style.borderColor = 'var(--success)';
-    setTimeout(function() { btn.textContent = origText; btn.disabled = false; btn.style.background = ''; btn.style.borderColor = ''; }, 2000);
-  }
-  // 2) 表单内绿色提示条
-  var oldHint = document.getElementById('whisperSuccessHint');
-  if (oldHint) oldHint.remove();
-  var hint = document.createElement('div');
-  hint.id = 'whisperSuccessHint';
-  hint.style.cssText = 'padding:10px 14px;background:rgba(82,196,26,0.1);border:1px solid var(--success);border-radius:8px;color:var(--success);font-size:14px;font-weight:500;margin-bottom:12px;';
-  hint.innerHTML = '✅ 留言已发送给老师！老师回复后你会在这里看到。';
-  if (form) form.parentNode.insertBefore(hint, form);
-  setTimeout(function() { if (hint && hint.parentNode) hint.remove(); }, 5000);
-  // 3) Toast 提示
-  showToast('留言已发送给老师！📧');
+  var origText = btn ? btn.textContent : '';
+  if (btn) { btn.textContent = '发送中…'; btn.disabled = true; }
 
-  if (form) form.reset();
-  renderParent();
+  try {
+    var resp = await fetch(API_BASE + '/messages/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + getCloudToken()
+      },
+      body: JSON.stringify({ content: msg })
+    });
+    var data = null;
+    try { data = await resp.json(); } catch (e) {}
+    if (!resp.ok) {
+      var detail = (data && data.detail) || ('HTTP ' + resp.status);
+      throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+    }
+    // 本地缓存（兼容旧视图，不影响真实数据）
+    if (!appData.messages) appData.messages = [];
+    appData.messages.push({ name: name, msg: msg, time: new Date().toLocaleString(), read: false, replies: [] });
+    saveData();
+
+    // 三重反馈
+    if (btn) {
+      btn.textContent = '✅ 已发送';
+      btn.style.background = 'var(--success)';
+      btn.style.borderColor = 'var(--success)';
+      setTimeout(function() { btn.textContent = origText; btn.disabled = false; btn.style.background = ''; btn.style.borderColor = ''; }, 2000);
+    }
+    var oldHint = document.getElementById('whisperSuccessHint');
+    if (oldHint) oldHint.remove();
+    var hint = document.createElement('div');
+    hint.id = 'whisperSuccessHint';
+    hint.style.cssText = 'padding:10px 14px;background:rgba(82,196,26,0.1);border:1px solid var(--success);border-radius:8px;color:var(--success);font-size:14px;font-weight:500;margin-bottom:12px;';
+    hint.innerHTML = '✅ 留言已发送给老师！老师回复后你会在这里看到。';
+    if (form) form.parentNode.insertBefore(hint, form);
+    setTimeout(function() { if (hint && hint.parentNode) hint.remove(); }, 5000);
+    showToast('留言已发送给老师！📧');
+
+    if (form) form.reset();
+    // 刷新学生端的"我的留言记录"区（从后端拉新数据）
+    var whisperSection = document.getElementById('whisperSection');
+    if (whisperSection) loadStudentSentMessages(whisperSection);
+  } catch (err) {
+    showToast('发送失败：' + err.message);
+    if (btn) { btn.textContent = origText; btn.disabled = false; }
+  }
 }
 
-function replyMessage(idx) {
+// 加载学生/家长端「我的留言记录」（从云端 /api/messages/sent 拉，含教师回复）
+async function loadStudentSentMessages(container) {
+  var oldInbox = container.querySelector('#parentInbox');
+  if (oldInbox) oldInbox.remove();
+  var loading = document.createElement('div');
+  loading.id = 'parentInbox';
+  loading.style.cssText = 'margin-top:16px;text-align:center;color:var(--text-muted);padding:12px;';
+  loading.textContent = '正在加载我的留言…';
+  container.appendChild(loading);
+
+  try {
+    var resp = await fetch(API_BASE + '/messages/sent', {
+      headers: { 'Authorization': 'Bearer ' + getCloudToken() }
+    });
+    var data = await resp.json();
+    loading.remove();
+    var myMsgs = (data && data.messages) || [];
+    if (myMsgs.length === 0) {
+      var empty = document.createElement('div');
+      empty.id = 'parentInbox';
+      empty.style.cssText = 'margin-top:16px;text-align:center;color:var(--text-muted);font-size:13px;';
+      empty.textContent = '还没有留言记录';
+      container.appendChild(empty);
+      return;
+    }
+    var box = document.createElement('div');
+    box.id = 'parentInbox';
+    box.style.marginTop = '16px';
+    box.innerHTML = '<h4 style="font-size:14px;margin-bottom:8px;color:var(--text-secondary);">我的留言记录（' + myMsgs.length + ' 条）</h4>' +
+      myMsgs.map(function(m) {
+        var replyHtml = '';
+        if (m.teacher_reply) {
+          replyHtml = '<div style="margin-top:6px;padding:8px 12px;background:rgba(74,144,217,0.08);border-radius:6px;font-size:13px;">' +
+            '<span style="color:var(--primary);font-weight:500;">老师回复：</span>' +
+            '<span style="color:var(--text-secondary);">' + (m.teacher_reply || '') + '</span>' +
+            '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">' + (m.replied_at || '') + '</span></div>';
+        } else if (!m.read_by_teacher) {
+          replyHtml = '<div style="margin-top:6px;font-size:12px;color:var(--text-muted);">老师还没查看…</div>';
+        }
+        return '<div style="padding:10px 12px;background:var(--bg);border-radius:8px;margin-bottom:8px;">' +
+          '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
+          '<span style="font-weight:500;font-size:13px;">我</span>' +
+          '<span style="font-size:11px;color:var(--text-muted);">' + (m.created_at || '') + '</span></div>' +
+          '<p style="font-size:13px;color:var(--text-secondary);margin:4px 0;">' + (m.content || '') + '</p>' +
+          replyHtml + '</div>';
+      }).join('');
+    container.appendChild(box);
+  } catch (err) {
+    loading.innerHTML = '<div style="color:var(--danger);">加载失败：' + err.message + '</div>';
+  }
+}
+
+// 教师收件箱：从云端 /api/messages/inbox 拉取 + 渲染「回复/删除/标已读」按钮
+async function loadTeacherInbox(container) {
+  try {
+    var resp = await fetch(API_BASE + '/messages/inbox', {
+      headers: { 'Authorization': 'Bearer ' + getCloudToken() }
+    });
+    var data = await resp.json();
+    var msgs = (data && data.messages) || [];
+    var unreadCount = data && data.unread_count || 0;
+    if (!resp.ok) {
+      container.innerHTML = '<p style="color:var(--danger);text-align:center;padding:24px 0;">加载失败：' + ((data && data.detail) || resp.status) + '</p>';
+      return;
+    }
+    if (msgs.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:24px 0;">📭 暂无留言</p>';
+      return;
+    }
+    var headerHtml = '<div style="margin-bottom:12px;font-size:13px;color:var(--text-secondary);display:flex;gap:10px;align-items:center;">' +
+      (unreadCount > 0 ? '<span style="background:var(--primary);color:white;padding:2px 10px;border-radius:12px;font-size:12px;">未读 ' + unreadCount + ' 条</span>' : '') +
+      '<span style="color:var(--text-muted);">共 ' + msgs.length + ' 条留言</span>' +
+      '<button onclick="quickMarkAllRead()" style="margin-left:auto;padding:2px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;background:white;">全部标已读</button>' +
+      '</div>';
+    container.innerHTML = headerHtml + msgs.map(function(m) {
+      var borderStyle = m.read_by_teacher ? '' : 'border-left:3px solid var(--primary);';
+      var replyHtml = '';
+      if (m.teacher_reply) {
+        replyHtml = '<div style="margin-top:8px;padding:8px 12px;background:rgba(74,144,217,0.08);border-radius:6px;font-size:13px;">' +
+          '<span style="color:var(--primary);font-weight:500;">老师回复：</span>' +
+          '<span style="color:var(--text-secondary);">' + (m.teacher_reply || '') + '</span>' +
+          '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">' + (m.replied_at || '') + '</span></div>';
+      }
+      return '<div style="padding:12px;background:var(--bg);border-radius:8px;margin-bottom:8px;' + borderStyle + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+        '<span style="font-weight:500;">' + (m.read_by_teacher ? '' : '<span style="color:var(--primary);">●</span> ') + (m.from_name || '') + '<span style="font-size:12px;color:var(--text-muted);font-weight:400;margin-left:6px;">' + (m.class_name || '') + '</span></span>' +
+        '<span style="font-size:12px;color:var(--text-muted);">' + (m.created_at || '') + '</span></div>' +
+        '<p style="font-size:14px;color:var(--text-secondary);">' + (m.content || '') + '</p>' +
+        replyHtml +
+        '<div style="display:flex;gap:8px;margin-top:8px;">' +
+        (m.teacher_reply
+          ? '<button onclick="replyMessage(' + m.id + ')" style="padding:4px 12px;border:1px solid var(--order);border-radius:6px;font-size:12px;cursor:pointer;background:white;">修改回复</button>'
+          : '<button onclick="replyMessage(' + m.id + ')" style="padding:4px 12px;border:1px solid var(--primary);color:white;background:var(--primary);border-radius:6px;font-size:12px;cursor:pointer;">回复</button>') +
+        '<button onclick="deleteMessage(' + m.id + ')" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;background:white;color:var(--danger);">删除</button>' +
+        '</div></div>';
+    }).join('');
+  } catch (err) {
+    container.innerHTML = '<p style="color:var(--danger);text-align:center;padding:24px 0;">加载失败：' + err.message + '</p>';
+  }
+}
+
+async function quickMarkAllRead() {
+  try {
+    var resp = await fetch(API_BASE + '/messages/inbox', {
+      headers: { 'Authorization': 'Bearer ' + getCloudToken() }
+    });
+    var data = await resp.json();
+    var msgs = (data && data.messages) || [];
+    for (var i = 0; i < msgs.length; i++) {
+      if (!msgs[i].read_by_teacher) {
+        await fetch(API_BASE + '/messages/' + msgs[i].id + '/read', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + getCloudToken() }
+        });
+      }
+    }
+    var inbox = document.getElementById('teacherInbox');
+    if (inbox) loadTeacherInbox(inbox);
+    showToast('全部已标为已读');
+  } catch (err) { showToast('标记失败：' + err.message); }
+}
+
+async function replyMessage(id) {
   openFormModal('回复留言', [
     { label: '回复内容', name: 'reply', type: 'textarea', required: true, placeholder: '输入回复内容...' }
-  ], function(data) {
-    if (!appData.messages[idx].replies) appData.messages[idx].replies = [];
-    appData.messages[idx].replies.push({
-      msg: data.reply, time: new Date().toLocaleString()
-    });
-    appData.messages[idx].read = true;
-    saveData();
-    renderParent();
-    showToast('回复已发送');
+  ], async function(data) {
+    try {
+      var resp = await fetch(API_BASE + '/messages/' + id + '/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getCloudToken() },
+        body: JSON.stringify({ reply: data.reply })
+      });
+      var out = null;
+      try { out = await resp.json(); } catch (e) {}
+      if (!resp.ok) {
+        showToast('回复失败：' + ((out && out.detail) || resp.status));
+        return;
+      }
+      showToast('回复已发送');
+      var inbox = document.getElementById('teacherInbox');
+      if (inbox) loadTeacherInbox(inbox);
+    } catch (err) { showToast('回复失败：' + err.message); }
   }, '发送回复');
 }
 
-function deleteMessage(idx) {
+async function deleteMessage(id) {
   if (!confirm('确定删除这条留言吗？')) return;
-  appData.messages.splice(idx, 1);
-  saveData();
-  renderParent();
-  showToast('留言已删除');
+  try {
+    var resp = await fetch(API_BASE + '/messages/' + id, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + getCloudToken() }
+    });
+    if (!resp.ok) { showToast('删除失败'); return; }
+    showToast('留言已删除');
+    var inbox = document.getElementById('teacherInbox');
+    if (inbox) loadTeacherInbox(inbox);
+  } catch (err) { showToast('删除失败：' + err.message); }
 }
 
 // ===== FEEDBACK =====
