@@ -9116,7 +9116,7 @@ async function loadHwTeacherList(filter) {
           '<p style="font-size:13px;color:var(--primary);">🤖 AI 正在重新批改，一份约需 3-10 分钟，本页会自动刷新，无需重复点击</p>' : '') +
         '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0,10) + (h.reviewed_at ? ' · 复核于 ' + h.reviewed_at.slice(0,10) : '') + '</p>' +
         '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">' +
-        (h.status === 'graded' ? '<button class="btn btn-primary" style="padding:6px 14px;font-size:13px;" onclick="reviewHw(' + h.id + ')">📝 复核确认</button>' : '') +
+        ((h.status === 'graded' || h.status === 'reviewed') ? '<button class="btn btn-primary" style="padding:6px 14px;font-size:13px;" onclick="reviewHw(' + h.id + ')">' + (h.status === 'reviewed' ? '📝 重新复核' : '📝 复核确认') + '</button>' : '') +
         (h.status === 'graded' || h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="viewHwDetail(' + h.id + ')">👁️ 查看详情</button>' : '') +
         (h.status !== 'grading' && h.title && answerKeyTitles.indexOf(h.title) >= 0 ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--primary);" onclick="regradeHw(' + h.id + ')">🔄 重新批改</button>' : '') +
         (h.status === 'failed' ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--warning);" onclick="regradeHw(' + h.id + ')">🔄 重新批改</button>' : '') +
@@ -9409,6 +9409,10 @@ async function viewHwDetail(hwId) {
 }
 
 // 教师复核批改结果
+// ===== 教师复核：逐题改判（2026-09-11 新增）=====
+// 状态结构：{ hwId, base: 原始结果(AI或上次修正版), problems: 可编辑副本 }
+var _hwReviewState = null;
+
 async function reviewHw(hwId) {
   try {
     var resp = await fetchWithAuth('/homework/' + hwId);
@@ -9416,28 +9420,31 @@ async function reviewHw(hwId) {
     var hw = await resp.json();
     var grade = {};
     try { grade = JSON.parse(hw.grade_result); } catch(e) {}
-
-    var problemsHtml = '';
-    if (grade.problems && grade.problems.length > 0) {
-      problemsHtml = grade.problems.map(function(p) {
-        var cls = p.is_correct ? 'correct' : 'wrong';
-        var icon = p.is_correct ? '✅' : '❌';
-        return '<div class="hw-problem ' + cls + '">' +
-          '<div class="hw-problem-label">' + icon + ' ' + fmtFrac(p.question || '') + (p.student_answer != null ? ' = ' + fmtFrac(p.student_answer) : '') + '</div>' +
-          '</div>';
-      }).join('');
+    // 已有教师修正版则在其基础上继续改（支持二次复核，不丢失上次改判）
+    var base = grade;
+    if (hw.teacher_reviewed) {
+      try {
+        var prev = JSON.parse(hw.teacher_reviewed);
+        if (prev && prev.problems) base = prev;
+      } catch(e) {}
     }
+    _hwReviewState = {
+      hwId: hwId,
+      base: base,
+      problems: (base.problems || []).map(function(p) { return Object.assign({}, p); })
+    };
 
     var html = '<div class="hw-detail">' +
-      '<h3 style="margin-bottom:16px;">📝 复核批改结果</h3>' +
+      '<h3 style="margin-bottom:8px;">📝 复核批改结果</h3>' +
+      '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">AI 判错了？点题目前的 ✅/❌ 即可翻转判定；正确答案可直接修改；AI 误识别的题可点 ✕ 删除。正确率自动重算，确认发布后学生端立即生效。</p>' +
       hwDetailImagesHtml(hw.images && hw.images.length ? hw.images : [hw.image_url]) +
-      '<p style="font-size:14px;"><strong>' + hw.student_name + '</strong> — ' + (hw.title || '数学作业') + '</p>' +
-      (grade.accuracy ? '<p style="font-size:16px;font-weight:600;margin:8px 0;">AI批改正确率：' + grade.accuracy + '% (' + scoreFrac(grade.total_correct, grade.total_count) + ')</p>' : '') +
-      (problemsHtml ? '<h4 style="margin:12px 0 8px;">AI逐题结果</h4>' + problemsHtml : '') +
-      (grade.summary ? '<div style="background:var(--bg);border-radius:8px;padding:12px;margin:12px 0;"><strong>AI评语：</strong>' + grade.summary + '</div>' : '') +
+      '<p style="font-size:14px;"><strong>' + escapeHtml(hw.student_name) + '</strong> — ' + escapeHtml(hw.title || '数学作业') + '</p>' +
+      '<div id="rvAccuracy" style="background:var(--primary-bg);border-radius:8px;padding:12px;text-align:center;font-size:16px;font-weight:600;margin:8px 0;"></div>' +
+      '<h4 style="margin:12px 0 8px;">逐题判定（点击图标改判）</h4>' +
+      '<div id="rvProblems"></div>' +
       '<form onsubmit="submitHwReview(event,' + hwId + ')">' +
-      '<div class="form-group"><label>教师补充评语（可选）</label>' +
-      '<textarea id="hwReviewComment" placeholder="可以补充或修改AI的评语..." style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;min-height:80px;resize:vertical;">' + (hw.teacher_comment || '') + '</textarea></div>' +
+      '<div class="form-group" style="margin-top:16px;"><label>教师补充评语（可选）</label>' +
+      '<textarea id="hwReviewComment" placeholder="可以补充或修改AI的评语..." style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;min-height:80px;resize:vertical;">' + escapeHtml(hw.teacher_comment || '') + '</textarea></div>' +
       '<div style="display:flex;gap:10px;margin-top:16px;">' +
       '<button type="submit" class="btn btn-primary" style="flex:1;">✅ 确认发布</button>' +
       '<button type="button" onclick="closeModalDirect()" class="btn btn-outline" style="flex:1;">取消</button>' +
@@ -9445,19 +9452,86 @@ async function reviewHw(hwId) {
 
     document.getElementById('modalContent').innerHTML = html;
     document.getElementById('modal').classList.add('open');
+    renderReviewProblems();
   } catch (e) {
     showToast('加载复核页面失败：' + e.message);
   }
 }
 
+function renderReviewProblems() {
+  if (!_hwReviewState) return;
+  var st = _hwReviewState;
+  var box = document.getElementById('rvProblems');
+  if (!box) return;
+  if (!st.problems.length) {
+    box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:16px;">（未识别出题目，可只发布评语）</p>';
+  } else {
+    box.innerHTML = st.problems.map(function(p, i) {
+      var icon = p.is_correct ? '✅' : '❌';
+      var btnStyle = p.is_correct
+        ? 'background:#EAF3DE;border:1.5px solid #B7DF9B;'
+        : 'background:#FFF1F0;border:1.5px solid #FFA39E;';
+      return '<div class="hw-problem" style="display:flex;gap:8px;align-items:flex-start;">' +
+        '<button type="button" onclick="toggleRvProblem(' + i + ')" title="点击翻转对错判定" style="' + btnStyle + 'border-radius:8px;min-width:44px;padding:6px 8px;font-size:16px;cursor:pointer;flex:none;">' + icon + '</button>' +
+        '<div style="flex:1;min-width:0;">' +
+        '<div class="hw-problem-label" style="font-size:13px;">' + fmtFrac(p.question || '') + (p.student_answer != null ? ' = ' + fmtFrac(p.student_answer) : '') + '</div>' +
+        '<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">' +
+        '<span style="font-size:11px;color:var(--text-muted);flex:none;">正确答案</span>' +
+        '<input id="rvAns' + i + '" value="' + escapeHtml(String(p.correct_answer != null ? p.correct_answer : '')) + '" style="flex:1;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">' +
+        '</div>' +
+        '</div>' +
+        '<button type="button" onclick="removeRvProblem(' + i + ')" title="AI 误识别此题，删除" style="flex:none;border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:14px;padding:4px;">✕</button>' +
+        '</div>';
+    }).join('');
+  }
+  var n = st.problems.length;
+  var c = st.problems.filter(function(p) { return p.is_correct; }).length;
+  var acc = n ? Math.round(c / n * 1000) / 10 : 0;
+  var el = document.getElementById('rvAccuracy');
+  if (el) el.textContent = '正确率：' + acc + '% (' + scoreFrac(c, n) + ')';
+}
+
+function toggleRvProblem(i) {
+  if (!_hwReviewState || !_hwReviewState.problems[i]) return;
+  _hwReviewState.problems[i].is_correct = !_hwReviewState.problems[i].is_correct;
+  renderReviewProblems();
+}
+
+function removeRvProblem(i) {
+  if (!_hwReviewState || !_hwReviewState.problems[i]) return;
+  if (!confirm('确定删除这道题吗？（用于删除 AI 误识别出的题目）')) return;
+  _hwReviewState.problems.splice(i, 1);
+  renderReviewProblems();
+}
+
 async function submitHwReview(e, hwId) {
   e.preventDefault();
   var comment = document.getElementById('hwReviewComment').value.trim();
+  if (!_hwReviewState || _hwReviewState.hwId !== hwId) {
+    showToast('复核数据丢失，请重新打开复核窗口');
+    return;
+  }
+  var st = _hwReviewState;
+  // 收集教师修改后的正确答案
+  var problems = st.problems.map(function(p, i) {
+    var inp = document.getElementById('rvAns' + i);
+    var q = Object.assign({}, p);
+    if (inp) q.correct_answer = inp.value.trim();
+    return q;
+  });
+  var n = problems.length;
+  var c = problems.filter(function(p) { return p.is_correct; }).length;
+  // 组装修正版结果：以原始结果为底，替换逐题判定并重算正确率
+  var corrected = JSON.parse(JSON.stringify(st.base));
+  corrected.problems = problems;
+  corrected.total_count = n;
+  corrected.total_correct = c;
+  corrected.accuracy = n ? Math.round(c / n * 1000) / 10 : 0;
 
   try {
     var resp = await fetchWithAuth('/homework/' + hwId + '/review', {
       method: 'PUT',
-      body: JSON.stringify({ teacher_comment: comment, teacher_reviewed: '' }),
+      body: JSON.stringify({ teacher_comment: comment, teacher_reviewed: JSON.stringify(corrected) }),
     });
     if (!resp.ok) {
       var err = await resp.json().catch(function() { return {detail:'复核失败'}; });
