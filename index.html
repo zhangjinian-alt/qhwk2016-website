@@ -5006,7 +5006,7 @@ async function loadCloudAbilityRadar(studentName) {
   try {
     var query = '?time_range=' + encodeURIComponent(feedbackTimeRange || 'week');
     if (studentName) query += '&student_name=' + encodeURIComponent(studentName);
-    var resp = await fetchWithAuth('/ability-radar' + query);
+    var resp = await fetchWithAuth('/ability-radar' + query + '&_t=' + Date.now());
     if (!resp.ok) {
       var friendly = '请求失败';
       if (resp.status === 401) friendly = '登录已过期，请重新登录';
@@ -6092,7 +6092,7 @@ function draw5DRadar() {
 async function loadTeacherAbilityRadar() {
   var analysisEl = document.getElementById('teacherRadarAnalysis');
   try {
-    var resp = await fetchWithAuth('/ability-radar?time_range=week');
+    var resp = await fetchWithAuth('/ability-radar?time_range=week&_t=' + Date.now());
     if (!resp.ok) {
       var friendly = '请求失败';
       if (resp.status === 401) friendly = '登录已过期，请重新登录';
