@@ -9488,7 +9488,9 @@ function renderReviewProblems() {
   var c = st.problems.filter(function(p) { return p.is_correct; }).length;
   var acc = n ? Math.round(c / n * 1000) / 10 : 0;
   var el = document.getElementById('rvAccuracy');
-  if (el) el.textContent = '正确率：' + acc + '% (' + scoreFrac(c, n) + ')';
+  // 2026-09-11 修复：scoreFrac 返回的是分数横线 HTML，必须用 innerHTML 渲染，
+  // 用 textContent 会把标签当纯文本显示（复核窗口正确率出现 <span class="score-frac-...">）
+  if (el) el.innerHTML = '正确率：' + acc + '% (' + scoreFrac(c, n) + ')';
 }
 
 function toggleRvProblem(i) {
