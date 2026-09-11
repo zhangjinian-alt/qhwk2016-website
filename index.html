@@ -9055,6 +9055,25 @@ function renderHwGrading() {
 }
 
 var hwCurrentFilter = 'all';
+
+// 批改中自动刷新（2026-09-11）：AI 批改一份要 3-10 分钟（Thinking 模式 + 并发上限 2），
+// 老师点完"重新批改"若页面不自动更新，会误以为失败。列表里只要还有 grading 就定时轮询。
+var hwAutoRefreshTimer = null;
+
+function _stopHwAutoRefresh() {
+  if (hwAutoRefreshTimer) { clearTimeout(hwAutoRefreshTimer); hwAutoRefreshTimer = null; }
+}
+
+function _scheduleHwAutoRefresh(items) {
+  _stopHwAutoRefresh();
+  var hasGrading = (items || []).some(function(h) { return h.status === 'grading'; });
+  if (!hasGrading) return;
+  hwAutoRefreshTimer = setTimeout(function() {
+    hwAutoRefreshTimer = null;
+    loadHwTeacherList(hwCurrentFilter);
+  }, 20000);
+}
+
 function filterHw(filter, btn) {
   hwCurrentFilter = filter;
   document.querySelectorAll('#hwFilterBar .hw-filter-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -9064,7 +9083,7 @@ function filterHw(filter, btn) {
 
 async function loadHwTeacherList(filter) {
   var list = document.getElementById('hwTeacherList');
-  if (!list) return;
+  if (!list) { _stopHwAutoRefresh(); return; }
   if (!isCloudLoggedIn()) { list.innerHTML = '<p style="text-align:center;color:var(--text-muted);">请先登录云端账号</p>'; return; }
 
   try {
@@ -9074,6 +9093,7 @@ async function loadHwTeacherList(filter) {
     var items = await resp.json();
 
     if (items.length === 0) {
+      _stopHwAutoRefresh();
       list.innerHTML = '<div style="text-align:center;padding:48px;color:var(--text-muted);">' +
         '<div style="font-size:36px;margin-bottom:8px;">📭</div>' +
         '<p>暂无' + (filter === 'all' ? '' : hwStatusLabel[filter] + '状态的') + '作业</p></div>';
@@ -9092,6 +9112,8 @@ async function loadHwTeacherList(filter) {
         '<span class="hw-status ' + h.status + '">' + hwStatusIcon[h.status] + ' ' + hwStatusLabel[h.status] + '</span></div>' +
         (h.status === 'graded' || h.status === 'reviewed' ?
           '<p style="font-size:13px;color:var(--text-secondary);">正确率：<strong style="color:var(--success);">' + h.accuracy + '%</strong> (' + scoreFrac(h.total_correct, h.total_count) + ')</p>' : '') +
+        (h.status === 'grading' ?
+          '<p style="font-size:13px;color:var(--primary);">🤖 AI 正在重新批改，一份约需 3-10 分钟，本页会自动刷新，无需重复点击</p>' : '') +
         '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0,10) + (h.reviewed_at ? ' · 复核于 ' + h.reviewed_at.slice(0,10) : '') + '</p>' +
         '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">' +
         (h.status === 'graded' ? '<button class="btn btn-primary" style="padding:6px 14px;font-size:13px;" onclick="reviewHw(' + h.id + ')">📝 复核确认</button>' : '') +
@@ -9101,7 +9123,9 @@ async function loadHwTeacherList(filter) {
         '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--danger);" onclick="deleteHw(' + h.id + ')">🗑️ 删除</button>' +
         '</div></div></div>';
     }).join('');
+    _scheduleHwAutoRefresh(items);
   } catch (e) {
+    _stopHwAutoRefresh();
     list.innerHTML = '<p style="text-align:center;color:var(--danger);">加载失败：' + e.message + '</p>';
   }
 }
