@@ -9587,18 +9587,26 @@ async function deleteAnswerKey(akId) {
   }
 }
 
+// 解析重新批改类请求的错误信息（2026-09-11：429 限流需给出明确可执行提示，
+// 不能笼统报"失败"；fetch 抛 TypeError 时多为网络中断，单独兜底）
+function _regradeErrMsg(e) {
+  if (e && e.status === 429) return e.message || '请求过于频繁，请稍等约 1 分钟后再试';
+  if (e && e.message) return e.message;
+  return '网络异常，请检查网络后重试';
+}
+
 async function regradeHw(hwId) {
   if (!confirm('确定用标准答案重新批改这份作业吗？')) return;
   try {
     var resp = await fetchWithAuth('/homework/' + hwId + '/regrade', { method: 'POST' });
     if (!resp.ok) {
       var err = await resp.json().catch(function() { return {detail:'请求失败'}; });
-      throw new Error(err.detail || '请求失败');
+      var e1 = new Error(err.detail || '请求失败'); e1.status = resp.status; throw e1;
     }
     showToast('已触发重新批改，请稍后刷新查看');
     loadHwTeacherList(hwCurrentFilter);
   } catch (e) {
-    showToast('重新批改失败：' + e.message);
+    showToast('重新批改失败：' + _regradeErrMsg(e));
   }
 }
 
@@ -9608,13 +9616,13 @@ async function batchRegradeHw(title) {
     var resp = await fetchWithAuth('/homework/batch-regrade?title=' + encodeURIComponent(title), { method: 'POST' });
     if (!resp.ok) {
       var err = await resp.json().catch(function() { return {detail:'请求失败'}; });
-      throw new Error(err.detail || '请求失败');
+      var e2 = new Error(err.detail || '请求失败'); e2.status = resp.status; throw e2;
     }
     var data = await resp.json();
     showToast(data.message);
     setTimeout(function() { loadHwTeacherList(hwCurrentFilter); }, 2000);
   } catch (e) {
-    showToast('批量重新批改失败：' + e.message);
+    showToast('批量重新批改失败：' + _regradeErrMsg(e));
   }
 }
 
