@@ -8677,6 +8677,11 @@ async function submitHwUpload(e) {
       } else if (dupDetail.code === 'DUPLICATE_SAME_IMAGE') {
         showToast('同一张作业照片近期已提交过，请勿重复上传', 'error');
         if (status) status.innerHTML = '<p style="color:var(--danger);font-size:13px;">📷 ' + (dupDetail.message || '这张图片已提交过') + '</p>';
+      } else if (dupDetail.code === 'DUPLICATE_SAME_TITLE') {
+        // 2026-09-12：同一份作业禁止重复提交（订正完成也不放行）
+        showToast('同样的作业已经提交过，不能重复提交', 'error');
+        if (status) status.innerHTML = '<p style="color:var(--danger);font-size:13px;">📚 ' + (dupDetail.message || '这份作业你已经提交过') + '</p>' +
+          '<p style="color:var(--primary);font-size:13px;margin-top:6px;">💡 请到<strong>「学习反馈」- 作业反馈</strong>查看这份作业的批改结果。如确需补交（例如漏拍了页面），请先撤回原来的提交，再重新拍照上传。</p>';
       } else {
         showToast(dupDetail.message || errMsg || '提交太频繁，请稍候再试', 'error');
         if (status) status.innerHTML = '<p style="color:var(--warning);font-size:13px;">⏳ ' + (dupDetail.message || errMsg || '提交太频繁') + '</p>';
