@@ -669,8 +669,9 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
           <label style="font-size:12px;font-weight:600;color:var(--slate-600);">班级</label>
           <input id="cloudClassName" placeholder="如：403班" style="flex:1;min-width:120px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;" value="">
-          <span style="font-size:12px;color:var(--slate-500);">上传/下载：<strong id="cloudTermLabel" style="color:var(--slate-700);"></strong> · 第 <strong id="cloudWeekLabel" style="color:var(--slate-700);"></strong> 周</span>
+          <span style="font-size:12px;color:var(--slate-500);">上传/下载：<strong id="cloudTermLabel" style="color:var(--slate-700);"></strong> · 第 <strong id="cloudWeekLabel" style="color:var(--slate-700);"></strong> 周<strong id="cloudNowBadge" style="color:#059669;"></strong></span>
         </div>
+        <div id="cloudWeekWarn" style="display:none;margin-bottom:12px;padding:9px 12px;border-radius:9px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:12px;line-height:1.7;"></div>
         <div style="display:flex;gap:10px;">
           <button id="cloudUploadBtn" class="modal-btn modal-btn-primary" style="flex:1;padding:10px;">⬆ 上传本周评分</button>
           <button id="cloudDownloadBtn" class="modal-btn modal-btn-cancel" style="flex:1;padding:10px;">⬇ 下载云端评分</button>
@@ -945,6 +946,15 @@ function getTeachWeek(d){
   return w < 1 ? 1 : w;
 }
 
+// 2026-09-12：判断某周是否存在"老师三维评分"（打开页面时用于自动定位到当前教学周）
+function weekHasTeacherScore(students, week){
+  return (students || []).some(function(s){
+    return (s.weeks || []).some(function(x){
+      return x.week === week && ((x.think||0) > 0 || (x.coop||0) > 0 || (x.habit||0) > 0);
+    });
+  });
+}
+
 function loadState(){
   try{
     const raw = localStorage.getItem(STATE_KEY);
@@ -960,13 +970,17 @@ function loadState(){
         });
       }
     });
-    // 每次打开页面，默认选中"上一周"（本周若未评完，教师通常先看已评完的上周数据）
-    // 如果用户之前手动选过某一周，则尊重用户选择，不再强制跳回本周；仅在数据异常时回退默认值
+    // 2026-09-12 起：优先定位「当前教学周」。
+    // 若保存的周次落后于当前教学周、且当前教学周已有老师三维评分，则自动前移到本周
+    // （避免老师以为在看本周、实际停在上周，把分导错周次）；本周还没评分时停留在上周，方便先复盘。
     const nowWeek = getTeachWeek(new Date());
     const defaultWeek = Math.min(Math.max(1, nowWeek - 1), MAX_WEEKS);
     let cw = obj.currentWeek || 0;
     if(!cw || cw < 1 || cw > MAX_WEEKS){
       cw = defaultWeek;
+      changed = true;
+    } else if(cw < nowWeek && weekHasTeacherScore(obj.students, nowWeek)){
+      cw = Math.min(nowWeek, MAX_WEEKS);
       changed = true;
     }
     obj.currentWeek = cw;
@@ -1035,9 +1049,14 @@ function sum(arr){return arr.reduce((a,b)=>a+b,0);}
 function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
 function fmt(v,d=1){return Number(v).toFixed(d);}
 
-// 获取学生某周数据
+// 获取学生某周数据（仅显示用：该周不存在时回退到最近一周，保证列表/图表不空窗）
 function getWeekData(student, week){
   return student.weeks.find(w=>w.week===week) || student.weeks[student.weeks.length-1];
+}
+// 严格获取学生某周数据（上传/写库必须用这个：该周不存在就返回 null，绝不回退）
+// 2026-09-12：上传第 N 周时若本地没有第 N 周数据，绝不能把上一周的分数复制成第 N 周，否则会静默污染云端。
+function getWeekDataStrict(student, week){
+  return student.weeks.find(w=>w.week===week) || null;
 }
 // 学生某周五维均分
 function studentWeekAvg(student, week){
@@ -1882,6 +1901,23 @@ function updateCloudUI(){
   $('#cloudClassName').value = STATE.className || '403班';
   $('#cloudTermLabel').textContent = STATE.selectedTerm || '未选择学期';
   $('#cloudWeekLabel').textContent = STATE.currentWeek || '—';
+  // 2026-09-12：标注是否"本周"；看板所选周次与当前教学周不一致时给醒目提醒
+  const nowTeachWeek = Math.min(getTeachWeek(new Date()), MAX_WEEKS);
+  const nowBadge = $('#cloudNowBadge');
+  if(nowBadge) nowBadge.textContent = (STATE.currentWeek === nowTeachWeek) ? '（本周）' : '';
+  const warnBox = $('#cloudWeekWarn');
+  if(warnBox){
+    if(STATE.currentWeek === nowTeachWeek){
+      warnBox.style.display = 'none';
+    } else if(STATE.currentWeek < nowTeachWeek){
+      warnBox.style.display = 'block';
+      warnBox.innerHTML = '⚠️ 看板当前选中<b>第 ' + STATE.currentWeek + ' 周</b>，而本周已是<b>第 ' + nowTeachWeek + ' 周</b>。' +
+        '导入和上传都只会写入第 ' + STATE.currentWeek + ' 周；如果这份评分要算本周，请先在看板顶部把周次切到第 ' + nowTeachWeek + ' 周再操作。';
+    } else {
+      warnBox.style.display = 'block';
+      warnBox.innerHTML = '提示：看板当前选中<b>第 ' + STATE.currentWeek + ' 周</b>（未来周次），上传前请确认周次无误。';
+    }
+  }
   // 渲染上次同步状态
   const statusBox = $('#cloudSyncStatus');
   if(statusBox && STATE.lastCloudUpload){
@@ -1942,17 +1978,29 @@ async function cloudUpload(){
   const week = STATE.currentWeek || 1;
   if(!term){ showToast('请先选择学期','error'); return; }
   if(!className){ showToast('请填写班级名称','error'); return; }
+  // 2026-09-12：目标周次与当前教学周不一致时二次确认（防止把本周的分传进上周、或反之）
+  const nowTeachWeek = Math.min(getTeachWeek(new Date()), MAX_WEEKS);
+  if(week !== nowTeachWeek){
+    const okGo = window.confirm('即将上传：第 ' + week + ' 周 · ' + (STATE.selectedTerm || '') + ' · ' + className +
+      '\n\n注意：当前教学周是第 ' + nowTeachWeek + ' 周。\n\n确定要上传到第 ' + week + ' 周吗？');
+    if(!okGo){ showToast('已取消上传','info'); return; }
+  }
   STATE.className = className;
   saveState();
   // 收集当前周所有学生评分（服务器固定 3 键：思维/合作/习惯；兴趣/效果为系统自动分，不在此上传）
+  // 2026-09-12：必须用严格取周 getWeekDataStrict —— 本地没有该周数据时按 0 处理，
+  // 绝不回退上一周，否则会把上周的分数静默复制成本周上传。
   const records = [];
+  const missingWeekNames = [];
   STATE.students.forEach(function(s){
-    const wk = getWeekData(s, week) || {};
+    const wk = getWeekDataStrict(s, week);
+    if(!wk) missingWeekNames.push(s.name);
+    const wd = wk || {};
     records.push({
       student_name: s.name,
-      think: wk.think !== undefined ? wk.think : (wk.focus || 0),
-      coop: wk.coop !== undefined ? wk.coop : (wk.attitude !== undefined ? wk.attitude : (wk.homework || 0)),
-      habit: wk.habit !== undefined ? wk.habit : (wk.writing || 0)
+      think: wd.think !== undefined ? wd.think : (wd.focus || 0),
+      coop: wd.coop !== undefined ? wd.coop : (wd.attitude !== undefined ? wd.attitude : (wd.homework || 0)),
+      habit: wd.habit !== undefined ? wd.habit : (wd.writing || 0)
     });
   });
   const statusBox = $('#cloudSyncStatus');
@@ -1986,9 +2034,14 @@ async function cloudUpload(){
   }
   const nonZero = records.filter(r=>r.think>0 || r.coop>0 || r.habit>0).length;
   if(!nonZero){
-    setStatus('当前本周评分全为 0 分，无法上传。请先导入或填写本周评分。','error');
-    showToast('当前本周评分全为 0 分，无法上传','error');
+    setStatus('第 ' + week + ' 周还没有任何评分，无法上传。请先在看板顶部把周次切到第 ' + week + ' 周，再导入或填写该周评分。','error');
+    showToast('第 ' + week + ' 周还没有评分，无法上传','error');
     return;
+  }
+  if(missingWeekNames.length){
+    const okMiss = window.confirm('第 ' + week + ' 周只有 ' + (records.length - missingWeekNames.length) +
+      ' 名学生有评分，另外 ' + missingWeekNames.length + ' 名学生会以 0 分写入云端。\n\n继续上传吗？');
+    if(!okMiss){ showToast('已取消上传','info'); return; }
   }
   const btn = $('#cloudUploadBtn');
   const originalText = btn ? btn.innerHTML : '⬆ 上传本周评分';
@@ -2074,11 +2127,16 @@ async function cloudDownload(silent){
         st.weeks.push(wk);
       }
       // 完整五维合并：interest/effect 系统自动（只读展示），think/coop/habit 老师导入（可编辑）
+      // 2026-09-12：老师三维若云端为 0（系统自动行 / 该周尚未评分），不用 0 覆盖本地已有的非零值，
+      // 避免"一打开页面就自动下载"把刚录好的分抹成 0。
       wk.interest = r.interest;
       wk.effect = r.effect;
-      wk.think = r.think;
-      wk.coop = r.coop !== undefined ? r.coop : (r.attitude || 0);
-      wk.habit = r.habit;
+      var _ct = r.think || 0;
+      var _cc = (r.coop !== undefined ? r.coop : (r.attitude || 0)) || 0;
+      var _ch = r.habit || 0;
+      if(_ct > 0 || wk.think === undefined) wk.think = _ct;
+      if(_cc > 0 || wk.coop === undefined) wk.coop = _cc;
+      if(_ch > 0 || wk.habit === undefined) wk.habit = _ch;
     });
     // 按 id 稳定排序
     STATE.students.sort(function(a,b){ return (a.id||0) - (b.id||0); });
@@ -2774,9 +2832,14 @@ function parseExcelWorkbook(workbook){
 }
 function applyExcelData(result){
   if(!result || !Array.isArray(result.students)) throw new Error('Excel 数据无效');
+  const importWeek = STATE.currentWeek || 1;   // Excel 无周次列 → 落到导入时看板选中的周次
   STATE.students = result.students;
-  STATE.totalWeeks = Math.min(result.maxWeek, MAX_WEEKS);
-  STATE.currentWeek = STATE.totalWeeks;
+  // 2026-09-12：总周数至少覆盖到当前教学周，否则周次选择器会只剩 1 周、老师切不到本周
+  const nowTeachWeek = Math.min(getTeachWeek(new Date()), MAX_WEEKS);
+  STATE.totalWeeks = Math.max(Math.min(result.maxWeek, MAX_WEEKS), nowTeachWeek);
+  if(!STATE.currentWeek || STATE.currentWeek < 1 || STATE.currentWeek > STATE.totalWeeks){
+    STATE.currentWeek = importWeek;
+  }
   saveState();
   updateWeekSelector();
   refreshAll();
@@ -2784,7 +2847,17 @@ function applyExcelData(result){
   pendingExcelData = null;
   $('#excelFileName').style.display = 'none';
   $('#excelFileName').textContent = '';
-  showToast(`成功导入 ${result.students.length} 名学生`,'success');
+  showToast('已导入到本机第 ' + importWeek + ' 周（' + result.students.length + ' 名学生）','success');
+  // Excel 导入只落本机浏览器，必须再点「云同步 → 上传本周评分」才会进云端；此处明确提示，避免以为已同步
+  setTimeout(function(){
+    const goNow = window.confirm('📥 已导入到本机：第 ' + importWeek + ' 周 · ' + result.students.length + ' 名学生。\n\n' +
+      '⚠️ Excel 导入只保存在本机浏览器，还没有同步到云端。\n\n' +
+      '点「确定」现在打开云同步面板上传（确认周次是第 ' + importWeek + ' 周，再点「⬆ 上传本周评分」）。');
+    if(goNow){
+      const b = document.getElementById('btnCloudSync');
+      if(b) b.click();
+    }
+  }, 150);
 }
 
 // ===== 课堂表现数据导入 =====
