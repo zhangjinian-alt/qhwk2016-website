@@ -1513,6 +1513,24 @@ function getTeachWeekStartDate() {
   return ws.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (dd < 10 ? '0' + dd : dd);
 }
 
+// 电子荣誉证书下载解锁（2026-09-12 定版）：学习标兵/进步之星要到该教学周的周日 12:00
+// 之后评分累计才准（周末作业+视频在周日晚间收齐），此前禁止下载电子奖状。
+// 教学周周五开周 → 第 N 周的周日 = TEACH_WEEK_START + (N-1)*7 + 2 天的 12:00。
+function certUnlockTime(week) {
+  var start = new Date(TEACH_WEEK_START + 'T00:00:00');
+  var t = new Date(start.getTime() + ((week - 1) * 7 + 2) * 86400000);
+  t.setHours(12, 0, 0, 0);
+  return t;
+}
+function certDownloadUnlocked(week) {
+  return new Date() >= certUnlockTime(week || getTeachWeek());
+}
+function certUnlockHint(week) {
+  var t = certUnlockTime(week || getTeachWeek());
+  var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+  return t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate()) + ' 12:00';
+}
+
 // created_at（SQLite UTC "YYYY-MM-DD HH:MM:SS"）→ 北京时间日期 "YYYY-MM-DD"
 function hwBeijingDate(utcStr) {
   if (!utcStr) return '';
@@ -5445,6 +5463,11 @@ function renderEvalLeaderboard(container, data) {
   if (!container) return;
   window._evalLeaderboardData = data || {};
   var role = (typeof getCurrentRole === 'function') ? getCurrentRole() : 'teacher';
+  // 证书解锁：未到本周周日 12:00 前只展示名单、禁止下载（评分未收齐，下载了也不准）
+  var certLocked = !certDownloadUnlocked(data.week);
+  var certLockedHint = certLocked
+    ? '🔒 本周评分尚在累计，' + certUnlockHint(data.week) + ' 后可下载奖状'
+    : '👆 点击头像下载电子奖状';
   var esc = function(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
   var encodePayload = function(obj) {
     try { return btoa(encodeURIComponent(JSON.stringify(obj))); } catch(e) { return ''; }
@@ -5467,14 +5490,18 @@ function renderEvalLeaderboard(container, data) {
     var html = '<div style="margin-bottom:24px;">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 14px;">';
     html += '<h4 style="margin:0;font-size:16px;color:var(--text-primary);display:flex;align-items:center;gap:8px;">' + icon + ' ' + esc(title) + '</h4>';
-    if (role === 'teacher') {
+    if (role === 'teacher' && !certLocked) {
       html += '<button onclick="downloadAll' + (awardType === 'top' ? 'Top' : 'Progress') + 'Certificates()" style="background:var(--primary);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;box-shadow:0 2px 4px rgba(74,144,217,0.25);">⬇️ 全部下载</button>';
     }
     html += '</div>';
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:16px;text-align:center;">';
     items.forEach(function(s, idx) {
       var payload = encodePayload({name: s.name, title: title, awardType: awardType, className: data.class_name, week: data.week, avatarUrl: s.avatar_url || ''});
-      html += '<div style="cursor:pointer;padding:8px 4px;border-radius:12px;transition:background .2s;" onmouseover="this.style.background=\'#F7F9FC\'" onmouseout="this.style.background=\'transparent\'" onclick="downloadCertificate(\'' + payload + '\')" title="点击下载电子奖状">';
+      if (certLocked) {
+        html += '<div style="padding:8px 4px;border-radius:12px;opacity:.65;" title="' + esc(certLockedHint) + '">';
+      } else {
+        html += '<div style="cursor:pointer;padding:8px 4px;border-radius:12px;transition:background .2s;" onmouseover="this.style.background=\'#F7F9FC\'" onmouseout="this.style.background=\'transparent\'" onclick="downloadCertificate(\'' + payload + '\')" title="点击下载电子奖状">';
+      }
       html += '<div style="position:relative;width:72px;height:72px;margin:0 auto;border-radius:50%;overflow:hidden;border:3px solid ' + borderColor + ';background:#E8ECF1;box-shadow:0 3px 8px rgba(0,0,0,0.08);">';
       html += avatar(s, 72, borderColor);
       html += '</div>';
@@ -5487,7 +5514,7 @@ function renderEvalLeaderboard(container, data) {
   var html = '<div style="max-height:560px;overflow-y:auto;padding-right:4px;">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">';
   html += '<p style="font-size:13px;color:var(--text-muted);margin:0;">' + esc(data.class_name) + ' · 第 ' + data.week + ' 周</p>';
-  html += '<p style="font-size:12px;color:var(--text-muted);margin:0;">👆 点击头像下载电子奖状</p>';
+  html += '<p style="font-size:12px;color:var(--text-muted);margin:0;">' + esc(certLockedHint) + '</p>';
   html += '</div>';
     html += renderList('本周数学学习标兵', '🏆', data.top_students, 'top', false, '');
     html += renderList('本周数学进步之星', '🚀', data.progress_stars, 'progress', true, data.progress_note || '');
@@ -5830,6 +5857,10 @@ async function downloadCertificate(payloadB64) {
     showToast('奖状数据解析失败');
     return;
   }
+  if (!certDownloadUnlocked(payload.week)) {
+    showToast('本周评分尚在累计，' + certUnlockHint(payload.week) + ' 后才能下载电子奖状');
+    return;
+  }
   showToast('正在生成 ' + payload.name + ' 的奖状...');
   try {
     var dataUrl = await generateCertificate(payload.name, payload.title, payload.className, payload.week, payload.avatarUrl, payload.awardType);
@@ -5849,6 +5880,10 @@ async function downloadCertificate(payloadB64) {
 // 批量下载奖状
 async function downloadAllCertificates(items, className, week) {
   if (!items || items.length === 0) return;
+  if (!certDownloadUnlocked(week)) {
+    showToast('本周评分尚在累计，' + certUnlockHint(week) + ' 后才能下载电子奖状');
+    return;
+  }
   showToast('开始批量生成奖状，共 ' + items.length + ' 张，请允许多次下载…');
   var ok = 0, fail = 0;
   for (var i = 0; i < items.length; i++) {
