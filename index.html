@@ -9261,6 +9261,7 @@ async function loadHwTeacherList(filter) {
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
         '<span style="font-weight:500;font-size:14px;">' + h.student_name + ' — ' + (h.title || '数学作业') +
         (h.title && answerKeyTitles.indexOf(h.title) >= 0 ? '<span class="ak-badge">🔑 有标准答案</span>' : '') +
+        (h.suspect_review ? '<span class="ak-badge" style="background:#FFF4E5;color:#B25E00;cursor:help;" title="自动质检：' + h.suspect_review + '。AI 看手写形近数偶有误读，建议点复核确认">⚠️ 建议复核</span>' : '') +
         '</span>' +
         '<span class="hw-status ' + h.status + '">' + hwStatusIcon[h.status] + ' ' + hwStatusLabel[h.status] + '</span></div>' +
         (h.status === 'graded' || h.status === 'reviewed' ?
