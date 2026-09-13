@@ -4833,12 +4833,36 @@ function buildMistakeWeekHtml(all) {
       '<div style="padding:2px 14px 0;">' + show.map(mistakeHtml).join('') + '</div>' + restNote +
       '</div>';
     return '<div style="margin-bottom:14px;">' +
-      '<button class="btn btn-outline" style="width:100%;padding:11px 14px;font-size:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleMistakeWeek(' + w + ')">' +
+      '<div style="display:flex;gap:8px;align-items:stretch;">' +
+      '<button class="btn btn-outline" style="flex:1;min-width:0;padding:11px 14px;font-size:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleMistakeWeek(' + w + ')">' +
       '<span>📅 第' + w + '周' + (isCur ? '（本周）' : '') + ' · ' + ms.length + ' 道</span>' +
       '<span>' + (open ? '▾ 收起' : '▸ 展开') + '</span>' +
-      '</button>' + body + '</div>';
+      '</button>' +
+      '<button class="btn btn-primary" style="padding:11px 16px;font-size:14px;white-space:nowrap;" onclick="downloadMistakePpt(' + w + ')" title="生成该周错题评讲PPT：题目黑色、答案红色，每两小题一面，附答错学生名单">📥 评讲PPT</button>' +
+      '</div>' + body + '</div>';
   }).join('');
   return html;
+}
+async function downloadMistakePpt(week) {
+  try {
+    if (!isCloudLoggedIn()) { openCloudLoginModal(); return; }
+    showToast('正在生成第' + week + '周评讲PPT…', 'info');
+    var resp = await fetchWithAuth('/mistakes/ppt?week=' + week);
+    if (!resp.ok) {
+      var d = await resp.json().catch(function() { return {}; });
+      throw new Error(d.detail || ('HTTP ' + resp.status));
+    }
+    var blob = await resp.blob();
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '第' + week + '周周末作业错题评讲.pptx';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+    showToast('评讲PPT 已生成并开始下载', 'success');
+  } catch (e) {
+    showToast('PPT 生成失败：' + e.message, 'error');
+  }
 }
 function toggleMistakeWeek(week) {
   _mistakeWeekOpen[week] = !_mistakeWeekOpen[week];
