@@ -717,17 +717,31 @@ img { max-width:100%; display:block; }
 .hw-thumb-wrap { position:relative; flex-shrink:0; cursor:zoom-in; }
 .hw-thumb-badge { position:absolute; right:-6px; bottom:-6px; background:var(--primary); color:#fff; font-size:11px; min-width:20px; height:20px; border-radius:10px; display:flex; align-items:center; justify-content:center; padding:0 5px; box-shadow:0 1px 3px rgba(0,0,0,.25); }
 
-/* ===== 作业图片灯箱（点击放大，2026-09-05） ===== */
+/* ===== 作业图片灯箱（点击放大，2026-09-05；旋转/缩放工具条 2026-09-13） ===== */
 .hw-lightbox { position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.92); display:flex; align-items:center; justify-content:center; flex-direction:column; }
-.hw-lightbox img { max-width:94vw; max-height:82vh; object-fit:contain; border-radius:6px; box-shadow:0 4px 30px rgba(0,0,0,.5); }
-.hw-lightbox-close { position:absolute; top:14px; right:18px; background:none; border:none; color:#fff; font-size:32px; line-height:1; cursor:pointer; opacity:.85; }
+.hw-lightbox-viewer { width:100%; flex:1; min-height:0; overflow:auto; display:flex; padding:10px 6px; -webkit-overflow-scrolling:touch; }
+.hw-lightbox-viewer img { margin:auto; object-fit:contain; border-radius:6px; box-shadow:0 4px 30px rgba(0,0,0,.5); cursor:move; }
+.hw-lightbox img { max-width:94vw; max-height:82vh; }
+.hw-lightbox-close { position:absolute; top:14px; right:18px; background:none; border:none; color:#fff; font-size:32px; line-height:1; cursor:pointer; opacity:.85; z-index:2; }
 .hw-lightbox-close:hover { opacity:1; }
-.hw-lightbox-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.14); border:none; color:#fff; font-size:30px; width:52px; height:52px; border-radius:50%; cursor:pointer; }
+.hw-lightbox-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.14); border:none; color:#fff; font-size:30px; width:52px; height:52px; border-radius:50%; cursor:pointer; z-index:2; }
 .hw-lightbox-nav:hover { background:rgba(255,255,255,.28); }
 .hw-lightbox-prev { left:14px; }
 .hw-lightbox-next { right:14px; }
-.hw-lightbox-counter { color:rgba(255,255,255,.75); font-size:13px; margin-top:12px; }
+.hw-lightbox-toolbar { display:flex; gap:6px; align-items:center; margin-top:8px; flex-wrap:wrap; justify-content:center; }
+.hw-lightbox-tool { background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); color:#fff; font-size:14px; min-width:52px; height:36px; padding:0 12px; border-radius:18px; cursor:pointer; }
+.hw-lightbox-tool:hover { background:rgba(255,255,255,.28); }
+.hw-lightbox-tool.active { background:var(--primary); border-color:var(--primary); }
+.hw-lightbox-sep { width:1px; height:22px; background:rgba(255,255,255,.3); margin:0 4px; }
+.hw-lightbox-counter { color:rgba(255,255,255,.75); font-size:13px; margin-top:8px; }
 .hw-lightbox-hint { color:rgba(255,255,255,.45); font-size:12px; margin-top:4px; }
+
+/* ===== 复核弹窗评语配图（2026-09-13） ===== */
+.rv-cimg-wrap { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.rv-cimg-item { position:relative; width:80px; height:80px; border-radius:8px; overflow:hidden; border:1.5px solid var(--border); background:var(--bg); }
+.rv-cimg-item img { width:100%; height:100%; object-fit:cover; cursor:zoom-in; }
+.rv-cimg-item .rv-cimg-del { position:absolute; top:2px; right:2px; width:20px; height:20px; border-radius:50%; border:none; background:rgba(0,0,0,.6); color:#fff; font-size:12px; line-height:20px; text-align:center; cursor:pointer; padding:0; }
+.rv-cimg-item.rv-uploading { display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--text-muted); }
 
 /* ===== Answer Key Styles ===== */
 .ak-card { background:var(--bg-card); border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow-sm); margin-bottom:20px; }
@@ -8474,14 +8488,26 @@ function renderHwPreviewGrid() {
   if (dropZone) dropZone.style.display = '';  // 保留选图入口，方便继续追加
 }
 
-// ===== 作业图片灯箱（2026-09-05：老师复核/学生查看点击放大） =====
-var _hwLightboxState = { urls: [], idx: 0 };
+// ===== 作业图片灯箱（2026-09-05：老师复核/学生查看点击放大）
+// 2026-09-13 v2：旋转（↶↷，90° 步进，localStorage 按图记忆）+ 缩放档位（适应/1.5×/2×）
+var _hwLightboxState = { urls: [], idx: 0, zoom: 1, rots: {} };
+var _HW_ROT_STORE_KEY = 'qhwk_hw_rot';
+var _HW_ZOOM_STEPS = [1, 1.5, 2];
+
+function _hwLoadRots() {
+  try { return JSON.parse(localStorage.getItem(_HW_ROT_STORE_KEY) || '{}') || {}; } catch (e) { return {}; }
+}
+function _hwSaveRots(rots) {
+  try { localStorage.setItem(_HW_ROT_STORE_KEY, JSON.stringify(rots || {})); } catch (e) {}
+}
 
 function openHwLightbox(urls, idx) {
   var list = (urls && urls.length) ? urls.filter(function(u) { return !!u; }) : [];
   if (!list.length) return;
   _hwLightboxState.urls = list;
   _hwLightboxState.idx = Math.min(idx || 0, list.length - 1);
+  _hwLightboxState.zoom = 1;
+  _hwLightboxState.rots = _hwLoadRots(); // 每次打开读取持久化的旋转角
   var ov = document.getElementById('hwLightbox');
   if (!ov) {
     ov = document.createElement('div');
@@ -8496,6 +8522,19 @@ function openHwLightbox(urls, idx) {
   document.body.style.overflow = 'hidden';
 }
 
+function _hwLbToolHtml() {
+  var z = _hwLightboxState.zoom;
+  return '<div class="hw-lightbox-toolbar">' +
+    '<button class="hw-lightbox-tool" onclick="hwLbRotate(-90);event.stopPropagation()" title="向左旋转90°">↶ 左转</button>' +
+    '<button class="hw-lightbox-tool" onclick="hwLbRotate(90);event.stopPropagation()" title="向右旋转90°">↷ 右转</button>' +
+    '<span class="hw-lightbox-sep"></span>' +
+    _HW_ZOOM_STEPS.map(function(step) {
+      var label = step === 1 ? '适应' : (step + '×');
+      return '<button class="hw-lightbox-tool' + (z === step ? ' active' : '') + '" onclick="hwLbZoom(' + step + ');event.stopPropagation()" title="' + (step === 1 ? '适应窗口大小' : '放大 ' + step + ' 倍') + '">' + label + '</button>';
+    }).join('') +
+    '</div>';
+}
+
 function renderHwLightbox() {
   var ov = document.getElementById('hwLightbox');
   if (!ov) return;
@@ -8503,11 +8542,65 @@ function renderHwLightbox() {
   var multi = s.urls.length > 1;
   ov.innerHTML = '<button class="hw-lightbox-close" onclick="closeHwLightbox()" title="关闭">✕</button>' +
     (multi ? '<button class="hw-lightbox-nav hw-lightbox-prev" onclick="hwLightboxNav(-1)" title="上一张">‹</button>' : '') +
-    '<img src="' + s.urls[s.idx] + '" alt="作业大图（第' + (s.idx + 1) + '张）" onclick="event.stopPropagation()">' +
+    '<div class="hw-lightbox-viewer" onclick="if(event.target===this)closeHwLightbox()">' +
+    '<img id="hwLbImg" src="' + s.urls[s.idx] + '" alt="作业大图（第' + (s.idx + 1) + '张）" onclick="event.stopPropagation()">' +
+    '</div>' +
     (multi ? '<button class="hw-lightbox-nav hw-lightbox-next" onclick="hwLightboxNav(1)" title="下一张">›</button>' : '') +
+    _hwLbToolHtml() +
     (multi
       ? '<div class="hw-lightbox-counter">第 ' + (s.idx + 1) + ' / ' + s.urls.length + ' 张 · ← → 键切换</div>'
       : '<div class="hw-lightbox-hint">点击空白处关闭</div>');
+  applyHwLbImgStyle();
+}
+
+// 按当前旋转角与缩放档位应用图片样式
+function applyHwLbImgStyle() {
+  var s = _hwLightboxState;
+  var img = document.getElementById('hwLbImg');
+  if (!img) return;
+  var url = s.urls[s.idx];
+  var rot = s.rots[url] || 0;
+  var zoom = s.zoom || 1;
+  var swapped = (rot % 180 !== 0); // 竖起后宽高限制互换
+  var maxW = swapped ? '82vh' : '94vw';
+  var maxH = swapped ? '94vw' : '82vh';
+  if (zoom === 1) {
+    img.style.maxWidth = maxW;
+    img.style.maxHeight = maxH;
+    img.style.width = 'auto';
+    img.style.height = 'auto';
+  } else {
+    // 以适应尺寸为基准放大，超窗口部分由 .hw-lightbox-viewer 滚动查看
+    img.style.maxWidth = 'calc(' + maxW + ' * ' + zoom + ')';
+    img.style.maxHeight = 'calc(' + maxH + ' * ' + zoom + ')';
+    img.style.width = 'auto';
+    img.style.height = 'auto';
+  }
+  img.style.transform = 'rotate(' + rot + 'deg)';
+}
+
+function hwLbRotate(deg) {
+  var s = _hwLightboxState;
+  var url = s.urls[s.idx];
+  if (!url) return;
+  var rot = ((s.rots[url] || 0) + deg) % 360;
+  if (rot < 0) rot += 360;
+  s.rots[url] = rot;
+  _hwSaveRots(s.rots);
+  applyHwLbImgStyle();
+}
+
+function hwLbZoom(z) {
+  _hwLightboxState.zoom = z;
+  applyHwLbImgStyle();
+  // 只更新工具条高亮，避免整图重载
+  var ov = document.getElementById('hwLightbox');
+  if (!ov) return;
+  var btns = ov.querySelectorAll('.hw-lightbox-tool');
+  _HW_ZOOM_STEPS.forEach(function(step, i) {
+    var btn = btns[2 + i]; // 前两个是旋转按钮
+    if (btn) btn.classList.toggle('active', step === z);
+  });
 }
 
 function hwLightboxNav(d) {
@@ -8529,6 +8622,15 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closeHwLightbox();
   else if (e.key === 'ArrowLeft') hwLightboxNav(-1);
   else if (e.key === 'ArrowRight') hwLightboxNav(1);
+  else if (e.key === '+' || e.key === '=') { // 加号放大到下一档
+    var s = _hwLightboxState;
+    var next = _HW_ZOOM_STEPS.filter(function(z) { return z > s.zoom; })[0];
+    if (next) hwLbZoom(next);
+  } else if (e.key === '-') {
+    var s2 = _hwLightboxState;
+    var prev = _HW_ZOOM_STEPS.filter(function(z) { return z < s2.zoom; }).pop();
+    if (prev) hwLbZoom(prev);
+  }
 });
 
 // 列表缩略图点击放大（自动拉详情取全部图片）
@@ -8559,6 +8661,16 @@ function hwDetailImagesHtml(imgs) {
 
 // 作业上传离线队列的 storage key
 const HW_PENDING_KEY = "qhwk_hw_pending";
+
+// 教师评语配图展示（2026-09-13：复核粘贴的错题截图，学生/教师详情共用）
+function hwCommentImagesHtml(urls) {
+  var list = (urls && urls.length) ? urls.filter(function(u) { return !!u; }) : [];
+  if (!list.length) return '';
+  window._hwCommentImgsView = list.slice(); // 供灯箱 onclick 引用（与复核编辑用变量分开）
+  return '<div class="rv-cimg-wrap" style="margin-top:10px;">' + list.map(function(u, i) {
+    return '<div class="rv-cimg-item"><img src="' + u + '" alt="评语配图' + (i + 1) + '" onclick="openHwLightbox(window._hwCommentImgsView,' + i + ')"></div>';
+  }).join('') + '</div>';
+}
 
 // 友好化 fetch 错误信息
 function friendlyFetchError(err) {
@@ -8873,6 +8985,7 @@ async function viewHwFeedback(hwId) {
       '<div style="background:var(--bg);border-radius:var(--radius);padding:16px;margin-top:16px;">' +
       '<h4>📝 评语</h4>' +
       '<p style="font-size:14px;color:var(--text);line-height:1.8;">' + (hw.teacher_comment || finalResult.summary || '老师暂未添加评语') + '</p>' +
+      hwCommentImagesHtml(hw.comment_images) +
       '</div>' +
       // 订正区（已订正内容三端可见；提交订正仅学生登录显示；订正完成 → 学习效果 +2 分）
       (hw.corrected
@@ -9437,7 +9550,7 @@ async function viewHwDetail(hwId) {
       (problemsHtml ? '<h4 style="margin-bottom:8px;">逐题批改</h4>' + problemsHtml : '') +
       (grade.summary ? '<div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-top:12px;"><strong>AI评语：</strong>' + grade.summary + '</div>' : '') +
       (grade.suggestions && grade.suggestions.length ? '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">💡 建议：' + grade.suggestions.join('、') + '</div>' : '') +
-      (hw.teacher_comment ? '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:12px;margin-top:12px;"><strong>教师评语：</strong>' + hw.teacher_comment + '</div>' : '') +
+      (hw.teacher_comment ? '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:12px;margin-top:12px;"><strong>教师评语：</strong>' + hw.teacher_comment + hwCommentImagesHtml(hw.comment_images) + '</div>' : '') +
       (hw.corrected ? renderHwCorrectedInfo(hw) : '') +
       '</div>';
 
@@ -9471,7 +9584,9 @@ async function reviewHw(hwId) {
     _hwReviewState = {
       hwId: hwId,
       base: base,
-      problems: (base.problems || []).map(function(p) { return Object.assign({}, p); })
+      problems: (base.problems || []).map(function(p) { return Object.assign({}, p); }),
+      commentImages: (hw.comment_images || []).slice(), // 2026-09-13 评语配图（可粘贴追加）
+      uploadingImgs: 0
     };
 
     var html = '<div class="hw-detail">' +
@@ -9483,8 +9598,9 @@ async function reviewHw(hwId) {
       '<h4 style="margin:12px 0 8px;">逐题判定（点击图标改判）</h4>' +
       '<div id="rvProblems"></div>' +
       '<form onsubmit="submitHwReview(event,' + hwId + ')">' +
-      '<div class="form-group" style="margin-top:16px;"><label>教师补充评语（可选）</label>' +
-      '<textarea id="hwReviewComment" placeholder="可以补充或修改AI的评语..." style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;min-height:80px;resize:vertical;">' + escapeHtml(hw.teacher_comment || '') + '</textarea></div>' +
+      '<div class="form-group" style="margin-top:16px;"><label>教师补充评语（可选，支持 Ctrl+V 粘贴错题截图）</label>' +
+      '<textarea id="hwReviewComment" onpaste="hwReviewPaste(event)" placeholder="可以补充或修改AI的评语... 直接按 Ctrl+V 粘贴裁剪好的错题图片" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;min-height:80px;resize:vertical;">' + escapeHtml(hw.teacher_comment || '') + '</textarea></div>' +
+      '<div id="rvCommentImgs" class="rv-cimg-wrap"></div>' +
       '<div style="display:flex;gap:10px;margin-top:16px;">' +
       '<button type="submit" class="btn btn-primary" style="flex:1;">✅ 确认发布</button>' +
       '<button type="button" onclick="closeModalDirect()" class="btn btn-outline" style="flex:1;">取消</button>' +
@@ -9493,6 +9609,7 @@ async function reviewHw(hwId) {
     document.getElementById('modalContent').innerHTML = html;
     document.getElementById('modal').classList.add('open');
     renderReviewProblems();
+    renderRvCommentImages();
   } catch (e) {
     showToast('加载复核页面失败：' + e.message);
   }
@@ -9546,6 +9663,104 @@ function removeRvProblem(i) {
   renderReviewProblems();
 }
 
+// ===== 复核评语配图（2026-09-13：Ctrl+V 粘贴错题截图） =====
+
+// 剪贴板粘贴：抓图片文件走上传，文本粘贴不拦
+function hwReviewPaste(e) {
+  var items = (e.clipboardData || {}).items;
+  if (!items) return;
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    if (it.type && it.type.indexOf('image') === 0) {
+      var file = it.getAsFile();
+      if (file) {
+        e.preventDefault();
+        hwReviewUploadImage(file);
+      }
+      return; // 一次粘贴只处理第一张图
+    }
+  }
+}
+
+// 截图压缩：最长边 1600px、JPEG Q0.85（小图/透明图原样返回）
+function _compressPasteImage(file) {
+  return new Promise(function(resolve) {
+    var isPng = /png/i.test(file.type);
+    if (file.size < 300 * 1024 && !isPng) { resolve(file); return; }
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function() {
+      try {
+        var w = img.naturalWidth, h = img.naturalHeight;
+        var MAX = 1600;
+        if (Math.max(w, h) <= MAX && file.size < 300 * 1024) { URL.revokeObjectURL(url); resolve(file); return; }
+        var ratio = Math.min(1, MAX / Math.max(w, h));
+        var cv = document.createElement('canvas');
+        cv.width = Math.round(w * ratio);
+        cv.height = Math.round(h * ratio);
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        cv.toBlob(function(blob) {
+          URL.revokeObjectURL(url);
+          resolve(blob || file);
+        }, 'image/jpeg', 0.85);
+      } catch (err) { URL.revokeObjectURL(url); resolve(file); }
+    };
+    img.onerror = function() { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+async function hwReviewUploadImage(file) {
+  if (!_hwReviewState) return;
+  var total = _hwReviewState.commentImages.length + _hwReviewState.uploadingImgs;
+  if (total >= 9) { showToast('评语图片最多 9 张'); return; }
+  if (file.size > 10 * 1024 * 1024) { showToast('图片超过 10MB，请裁剪后再粘贴'); return; }
+  var blob = await _compressPasteImage(file);
+  _hwReviewState.uploadingImgs++;
+  renderRvCommentImages();
+  try {
+    var fd = new FormData();
+    // blob 可能没有文件名，服务端按 magic bytes 识别类型
+    fd.append('file', blob, blob.name || ('paste-' + Date.now() + (/png/i.test(blob.type) ? '.png' : '.jpg')));
+    var resp = await fetchWithAuth('/upload/comment-image', { method: 'POST', body: fd });
+    if (!resp.ok) {
+      var err = await resp.json().catch(function() { return { detail: '上传失败' }; });
+      throw new Error(err.detail || '上传失败');
+    }
+    var data = await resp.json();
+    if (data.url) {
+      _hwReviewState.commentImages.push(data.url);
+      showToast('错题截图已添加');
+    }
+  } catch (e) {
+    showToast('评语图片上传失败：' + e.message, 'error');
+  } finally {
+    _hwReviewState.uploadingImgs--;
+    renderRvCommentImages();
+  }
+}
+
+function removeRvCommentImage(i) {
+  if (!_hwReviewState) return;
+  _hwReviewState.commentImages.splice(i, 1);
+  renderRvCommentImages();
+}
+
+function renderRvCommentImages() {
+  var box = document.getElementById('rvCommentImgs');
+  if (!box || !_hwReviewState) return;
+  var imgs = _hwReviewState.commentImages;
+  window._hwCommentImages = imgs.slice(); // 供灯箱 onclick 引用
+  var html = imgs.map(function(u, i) {
+    return '<div class="rv-cimg-item"><img src="' + u + '" alt="评语图' + (i + 1) + '" onclick="openHwLightbox(window._hwCommentImages,' + i + ')">' +
+      '<button type="button" class="rv-cimg-del" onclick="removeRvCommentImage(' + i + ')" title="删除这张图">✕</button></div>';
+  }).join('');
+  for (var k = 0; k < _hwReviewState.uploadingImgs; k++) {
+    html += '<div class="rv-cimg-item rv-uploading">上传中…</div>';
+  }
+  box.innerHTML = html;
+}
+
 async function submitHwReview(e, hwId) {
   e.preventDefault();
   var comment = document.getElementById('hwReviewComment').value.trim();
@@ -9573,7 +9788,11 @@ async function submitHwReview(e, hwId) {
   try {
     var resp = await fetchWithAuth('/homework/' + hwId + '/review', {
       method: 'PUT',
-      body: JSON.stringify({ teacher_comment: comment, teacher_reviewed: JSON.stringify(corrected) }),
+      body: JSON.stringify({
+        teacher_comment: comment,
+        teacher_reviewed: JSON.stringify(corrected),
+        comment_images: (st.commentImages || []),
+      }),
     });
     if (!resp.ok) {
       var err = await resp.json().catch(function() { return {detail:'复核失败'}; });
