@@ -3429,9 +3429,10 @@ function init(){
   }
   bindEvents();
   refreshAll();
-  // 2026-09-06：教师已登录云端且本地当前周缺少系统自动分（兴趣/效果）时，
-  // 自动静默拉取云端真实数据（后端会重算全班均值），避免雷达图兴趣/效果恒为 0。
-  if(isTeacher && isCloudLoggedIn() && !weekHasAutoData(STATE.currentWeek)){
+  // 2026-09-14：教师已登录就每次打开页面静默拉取云端（refresh_auto=1 重算兴趣/效果自动分），
+  // 班级雷达/柱状图的兴趣、效果自动跟涨，无需手动点「下载数据」。
+  // 老师三维合并已有"云端 0 不覆盖本地非 0"保护（见 cloudDownload），不会抹掉刚录的评分。
+  if(isTeacher && isCloudLoggedIn()){
     cloudDownload(true);
   }
 }
