@@ -9236,6 +9236,9 @@ var hwCurrentFilter = 'all';
 // 批改中自动刷新（2026-09-11）：AI 批改一份要 3-10 分钟（Thinking 模式 + 并发上限 2），
 // 老师点完"重新批改"若页面不自动更新，会误以为失败。列表里只要还有 grading 就定时轮询。
 var hwAutoRefreshTimer = null;
+// 2026-09-14：轮询防闪烁——数据无变化时跳过 innerHTML 全量重建（重建会让所有缩略图
+// 重新加载、页面跳动，表现为家校互通列表"一闪一闪"）。
+var _hwListSignature = '';
 
 function _stopHwAutoRefresh() {
   if (hwAutoRefreshTimer) { clearTimeout(hwAutoRefreshTimer); hwAutoRefreshTimer = null; }
@@ -9261,7 +9264,7 @@ function filterHw(filter, btn) {
 async function loadHwTeacherList(filter) {
   var list = document.getElementById('hwTeacherList');
   if (!list) { _stopHwAutoRefresh(); return; }
-  if (!isCloudLoggedIn()) { list.innerHTML = '<p style="text-align:center;color:var(--text-muted);">请先登录云端账号</p>'; return; }
+  if (!isCloudLoggedIn()) { _hwListSignature = 'nologin'; list.innerHTML = '<p style="text-align:center;color:var(--text-muted);">请先登录云端账号</p>'; return; }
 
   try {
     var statusParam = filter === 'all' ? 'all' : filter;
@@ -9271,11 +9274,21 @@ async function loadHwTeacherList(filter) {
 
     if (items.length === 0) {
       _stopHwAutoRefresh();
-      list.innerHTML = '<div style="text-align:center;padding:48px;color:var(--text-muted);">' +
-        '<div style="font-size:36px;margin-bottom:8px;">📭</div>' +
-        '<p>暂无' + (filter === 'all' ? '' : hwStatusLabel[filter] + '状态的') + '作业</p></div>';
+      var emptySig = 'empty:' + filter;
+      if (emptySig !== _hwListSignature) {
+        _hwListSignature = emptySig;
+        list.innerHTML = '<div style="text-align:center;padding:48px;color:var(--text-muted);">' +
+          '<div style="font-size:36px;margin-bottom:8px;">📭</div>' +
+          '<p>暂无' + (filter === 'all' ? '' : hwStatusLabel[filter] + '状态的') + '作业</p></div>';
+      }
       return;
     }
+
+    // 2026-09-14：内容签名一致则跳过重绘（轮询防闪烁），筛选条件参与签名
+    var newSig = filter + '|' + JSON.stringify(items);
+    if (newSig === _hwListSignature) { _scheduleHwAutoRefresh(items); return; }
+    _hwListSignature = newSig;
+    var _prevScrollY = window.scrollY;
 
     list.innerHTML = items.map(function(h) {
       var imgCount = h.image_count > 1 ? '<span class="hw-thumb-badge">' + h.image_count + '图</span>' : '';
@@ -9301,9 +9314,14 @@ async function loadHwTeacherList(filter) {
         '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--danger);" onclick="deleteHw(' + h.id + ')">🗑️ 删除</button>' +
         '</div></div></div>';
     }).join('');
+    // 重绘后恢复滚动位置，避免老师正在看下面时列表跳顶
+    if (typeof _prevScrollY === 'number' && Math.abs(window.scrollY - _prevScrollY) > 2) {
+      window.scrollTo(0, _prevScrollY);
+    }
     _scheduleHwAutoRefresh(items);
   } catch (e) {
     _stopHwAutoRefresh();
+    _hwListSignature = 'error';
     list.innerHTML = '<p style="text-align:center;color:var(--danger);">加载失败：' + e.message + '</p>';
   }
 }
