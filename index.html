@@ -3792,7 +3792,7 @@ function renderMemberSection(containerId, position, role, groups, students) {
 // ===== AI 易错题精讲 =====
 var _lecturePolling = false;
 // 作业按 ISO 自然周（getIsoWeek）入库，"本周易错题"取当前 ISO 周，与作业数据对齐
-var _lectureWeek = getIsoWeek();
+var _lectureWeek = getTeachWeek();  // 2026-09-14：错题榜/讲解生成统一用教学周（原 getIsoWeek 跨 ISO 周漏判，"本周"显示成"暂无错题"）
 // 教师端按周折叠状态（ISO周号 -> bool）；_lectureAll 缓存全量数据，切换折叠免重新拉取
 var _lectureWeekOpen = {};
 var _lectureAll = [];
