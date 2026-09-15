@@ -1034,43 +1034,24 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
 <!-- 作业上传区 -->
 <div class="container section" id="hwUploadSection">
 </div>
-<!-- AI 易错题精讲区 -->
-<div class="container section" id="aiLectureSection">
-  <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
-    <h3 style="margin-bottom:12px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3af" xlink:href="#tw-1f3af"/></svg> 本周易错题精讲</h3>
-    <div id="aiLectureList" style="min-height:60px;"></div>
-  </div>
-</div>
 <div class="container section">
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;" class="radar-section" id="parentInteractionGrid">
-    <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);" id="whisperSection">
-      <h3 style="margin-bottom:16px;" id="whisperTitle"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f4ac" xlink:href="#tw-1f4ac"/></svg> 悄悄话</h3>
-      <form id="whisperForm" onsubmit="submitWhisper(event)">
-        <div class="form-group"><label>姓名</label><input type="text" id="whisperName" required></div>
-        <div class="form-group"><label>留言内容</label><textarea id="whisperMsg" required></textarea></div>
-        <button type="submit" class="btn btn-primary" style="width:100%;">发送给老师</button>
-      </form>
-    </div>
-    <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);" id="classPhotosOverviewSection">
-      <h3 style="margin-bottom:16px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f4f8" xlink:href="#tw-1f4f8"/></svg> 班级风采</h3>
-      <div id="classPhotosOverview" style="min-height:80px;"></div>
-    </div>
+  <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);" id="whisperSection">
+    <h3 style="margin-bottom:16px;" id="whisperTitle"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f4ac" xlink:href="#tw-1f4ac"/></svg> 悄悄话</h3>
+    <form id="whisperForm" onsubmit="submitWhisper(event)">
+      <div class="form-group"><label>姓名</label><input type="text" id="whisperName" required></div>
+      <div class="form-group"><label>留言内容</label><textarea id="whisperMsg" required></textarea></div>
+      <button type="submit" class="btn btn-primary" style="width:100%;">发送给老师</button>
+    </form>
   </div>
 </div>
-<!-- 班级风采详情区（董事长/总经理风采） -->
+<!-- 班级风采（2026-09-15 两区合一：教师导入入口与照片展示同卡） -->
 <div class="container section" id="classPhotosDetailSection">
   <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
-    <div id="classPhotos" style="min-height:60px;"></div>
-  </div>
-</div>
-<!-- 五维评价累计积分总榜 -->
-<div class="container section" id="cumulativeLeaderboardSection">
-  <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
-      <h3 style="margin:0;font-size:18px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3c6" xlink:href="#tw-1f3c6"/></svg> 五维评价积分总榜</h3>
-      <span id="cumulativeLeaderboardMeta" style="font-size:13px;color:var(--text-muted);"></span>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <h3 style="margin:0;font-size:18px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f4f8" xlink:href="#tw-1f4f8"/></svg> 班级风采</h3>
+      <div id="classPhotosOverview" style="min-height:0;"></div>
     </div>
-    <div id="cumulativeLeaderboard" style="min-height:60px;"></div>
+    <div id="classPhotos" style="min-height:60px;"></div>
   </div>
 </div>
 </section>
@@ -1082,17 +1063,11 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
     <button class="time-filter-btn" onclick="setFeedbackTimeRange('month',this)">近一月</button>
     <button class="time-filter-btn" onclick="setFeedbackTimeRange('all',this)">全部</button>
   </div>
-  <div class="radar-section">
+  <div class="radar-section" style="grid-template-columns:1fr;">
     <div class="chart-container">
       <h3 id="feedbackRadarTitle" style="margin-bottom:16px;">周末作业五维能力雷达图</h3>
       <canvas id="radar3D" width="460" height="460"></canvas>
       <div id="radarAnalysis" style="margin-top:12px;font-size:13px;color:var(--text-muted);"></div>
-    </div>
-    <div>
-      <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);margin-bottom:20px;">
-        <h3 style="margin-bottom:12px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-26a1" xlink:href="#tw-26a1"/></svg> 避雷针建议</h3>
-        <p style="font-size:16px;color:var(--text);" id="lightningTip">本周建议复习：<strong>分数的通分与约分</strong></p>
-      </div>
     </div>
   </div>
 </div>
@@ -1101,8 +1076,18 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
   <div class="mistake-list" id="mistakeList"></div>
 </div>
 <div class="container section" id="reviewSection">
-  <h3 style="margin-bottom:20px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3af" xlink:href="#tw-1f3af"/></svg> 智能复习推荐</h3>
+  <h3 style="margin-bottom:12px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3af" xlink:href="#tw-1f3af"/></svg> 智能复习推荐</h3>
+  <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:14px 18px;box-shadow:var(--shadow);margin-bottom:16px;">
+    <p style="font-size:15px;color:var(--text);margin:0;" id="lightningTip">本周建议复习：<strong>暂无重点</strong></p>
+  </div>
   <div class="review-list" id="reviewList"></div>
+</div>
+<!-- AI 易错题精讲区（2026-09-15 从家校互通迁入，与错题本/复习推荐同页成链） -->
+<div class="container section" id="aiLectureSection">
+  <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
+    <h3 style="margin-bottom:12px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3af" xlink:href="#tw-1f3af"/></svg> 本周易错题精讲</h3>
+    <div id="aiLectureList" style="min-height:60px;"></div>
+  </div>
 </div>
 <!-- 作业批改/反馈区 -->
 <div class="container section" id="hwGradingSection">
@@ -1115,6 +1100,17 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
   <h2 class="section-title"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f4ca" xlink:href="#tw-1f4ca"/></svg> 班级一周评价</h2>
   <div style="background:var(--bg-card);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow);">
     <iframe id="classDashboardFrame" src="" style="width:100%;height:750px;border:none;" allow="clipboard-write"></iframe>
+  </div>
+</div>
+
+<!-- 五维评价累计积分总榜（2026-09-15 从家校互通迁入） -->
+<div class="container section" id="cumulativeLeaderboardSection">
+  <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+      <h3 style="margin:0;font-size:18px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3c6" xlink:href="#tw-1f3c6"/></svg> 五维评价积分总榜</h3>
+      <span id="cumulativeLeaderboardMeta" style="font-size:13px;color:var(--text-muted);"></span>
+    </div>
+    <div id="cumulativeLeaderboard" style="min-height:60px;"></div>
   </div>
 </div>
 
@@ -2849,14 +2845,42 @@ function renderHomeByRole(role) {
       }
       renderStudentHomeTasks(taskGrid, tasks || []);
     })();
-    if (quickTitle) quickTitle.textContent = '快捷入口';
-    if (quickGrid) quickGrid.innerHTML =
-      '<div class="quick-card" onclick="navigate(\'classroom\')"><div class="icon" style="background:#EBF5FF;">📚</div><h4>同步课堂</h4><p>微课视频 + 随堂练习</p></div>' +
-      '<div class="quick-card" onclick="navigate(\'thinking\')"><div class="icon" style="background:#FFF7E6;">🌟</div><h4>培优微课</h4><p>培优拓展 + 思维提升</p></div>' +
-      '<div class="quick-card" onclick="navigate(\'parent\')"><div class="icon" style="background:#F0FFF4;">🏠</div><h4>家校互通</h4><p>通知公告 + 悄悄话</p></div>' +
-      '<div class="quick-card" onclick="navigate(\'feedback\')"><div class="icon" style="background:#FFF0F5;">📊</div><h4>学习反馈</h4><p>错题本 + 雷达图</p></div>' +
-      '<div class="quick-card" onclick="navigate(\'evaluate\')"><div class="icon" style="background:#F3E8FF;">🏆</div><h4>多元评价</h4><p>勋章墙 + 积分商城</p></div>' +
-      '<div class="quick-card" onclick="navigate(\'about\')"><div class="icon" style="background:#FFF2E8;">👤</div><h4>关于我</h4><p>教学理念 + 荣誉</p></div>';
+    // 快捷入口改为「本周速览」（2026-09-15：不再与顶部导航重复，展示本周真实数据）
+    if (quickTitle) quickTitle.textContent = '本周速览';
+    if (quickGrid) {
+      quickGrid.innerHTML =
+        '<div class="quick-card" onclick="navigate(\'classroom\')"><div class="icon" style="background:#EBF5FF;">📋</div><h4>本周任务</h4><p id="qkTaskCount">加载中…</p></div>' +
+        '<div class="quick-card" onclick="navigate(\'feedback\')"><div class="icon" style="background:#FFF0F5;">📕</div><h4>本周错题</h4><p id="qkMistakeCount">加载中…</p></div>' +
+        '<div class="quick-card" onclick="navigate(\'parent\')"><div class="icon" style="background:#F0FFF4;">📝</div><h4>提交作业</h4><p>拍照上传 · 查看批改</p></div>' +
+        '<div class="quick-card" onclick="navigate(\'evaluate\')"><div class="icon" style="background:#F3E8FF;">🏆</div><h4>我的评价</h4><p>积分总榜 · 电子喜报</p></div>';
+      (async function() {
+        var el = document.getElementById('qkTaskCount');
+        var tasks = window._studentTasks;
+        if (!tasks) {
+          try {
+            var resp = await fetchWithAuth('/student/tasks');
+            if (resp.ok) { tasks = await resp.json(); window._studentTasks = tasks || []; }
+          } catch(e) {}
+        }
+        if (el) el.textContent = ((tasks || []).length) + ' 个 · 点击查看';
+      })();
+      (async function() {
+        var el = document.getElementById('qkMistakeCount');
+        try {
+          var resp = await fetchWithAuth('/mistakes');
+          if (resp.ok) {
+            var data = await resp.json();
+            var ms = data.mistakes || [];
+            var wk = getTeachWeek();
+            var n = data.total || ms.length;
+            try { n = ms.filter(function(m){ return mistakeWeekOf(m) === wk; }).length; } catch(e) {}
+            if (el) el.textContent = n + ' 道 · 点击查看';
+            return;
+          }
+        } catch(e) {}
+        if (el) el.textContent = '—';
+      })();
+    }
   }
 }
 
@@ -3638,18 +3662,14 @@ async function loadCompanyPhotos(photoType) {
 
 function renderClassPhotosOverview(role) {
   var el = document.getElementById('classPhotosOverview');
-  var section = document.getElementById('classPhotosOverviewSection');
-  var grid = document.getElementById('parentInteractionGrid');
+  var section = document.getElementById('classPhotosDetailSection');
   if (!el) return;
   if (role === 'teacher') {
     if (section) section.style.display = 'block';
-    if (grid) grid.style.gridTemplateColumns = '1fr 1fr';
-    el.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">导入公司表格后，三端同步展示三家公司团体照、董事长及总经理人头像（人头像自动读取「导入学生头像」的照片）。</p>' +
-      '<button class="btn btn-primary" style="width:100%;" onclick="importCompanyExcel()">📊 导入公司表格</button>';
+    // 教师端：导入入口显示在卡片标题旁（2026-09-15 班级风采两区合一后内联）
+    el.innerHTML = '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="importCompanyExcel()">📊 导入公司表格</button>';
   } else {
-    // 学生/家长端：隐藏概览卡片，让悄悄话占满整行
-    if (section) section.style.display = 'none';
-    if (grid) grid.style.gridTemplateColumns = '1fr';
+    // 学生/家长端：只清掉导入入口，照片区照常展示（不再整卡隐藏）
     el.innerHTML = '';
   }
 }
@@ -9304,6 +9324,14 @@ function renderHwCorrectedInfo(hw) {
 function escHtmlSafe(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+function toggleTeacherToolBox() {
+  var box = document.getElementById('teacherToolBox');
+  var arrow = document.getElementById('teacherToolBoxArrow');
+  if (!box) return;
+  var show = box.style.display === 'none';
+  box.style.display = show ? 'block' : 'none';
+  if (arrow) arrow.textContent = show ? ' ▾' : ' ▸';
+}
 function renderHwGrading() {
   var section = document.getElementById('hwGradingSection');
   if (!section) return;
@@ -9311,7 +9339,12 @@ function renderHwGrading() {
 
   if (role === 'teacher') {
     // 教师模式：批改工作台
-    section.innerHTML = '<h3 style="margin-bottom:16px;">📋 作业批改工作台</h3>' +
+    section.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;">' +
+      '<h3 style="margin:0;">📋 作业批改工作台</h3>' +
+      '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="toggleTeacherToolBox()">🧰 教师工具（答案 / 未交 / 清理）<span id="teacherToolBoxArrow"> ▸</span></button>' +
+      '</div>' +
+      // 教师工具折叠区（2026-09-15：默认收起，学习反馈页主体留给批改列表）
+      '<div id="teacherToolBox" style="display:none;">' +
       // 标准答案管理区
       '<div class="ak-card">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
@@ -9338,6 +9371,7 @@ function renderHwGrading() {
       '</div>' +
       '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">按教学周批量删除已完成复核的作业（含图片、AI 批改与复核记录），删除后学生端不再显示，操作不可恢复，请谨慎。学生数已去重（分次交算一人）：花名册人数 − 学生数 = 未交人数。</p>' +
       '<div id="hwReviewedWeeks"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p></div>' +
+      '</div>' +
       '</div>' +
       // 作业列表区
       '<div class="hw-filter-bar" id="hwFilterBar">' +
