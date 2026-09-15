@@ -713,6 +713,8 @@ img { max-width:100%; display:block; }
 .hw-preview-cell img { width:100%; height:100%; object-fit:cover; display:block; }
 .hw-preview-remove { position:absolute; top:4px; right:4px; width:22px; height:22px; border-radius:50%; border:none; background:rgba(0,0,0,.55); color:#fff; font-size:13px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 .hw-preview-remove:hover { background:rgba(200,40,40,.85); }
+.hw-preview-rotate { position:absolute; top:4px; left:4px; width:22px; height:22px; border-radius:50%; border:none; background:rgba(74,144,217,.85); color:#fff; font-size:14px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.hw-preview-rotate:hover { background:rgba(74,144,217,1); }
 .hw-preview-count { font-size:12px; color:var(--text-muted); text-align:center; margin-top:6px; }
 .hw-thumb-wrap { position:relative; flex-shrink:0; cursor:zoom-in; }
 .hw-thumb-badge { position:absolute; right:-6px; bottom:-6px; background:var(--primary); color:#fff; font-size:11px; min-width:20px; height:20px; border-radius:10px; display:flex; align-items:center; justify-content:center; padding:0 5px; box-shadow:0 1px 3px rgba(0,0,0,.25); }
@@ -8451,6 +8453,7 @@ async function deleteMaterial(matId) {
 
 // ===== 多图作业（2026-09-05）：选择/预览/移除 =====
 var hwSelectedFiles = [];   // 当前已选的作业图片（File 数组）
+var hwFileRotations = [];   // 每张图的手动旋转角度（0/90/180/270，2026-09-15 防横拍倒拍）
 var HW_MAX_IMAGES = 9;      // 一次最多提交张数（与后端一致）
 
 function previewHwImages(input) {
@@ -8470,13 +8473,47 @@ function addHwFiles(fileList) {
       break;
     }
     hwSelectedFiles.push(arr[i]);
+    hwFileRotations.push(0);
   }
   renderHwPreviewGrid();
 }
 
 function removeHwImage(idx) {
   hwSelectedFiles.splice(idx, 1);
+  hwFileRotations.splice(idx, 1);
   renderHwPreviewGrid();
+}
+
+// 手动旋转：每点一次顺时针转 90°（2026-09-15 防横拍倒拍案：萧弼薰倒 180°）
+function rotateHwImage(idx) {
+  hwFileRotations[idx] = ((hwFileRotations[idx] || 0) + 90) % 360;
+  renderHwPreviewGrid();
+}
+
+// 把手动旋转过的图在本地重绘成转正后的文件再上传
+function _hwRotateFileUpright(file, deg) {
+  return new Promise(function(resolve, reject) {
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function() {
+      var w = img.naturalWidth, h = img.naturalHeight;
+      var canvas = document.createElement('canvas');
+      var swap = (deg === 90 || deg === 270);
+      canvas.width = swap ? h : w;
+      canvas.height = swap ? w : h;
+      var ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(deg * Math.PI / 180);
+      ctx.drawImage(img, -w / 2, -h / 2);
+      canvas.toBlob(function(blob) {
+        URL.revokeObjectURL(url);
+        if (!blob) { reject(new Error('旋转失败')); return; }
+        resolve(new File([blob], file.name || 'homework.jpg', { type: blob.type || 'image/jpeg' }));
+      }, file.type === 'image/png' ? 'image/png' : 'image/jpeg', 0.92);
+    };
+    img.onerror = function() { URL.revokeObjectURL(url); reject(new Error('图片读取失败')); };
+    img.src = url;
+  });
 }
 
 function renderHwPreviewGrid() {
@@ -8497,17 +8534,20 @@ function renderHwPreviewGrid() {
   }).join('');
   hwSelectedFiles.forEach(function(f, i) {
     var cell = document.getElementById('hwPrevCell' + i);
+    var rot = hwFileRotations[i] || 0;
+    var rotStyle = rot ? ' transform:rotate(' + rot + 'deg);' : '';
     var reader = new FileReader();
     reader.onload = function(e) {
-      if (cell) cell.innerHTML = '<img src="' + e.target.result + '" alt="作业图' + (i + 1) + '">' +
-        '<button type="button" class="hw-preview-remove" title="移除这张" onclick="removeHwImage(' + i + ')">✕</button>';
+      if (cell) cell.innerHTML = '<img src="' + e.target.result + '" alt="作业图' + (i + 1) + '" style="' + rotStyle + '">' +
+        '<button type="button" class="hw-preview-remove" title="移除这张" onclick="removeHwImage(' + i + ')">✕</button>' +
+        '<button type="button" class="hw-preview-rotate" title="转正：每点一次顺时针转90°" onclick="rotateHwImage(' + i + ')">↻</button>';
     };
     reader.readAsDataURL(f);
   });
   grid.style.display = '';
   if (count) {
     count.style.display = '';
-    count.textContent = '已选 ' + hwSelectedFiles.length + ' / ' + HW_MAX_IMAGES + ' 张（点击缩略图右上角 ✕ 可移除，可继续添加）';
+    count.textContent = '已选 ' + hwSelectedFiles.length + ' / ' + HW_MAX_IMAGES + ' 张（✕ 移除，↻ 旋转摆正——横拍/倒拍的先转正再交）';
   }
   if (backBtn) backBtn.style.display = '';
   if (dropZone) dropZone.style.display = '';  // 保留选图入口，方便继续追加
@@ -8730,6 +8770,19 @@ async function submitHwUpload(e) {
   if (!name) { showToast('请输入姓名'); return; }
   if (!files.length) { showToast('请选择作业图片'); return; }
 
+  // 方向修正（2026-09-15）：手动旋转过的图先在本地转正再上传
+  var _hasRot = false;
+  for (var ri = 0; ri < hwFileRotations.length; ri++) { if (hwFileRotations[ri]) { _hasRot = true; break; } }
+  if (_hasRot) {
+    try {
+      var _newFiles = [];
+      for (var rf = 0; rf < files.length; rf++) {
+        _newFiles.push(hwFileRotations[rf] ? await _hwRotateFileUpright(files[rf], hwFileRotations[rf]) : files[rf]);
+      }
+      files = _newFiles;
+    } catch (re) { console.warn('旋转重绘失败，按原图上传', re); }
+  }
+
   // 防漏交提醒（2026-09-15）：只选 1 张时提示确认正反两面
   var status0 = document.getElementById('hwUploadStatus');
   if (files.length === 1 && status0) {
@@ -8853,6 +8906,7 @@ async function submitHwUpload(e) {
 function resetHwForm(fileInput) {
   if (fileInput) fileInput.value = '';
   hwSelectedFiles = [];      // 清空多图选择
+  hwFileRotations = [];      // 清空旋转角度
   renderHwPreviewGrid();
   var status = document.getElementById('hwUploadStatus');
   if (status) status.innerHTML = '';
