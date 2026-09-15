@@ -815,6 +815,35 @@ img { max-width:100%; display:block; }
   vertical-align: bottom;
 }
 svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
+
+/* ===== 2026-09-15 小学生友好美化：板块专属色 / 吉祥物 / 动效 / 青花氛围 ===== */
+#page-classroom { --page-accent:#4A90D9; --page-accent-bg:#EBF5FF; }
+#page-thinking  { --page-accent:#E8890C; --page-accent-bg:#FFF7E6; }
+#page-parent    { --page-accent:#3B9E52; --page-accent-bg:#F0FFF4; }
+#page-feedback  { --page-accent:#C25087; --page-accent-bg:#FFF0F5; }
+#page-evaluate  { --page-accent:#D99A06; --page-accent-bg:#FFF8E1; }
+.page .section-title { color:var(--page-accent, var(--primary)); }
+.quick-card, .video-card, .exercise-card { border-radius:18px; }
+.quick-card:hover { transform:translateY(-4px); }
+.quick-card .icon { transition:transform .25s ease; }
+.quick-card:hover .icon { transform:scale(1.1) rotate(-4deg); }
+.btn { transition:transform .15s ease, box-shadow .25s ease, background .25s ease; }
+.btn:active { transform:scale(.95); }
+@keyframes qh-bob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
+.hero-badge .mascot { width:32px; height:32px; animation:qh-bob 3s ease-in-out infinite; }
+.qh-empty { text-align:center; padding:26px 12px; }
+.qh-empty img { width:64px; height:64px; object-fit:contain; animation:qh-bob 3s ease-in-out infinite; }
+.qh-empty .qh-say { display:inline-block; background:var(--primary-bg); color:var(--primary-dark); border-radius:16px; padding:8px 18px; font-size:15px; font-weight:600; margin-top:10px; }
+.qh-empty .qh-sub { font-size:13px; color:var(--text-muted); margin-top:6px; }
+@keyframes qh-fade { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+.page.active { animation:qh-fade .35s ease; }
+.qh-confetti-piece { position:fixed; top:-16px; width:10px; height:14px; z-index:99999; pointer-events:none; border-radius:2px; animation:qh-fall linear forwards; }
+@keyframes qh-fall { to { transform:translateY(105vh) rotate(720deg); opacity:.55; } }
+.cal-day.has-learning { background:#EAF3DE; color:#3B6D11; font-weight:600; box-shadow:inset 0 0 0 2px #97C459; }
+.cal-day.all-done { background:#FAEEDA; color:#854F0B; font-weight:700; box-shadow:inset 0 0 0 2px #EF9F27; }
+body {
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><g fill='none' stroke='%234A90D9' stroke-opacity='.045' stroke-width='3'><circle cx='30' cy='30' r='14'/><path d='M78 22 q20 -14 40 0 q-8 12 -20 8 q-14 6 -20 -8z'/><path d='M18 102 q16 -18 32 0'/><path d='M108 92 q18 -20 36 0'/><circle cx='132' cy='142' r='10'/><path d='M38 142 q14 -12 28 0'/></g></svg>");
+}
 </style>
 </head>
 <body>
@@ -923,28 +952,28 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
   <div class="quick-grid">
     <div class="quick-card" onclick="navigate('classroom')">
       <div class="icon" style="background:#EBF5FF;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f4da" xlink:href="#tw-1f4da"/></svg></div>
-      <h4>同步课堂</h4>
+      <h4 style="color:#3570B0;">同步课堂</h4>
       <p>微课视频 + 随堂练习</p>
     </div>
     <div class="quick-card" onclick="navigate('thinking')">
       <div class="icon" style="background:#FFF7E6;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f31f" xlink:href="#tw-1f31f"/></svg></div>
-      <h4>培优微课</h4>
+      <h4 style="color:#B57D05;">培优微课</h4>
       <p>培优拓展 + 思维提升</p>
     </div>
     <div class="quick-card" onclick="navigate('parent')">
       <div class="icon" style="background:#F0FFF4;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3e0" xlink:href="#tw-1f3e0"/></svg></div>
-      <h4>家校互通</h4>
+      <h4 style="color:#2E7D42;">家校互通</h4>
       <p>通知公告 + 悄悄话</p>
     </div>
     <div class="quick-card" onclick="navigate('feedback')">
       <div class="icon" style="background:#FFF0F5;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f4ca" xlink:href="#tw-1f4ca"/></svg></div>
-      <h4>学习反馈</h4>
-      <p>错题本 + 雷达图</p>
+      <h4 style="color:#C25087;">学习反馈</h4>
+      <p>错题本 + 复习推荐</p>
     </div>
     <div class="quick-card" onclick="navigate('evaluate')">
-      <div class="icon" style="background:#F3E8FF;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3c6" xlink:href="#tw-1f3c6"/></svg></div>
-      <h4>多元评价</h4>
-      <p>勋章墙 + 积分商城</p>
+      <div class="icon" style="background:#FFF8E1;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3c6" xlink:href="#tw-1f3c6"/></svg></div>
+      <h4 style="color:#B57D05;">多元评价</h4>
+      <p>积分总榜 + 电子喜报</p>
     </div>
     <div class="quick-card" onclick="navigate('about')">
       <div class="icon" style="background:#FFF2E8;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f464" xlink:href="#tw-1f464"/></svg></div>
@@ -2560,6 +2589,31 @@ function showToast(msg) {
   setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 2500);
 }
 
+// ===== 2026-09-15 吉祥物鼓励组件 + 撒花（小学生友好美化） =====
+var _qhCheers = ['太棒了，继续加油！', '你真棒，保持这个节奏！', '又进步一点点啦！', '数学其实很好玩！', '为自己鼓个掌！'];
+function qhEmptyHtml(say, sub) {
+  var s = say || _qhCheers[Math.floor(Math.random() * _qhCheers.length)];
+  return '<div class="qh-empty"><img src="logo-2026.png?cb=' + Date.now() + '" alt="青花微课吉祥物">' +
+    '<div><span class="qh-say">' + s + '</span></div>' +
+    (sub ? '<div class="qh-sub">' + sub + '</div>' : '') + '</div>';
+}
+function qhCelebrate() {
+  try {
+    var colors = ['#4A90D9', '#E8890C', '#3B9E52', '#C25087', '#D99A06', '#52C41A'];
+    for (var i = 0; i < 26; i++) {
+      var p = document.createElement('div');
+      p.className = 'qh-confetti-piece';
+      p.style.left = (Math.random() * 100) + 'vw';
+      p.style.background = colors[i % colors.length];
+      p.style.animationDuration = (1.6 + Math.random() * 1.2) + 's';
+      p.style.animationDelay = (Math.random() * 0.4) + 's';
+      p.style.opacity = '0.9';
+      document.body.appendChild(p);
+      setTimeout(function(el) { return function() { if (el.parentNode) el.remove(); }; }(p), 3400);
+    }
+  } catch (e) {}
+}
+
 function exportAllData() {
   if (!isAuthenticated()) { showToast('请先解锁数据管理功能'); openAuthModal(); return; }
   if (!appData || Object.keys(appData).length === 0) {
@@ -2669,6 +2723,9 @@ function toggleExercise(el) {
     saveData();
     if (el.classList.contains('done')) {
       showToast('太棒了！⭐ +10分');
+      // 全部勾完时撒花庆祝（2026-09-15 小学生友好美化）
+      var items = Array.from(el.parentElement.children);
+      if (items.length && items.every(function(it) { return it.classList.contains('done'); })) qhCelebrate();
     }
   }
 }
@@ -2846,10 +2903,10 @@ function renderHomeByRole(role) {
     if (quickTitle) quickTitle.textContent = '本周速览';
     if (quickGrid) {
       quickGrid.innerHTML =
-        '<div class="quick-card" onclick="navigate(\'classroom\')"><div class="icon" style="background:#EBF5FF;">📋</div><h4>本周任务</h4><p id="qkTaskCount">加载中…</p></div>' +
-        '<div class="quick-card" onclick="navigate(\'feedback\')"><div class="icon" style="background:#FFF0F5;">📕</div><h4>本周错题</h4><p id="qkMistakeCount">加载中…</p></div>' +
-        '<div class="quick-card" onclick="navigate(\'parent\')"><div class="icon" style="background:#F0FFF4;">📝</div><h4>提交作业</h4><p>拍照上传 · 查看批改</p></div>' +
-        '<div class="quick-card" onclick="navigate(\'evaluate\')"><div class="icon" style="background:#F3E8FF;">🏆</div><h4>我的评价</h4><p>积分总榜 · 电子喜报</p></div>';
+        '<div class="quick-card" onclick="navigate(\'classroom\')"><div class="icon" style="background:#EBF5FF;">📋</div><h4 style="color:#3570B0;">本周任务</h4><p id="qkTaskCount">加载中…</p></div>' +
+        '<div class="quick-card" onclick="navigate(\'feedback\')"><div class="icon" style="background:#FFF0F5;">📕</div><h4 style="color:#C25087;">本周错题</h4><p id="qkMistakeCount">加载中…</p></div>' +
+        '<div class="quick-card" onclick="navigate(\'parent\')"><div class="icon" style="background:#F0FFF4;">📝</div><h4 style="color:#3B9E52;">提交作业</h4><p>拍照上传 · 查看批改</p></div>' +
+        '<div class="quick-card" onclick="navigate(\'evaluate\')"><div class="icon" style="background:#FFF8E1;">🏆</div><h4 style="color:#B57D05;">我的评价</h4><p>积分总榜 · 电子喜报</p></div>';
       (async function() {
         var el = document.getElementById('qkTaskCount');
         var tasks = window._studentTasks;
@@ -3872,8 +3929,9 @@ function buildLectureFlatHtml(lectures, role) {
   var failed = lectures.filter(function(l) { return l.status === 'failed'; });
 
   if (ready.length === 0 && generating.length === 0 && failed.length === 0) {
-    html += '<p style="text-align:center;color:var(--text-muted);padding:12px;">' +
-      (role === 'teacher' ? '本周暂无讲解视频，请从上方错题榜选择题目生成' : '老师本周还没有发布易错题讲解视频，敬请期待') + '</p>';
+    html += role === 'teacher'
+      ? '<p style="text-align:center;color:var(--text-muted);padding:12px;">本周暂无讲解视频，请从上方错题榜选择题目生成</p>'
+      : qhEmptyHtml('本周的讲解视频还在路上～', '先把错题本复习一遍，视频马上就到');
   }
 
   // 生成中的提示卡片
@@ -4802,7 +4860,7 @@ async function loadCloudMistakes(studentName) {
     var data = await resp.json();
     var all = data.mistakes || [];
     if (all.length === 0) {
-      list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);"><div style="font-size:36px;margin-bottom:8px;">✅</div><p>暂无错题记录，继续保持！</p></div>';
+      list.innerHTML = qhEmptyHtml('太棒了，还没有错题记录！', '继续保持认真做题的好习惯');
       return;
     }
     window._mistakeWeekAll = all;
@@ -4966,11 +5024,7 @@ async function loadCloudReview(studentName) {
     if (!weeks.length) {
       if (list) {
         var sug = (data.suggestions && data.suggestions.length) ? data.suggestions[0] : '近期学习表现稳定，继续保持！';
-        list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);">' +
-          '<div style="font-size:36px;margin-bottom:8px;">🎯</div>' +
-          '<p>暂无复习推荐，继续学习吧！</p>' +
-          '<p style="font-size:13px;margin-top:8px;color:var(--text-secondary);">💡 ' + fmtFrac(escapeHtml(sug)) + '</p>' +
-          '</div>';
+          list.innerHTML = qhEmptyHtml('太棒了，本周没有要复习的错题！', '💡 ' + fmtFrac(escapeHtml(sug)));
       }
       window._reviewTopics = [];
       return;
@@ -9209,6 +9263,7 @@ async function submitHwCorrect(hwId) {
     var data = await resp.json().catch(function() { return {}; });
     if (resp.ok) {
       showToast('订正已提交，学习效果 +2 分！', 'success');
+      qhCelebrate();
       if (btn) { btn.textContent = '✅ 已提交'; }
       setTimeout(function() { viewHwFeedback(hwId); }, 800);
     } else {
@@ -9276,6 +9331,7 @@ async function submitHwCorrectMedia(hwId, ctype) {
     var data = await resp.json().catch(function() { return {}; });
     if (resp.ok) {
       showToast('订正已提交，学习效果 +2 分！', 'success');
+      qhCelebrate();
       setTimeout(function() { viewHwFeedback(hwId); }, 800);
     } else {
       showToast(data.detail || '订正提交失败', 'error');
