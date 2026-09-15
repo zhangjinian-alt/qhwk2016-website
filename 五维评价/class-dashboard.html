@@ -833,64 +833,9 @@ function saveDims() {
   ALL_DIMS = [...AUTO_DIMS, ...DIMS];
 }
 
-// ===== 学生名字 =====
-const STUDENT_NAMES = [
-  '陈思源','林梓涵','黄子轩','张雨桐','李俊熙','王梓萱','刘一诺','赵乐天',
-  '周语晨','吴明轩','徐心怡','孙浩然','马若曦','朱嘉睿','胡梦瑶','郭天佑',
-  '何芷晴','高雅轩','罗子墨','梁艺涵','宋承泽','谢雨欣','唐锦程','许若萱',
-  '韩梓豪','冯诗语','邓子涵','曹明阳','彭思远','曾雅静','萧子睿','田雨菲',
-  '董昊然','袁梦琪','于子晨','蒋雨泽','卢思源','苏语桐','魏子谦','丁若彤',
-];
-
-// ===== Seeded Random =====
-let _seed = 20250314;
-function srand(){
-  _seed = (_seed * 9301 + 49297) % 233280;
-  return _seed / 233280;
-}
-function rint(min,max){return Math.floor(srand()*(max-min+1))+min;}
-
-// ===== 数据生成 =====
-function generateData(){
-  const students = [];
-  const totalWeeks = MAX_WEEKS;
-  for(let i=0;i<STUDENT_NAMES.length;i++){
-    const name = STUDENT_NAMES[i];
-    // 每个学生有一个基础水平和进步趋势
-    const baseLevel = 6 + srand()*2.5; // 6-8.5
-    const trend = srand()*0.6 - 0.1; // -0.1 ~ 0.5 (大部分正进步)
-    const weeks = [];
-    for(let w=0;w<totalWeeks;w++){
-      const wkData = { week:w+1 };
-      for(const dim of DIMS){
-        // 基础 + 趋势*周次 + 随机波动
-        let score = baseLevel + trend*w + (srand()-0.3)*1.8;
-        score = Math.max(5, Math.min(10, Math.round(score)));
-        wkData[dim.key] = score;
-      }
-      // 演示数据也带上系统自动维度（兴趣/效果），本地未下载云端时也能看到完整五维
-      wkData.interest = Math.max(0, Math.min(10, Math.round(4 + srand()*6)));
-      wkData.effect = Math.max(0, Math.min(10, Math.round(4 + srand()*6)));
-      weeks.push(wkData);
-    }
-    students.push({ id:i+1, name, weeks });
-  }
-  // 手动设计几个进步明显的学生（飞跃进步星）
-  if(students.length>=10){
-    // 第3个学生：从7分进步到9分
-    const p1 = students[2];
-    for(const w of p1.weeks){ for(const k of DIM_KEYS) w[k] = Math.min(10, 6 + w.week*0.8 + (srand()-0.5)); }
-    // 第8个学生
-    const p2 = students[7];
-    for(const w of p2.weeks){ for(const k of DIM_KEYS) w[k] = Math.min(10, 6.5 + w.week*0.7 + (srand()-0.5)); }
-    // 第15个学生
-    const p3 = students[14];
-    for(const w of p3.weeks){ for(const k of DIM_KEYS) w[k] = Math.min(10, 7 + w.week*0.6 + (srand()-0.5)); }
-  }
-  // 标记为演示数据，防止未导入真实数据时误上传到云端
-  students.forEach(function(s){ s._demo = true; });
-  return students;
-}
+// 2026-09-15 移除演示数据机器（原 40 名测试学生名单 + 固定种子随机生成器 generateData）。
+// 看板只用真实数据：CSV/Excel 导入学生名单、云下载评分；无数据时显示导入提示，不再造假人。
+// loadState() 中同时会清掉历史存档里遗留的 _demo 学生（见下）。
 
 // ===== 状态持久化 =====
 const STATE_KEY = 'classDash_state';
@@ -961,6 +906,17 @@ function loadState(){
     if(!raw) return null;
     const obj = JSON.parse(raw);
     if(!obj || !Array.isArray(obj.students) || obj.students.length===0) return null;
+    // 2026-09-15 清除历史演示学生（最初系统测试的 40 名测试学生，带 _demo 标记）
+    const realStudents = obj.students.filter(function(s){ return s && !s._demo; });
+    if(realStudents.length !== obj.students.length){
+      console.log('classDash: 已清除演示学生', obj.students.length - realStudents.length, '人');
+      obj.students = realStudents;
+      if(realStudents.length === 0){
+        // 存档里只有演示学生：清掉存档，回到空状态等待导入真实名单
+        localStorage.removeItem(STATE_KEY);
+        return null;
+      }
+    }
     // 旧五维 → 新三维迁移（迁移后写回，避免每次加载重复迁移）
     let changed = false;
     obj.students.forEach(function(s){
@@ -1027,7 +983,8 @@ let STATE = (function(){
     };
   }
   return {
-    students: generateData(),
+    // 2026-09-15 演示数据已移除：无存档时为空名单，用「导入学生名单 / 下载云端评分」开始
+    students: [],
     currentWeek: defaultWeek,
     totalWeeks: Math.min(Math.max(nowWeek, 1), MAX_WEEKS),
     selectedTerm: '',
@@ -3050,6 +3007,22 @@ function refreshAll(){
   $('#navEvalCount').textContent = evalCount;
   $('#weekBadge').textContent = `第${STATE.currentWeek}周`;
   $('#tableSub') && ($('#tableSub').textContent = `第${STATE.currentWeek}周`);
+
+  // 2026-09-15 空名单提示：演示数据已移除，无学生时给出导入/云下载引导
+  var main = document.querySelector('main.main');
+  var hint = document.getElementById('emptyRosterHint');
+  if(STATE.students.length===0){
+    if(main && !hint){
+      hint = document.createElement('div');
+      hint.id = 'emptyRosterHint';
+      hint.style.cssText = 'background:#FFF7E6;border:1px solid #FFD591;border-radius:12px;padding:18px 22px;margin:18px 24px;font-size:14px;color:#874D00;line-height:1.9;';
+      hint.innerHTML = '📋 <strong>看板还没有学生数据。</strong><br>' +
+        '教师：点右上角「云同步」下载全班真实评分，或在「数据管理 → 导入」导入学生名单后开始使用。';
+      main.insertBefore(hint, main.firstChild);
+    }
+    return;
+  }
+  if(hint) hint.remove();
 
   renderKPIs();
   renderClassCharts();
