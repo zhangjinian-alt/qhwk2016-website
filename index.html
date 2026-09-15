@@ -8153,7 +8153,8 @@ function renderHwUpload() {
   }
   section.innerHTML = '<div class="hw-upload-zone">' +
     '<h3 style="margin-bottom:16px;">📝 提交作业</h3>' +
-    '<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">拍照上传你的数学作业，AI 会自动批改并给出反馈，老师还会复核哦！提交后系统按正确率自动计入"学习效果"维度（正确率80% = 6.4分，订正错题再+2分）。</p>' +
+    '<p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">拍照上传你的数学作业，AI 会自动批改并给出反馈，老师还会复核哦！提交后系统按正确率自动计入"学习效果"维度（正确率80% = 6.4分，订正错题再+2分）。</p>' +
+    '<p style="font-size:13px;color:var(--danger);background:var(--danger-bg, #fdf0f0);border-radius:8px;padding:8px 12px;margin-bottom:12px;">⚠️ 正反两面都要拍：作业有几页就拍几张（可一次多选），漏拍反面会少批改哦！</p>' +
     '<form id="hwUploadForm" onsubmit="submitHwUpload(event)">' +
     '<div class="form-group"><label>姓名</label><input type="text" id="hwStudentName" value="' + studentName + '" required placeholder="输入你的姓名"' + (role === 'student' && stuProfile ? ' readonly style="background:var(--bg);color:var(--text-secondary);"' : '') + '></div>' +
     '<div class="form-group"><label>作业标题</label><input type="text" id="hwTitle" value="第' + getTeachWeek() + '周周末作业" placeholder="如：第' + getTeachWeek() + '周周末作业（与老师发的作业标题一致更易匹配标准答案）"></div>' +
@@ -8162,7 +8163,7 @@ function renderHwUpload() {
     '<div class="hw-upload-area" id="hwDropZone" onclick="document.getElementById(\'hwFileInput\').click()">' +
     '<div style="font-size:36px;margin-bottom:8px;">📷</div>' +
     '<p style="font-size:14px;font-weight:500;color:var(--text-secondary);">点击拍照或选择图片（可多选）</p>' +
-    '<p style="font-size:12px;color:var(--text-muted);">支持 JPG/PNG，一次最多 9 张，建议横拍清晰照片</p>' +
+    '<p style="font-size:12px;color:var(--text-muted);">支持 JPG/PNG，一次最多 9 张；正反两面各拍一张，建议横拍清晰照片</p>' +
     '</div>' +
     '<input type="file" id="hwFileInput" accept="image/jpeg,image/png,image/webp" multiple style="display:none;" onchange="previewHwImages(this)">' +
     '<div id="hwPreviewGrid" class="hw-preview-grid" style="display:none;"></div>' +
@@ -8728,6 +8729,12 @@ async function submitHwUpload(e) {
   var files = hwSelectedFiles.slice();  // 多图提交（2026-09-05）
   if (!name) { showToast('请输入姓名'); return; }
   if (!files.length) { showToast('请选择作业图片'); return; }
+
+  // 防漏交提醒（2026-09-15）：只选 1 张时提示确认正反两面
+  var status0 = document.getElementById('hwUploadStatus');
+  if (files.length === 1 && status0) {
+    status0.innerHTML = '<p style="color:var(--warning);font-size:13px;">⚠️ 你只选了 1 张照片——作业正反两面都拍了吗？漏拍可先点「清空重选」补齐再交。</p>';
+  }
 
   var btn = document.getElementById('hwSubmitBtn');
   var status = document.getElementById('hwUploadStatus');
@@ -9903,10 +9910,10 @@ async function loadAnswerKeyList() {
 function showAnswerKeyUpload() {
   var html = '<div class="hw-detail">' +
     '<h3 style="margin-bottom:16px;">🔑 上传标准答案</h3>' +
-    '<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">标准答案通过<strong>标题</strong>与学生作业关联，请确保标题一致。同一标题重复上传会覆盖旧答案。<br>2026-09-06 起学生提交作业默认标题为「第' + getTeachWeek() + '周周末作业」，已为你预填，周末作业直接上传即可匹配。</p>' +
+    '<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">标准答案通过<strong>标题</strong>与学生作业关联。2026-09-15 起答案标题统一为「第' + getTeachWeek() + '周周末作业答案」，已预填直接上传即可；学生作业标题「第' + getTeachWeek() + '周周末作业」会自动关联，无需手动对齐。同一标题重复上传会覆盖旧答案。</p>' +
     '<form onsubmit="submitAnswerKeyUpload(event)">' +
-    '<div class="form-group"><label>作业标题 <span style="color:var(--danger);">*</span></label>' +
-    '<input type="text" id="akTitle" value="第' + getTeachWeek() + '周周末作业" placeholder="如：分数加减法练习第3页" required style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;"></div>' +
+    '<div class="form-group"><label>答案标题 <span style="color:var(--danger);">*</span></label>' +
+    '<input type="text" id="akTitle" value="第' + getTeachWeek() + '周周末作业答案" placeholder="如：第2周周末作业答案" required style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;"></div>' +
     '<div class="form-group"><label>标准答案图片或PDF（推荐，拍正确答案照片或上传PDF）</label>' +
     '<div class="hw-upload-area" id="akDropZone" onclick="document.getElementById(\'akFileInput\').click()" style="padding:20px;">' +
     '<p id="akFileLabel" style="font-size:13px;color:var(--text-muted);margin:0;">点击选择答案图片（jpg/png）或PDF</p>' +
