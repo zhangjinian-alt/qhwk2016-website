@@ -1076,10 +1076,7 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
   <div class="mistake-list" id="mistakeList"></div>
 </div>
 <div class="container section" id="reviewSection">
-  <h3 style="margin-bottom:12px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3af" xlink:href="#tw-1f3af"/></svg> 智能复习推荐</h3>
-  <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:14px 18px;box-shadow:var(--shadow);margin-bottom:16px;">
-    <p style="font-size:15px;color:var(--text);margin:0;" id="lightningTip">本周建议复习：<strong>暂无重点</strong></p>
-  </div>
+  <!-- 2026-09-15 年哥定：原「避雷针建议」摘要卡（lightningTip）删除，分组标题见 reviewList 内部 -->
   <div class="review-list" id="reviewList"></div>
 </div>
 <!-- AI 易错题精讲区（2026-09-15 从家校互通迁入，与错题本/复习推荐同页成链） -->
@@ -4952,7 +4949,6 @@ var _reviewWeekOpen = {};    // { 周次: 是否展开 }
 var _reviewWeeksData = null; // 最近一次拉取的按周数据，供折叠时原地重绘
 async function loadCloudReview(studentName) {
   var list = document.getElementById('reviewList');
-  var tip = document.getElementById('lightningTip');
   var controller = null;
   var timeoutId = null;
   try {
@@ -4967,17 +4963,6 @@ async function loadCloudReview(studentName) {
     _reviewWeeksData = data;
     var weeks = data.weeks || [];
     var curWeek = data.current_week || getTeachWeek();
-    // 避雷针建议：最新一周（本周）排名第一的推荐 topic
-    if (tip) {
-      if (weeks.length && weeks[0].topics && weeks[0].topics.length) {
-        var _tipTopic = weeks[0].topics[0].topic || '';
-        if (_tipTopic.length > 40) _tipTopic = _tipTopic.slice(0, 40) + '…';
-        tip.innerHTML = '本周建议复习：<strong>' + fmtFrac(escapeHtml(_tipTopic)) + '</strong>。' +
-          '<span style="font-size:13px;color:var(--text-muted);">（' + fmtFrac(escapeHtml(weeks[0].topics[0].reason)) + '）</span>';
-      } else {
-        tip.innerHTML = '本周建议复习：<strong>暂无重点</strong>。';
-      }
-    }
     if (!weeks.length) {
       if (list) {
         var sug = (data.suggestions && data.suggestions.length) ? data.suggestions[0] : '近期学习表现稳定，继续保持！';
