@@ -9263,7 +9263,7 @@ function renderHwGrading() {
       '<h4 style="margin:0;">🗑️ 已复核作业清理（按周）</h4>' +
       '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="loadReviewedWeeksManage(true)">🔄 刷新</button>' +
       '</div>' +
-      '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">按教学周批量删除已完成复核的作业（含图片、AI 批改与复核记录），删除后学生端不再显示，操作不可恢复，请谨慎</p>' +
+      '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">按教学周批量删除已完成复核的作业（含图片、AI 批改与复核记录），删除后学生端不再显示，操作不可恢复，请谨慎。学生数已去重（分次交算一人）：花名册人数 − 学生数 = 未交人数。</p>' +
       '<div id="hwReviewedWeeks"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p></div>' +
       '</div>' +
       // 作业列表区
@@ -9406,8 +9406,9 @@ async function loadReviewedWeeksManage(force) {
       return;
     }
     box.innerHTML = weeks.map(function(w) {
+      var stuTxt = w.student_count != null ? '（<strong>' + w.student_count + '</strong> 名学生，分次交算一人）' : '';
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid var(--border);">' +
-        '<span style="font-size:14px;">📅 第 <strong>' + w.display_week + '</strong> 周 · <strong>' + w.count + '</strong> 份已复核作业</span>' +
+        '<span style="font-size:14px;">📅 第 <strong>' + w.display_week + '</strong> 周 · <strong>' + w.count + '</strong> 份已复核作业' + stuTxt + '</span>' +
         '<button class="btn btn-outline" style="padding:5px 12px;font-size:12px;color:var(--danger);border-color:#FFC9C9;" onclick="deleteReviewedWeek(' + w.week + ', ' + w.display_week + ', ' + w.count + ')">🗑️ 全部删除</button>' +
         '</div>';
     }).join('');
