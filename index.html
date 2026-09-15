@@ -348,6 +348,12 @@ img { max-width:100%; display:block; }
 .mistake-item .question { font-size:16px; font-weight:600; margin-bottom:8px; line-height:1.8; }
 .mistake-item .reason { font-size:14px; color:var(--danger); margin-bottom:4px; line-height:1.8; }
 .mistake-item .solution { font-size:14px; color:var(--success); line-height:1.8; }
+/* 2026-09-15：一题一条 —— 同题不同错法收在同一张卡片里 */
+.mistake-item .variants { margin:4px 0 2px; }
+.mistake-item .variant-line { font-size:14px; color:var(--text); line-height:1.75; padding:3px 0 3px 2px; border-bottom:1px dashed var(--border); }
+.mistake-item .variant-line:last-child { border-bottom:none; }
+.mistake-item .variant-line b { color:#A32D2D; margin-right:2px; }
+.mistake-item .names { font-size:13px; color:var(--text-secondary); margin-top:8px; padding-top:8px; border-top:1px solid var(--border); line-height:1.8; }
 
 /* ===== Page: Evaluate ===== */
 .medal-grid {
@@ -4800,12 +4806,36 @@ function mistakeWeekStatsHtml(ms) {
 function buildMistakeWeekHtml(all) {
   var list = document.getElementById('mistakeList');
   var isSelfView = getCurrentRole() !== 'teacher';
+  // 2026-09-15（年哥哥定）：一道题一条 —— 同一题的不同错法收在同一张卡片里，
+  // 顺序与评讲 PPT 一致：题干 → ✅正确答案 → ⚠️不同错法（含人数/错因）→ ✍答错学生名单。
   function mistakeHtml(m) {
-    var who = (!isSelfView && m.student_name) ? ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">— ' + escHtmlSafe(m.student_name) + ' · ' + escHtmlSafe(m.title || '') + '</span>' : '';
-    var hint = m.hint ? ' <span style="font-size:12px;color:var(--text-secondary);">（' + fmtFrac(escapeHtml(m.hint)) + '）</span>' : '';
-    return '<div class="mistake-item"><div class="question">❌ ' + fmtFrac(escapeHtml(m.question || '')) + who + '</div>' +
-      '<div class="reason">⚠️ 错误原因：' + fmtFrac(escapeHtml(m.error_reason || m.error_type || '')) + '</div>' +
-      '<div class="solution">✅ 正确解法：' + fmtFrac(escapeHtml(m.correct_answer || '')) + hint + '</div></div>';
+    var vs = m.variants || [];
+    var names = m.students || [];
+    var cnt = m.student_count || names.length || 0;
+    var who = (!isSelfView && cnt) ? ' <span style="font-size:12px;color:#E8590C;font-weight:600;white-space:nowrap;">🔥 ' + cnt + '人做错</span>' : '';
+    var sub = (!isSelfView && m.title) ? ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">— ' + escHtmlSafe(m.title) + '</span>' : '';
+    var ans = '<div class="solution">✅ 正确答案：' + fmtFrac(escapeHtml(m.correct_answer || '（未提供）')) + '</div>';
+    var vhtml = '';
+    if (vs.length) {
+      vhtml = '<div class="reason">⚠️ 不同错法（' + vs.length + ' 种）：</div><div class="variants">' +
+        vs.map(function(v, i) {
+          var mark = '①②③④⑤⑥⑦⑧⑨⑩'[i] || ((i + 1) + '.');
+          var sa = v.student_answer ? fmtFrac(escapeHtml(v.student_answer)) : '（答案未识别）';
+          var line = '<b>' + mark + '</b> ' + sa;
+          if (v.count) line += ' <span style="color:#E8590C;font-weight:600;">×' + v.count + '人</span>';
+          var why = (v.error_reason || v.error_type || '').trim();
+          if (why) line += '　<span style="color:var(--text-secondary);">' + fmtFrac(escapeHtml(why)) + '</span>';
+          var vn = v.students || [];
+          if (vn.length && vn.length <= 3) {
+            line += ' <span style="color:var(--text-muted);font-size:12px;">（' + escHtmlSafe(vn.join('、')) + '）</span>';
+          }
+          return '<div class="variant-line">' + line + '</div>';
+        }).join('') + '</div>';
+    }
+    var namesHtml = (!isSelfView && names.length)
+      ? '<div class="names">✍ 答错学生（' + names.length + ' 人）：' + escHtmlSafe(names.join('、')) + '</div>' : '';
+    return '<div class="mistake-item"><div class="question">❌ ' + fmtFrac(escapeHtml(m.question || '')) + who + sub + '</div>' +
+      ans + vhtml + namesHtml + '</div>';
   }
   var curWeek = getTeachWeek();
   var groups = {};
@@ -4814,11 +4844,13 @@ function buildMistakeWeekHtml(all) {
     (groups[w] = groups[w] || []).push(m);
   });
   var weeks = Object.keys(groups).map(Number).sort(function(a, b) { return b - a; });
+  var totalVariants = 0;
+  all.forEach(function(m) { totalVariants += (m.variant_count || (m.variants || []).length || 1); });
   // 默认：学生自视图展开本周；教师端全班内容多，默认全部收起
   if (!(curWeek in _mistakeWeekOpen) && isSelfView) _mistakeWeekOpen[curWeek] = true;
   var html = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;">' +
-    '<h4 style="margin-bottom:8px;">📈 错题本（按教学周分组 · 来自 AI 批改）</h4>' +
-    '<p style="font-size:14px;color:var(--text-secondary);">共 <strong>' + all.length + '</strong> 道错题 · 覆盖 ' + weeks.length + ' 个教学周，点击周次可展开/收起</p>' +
+    '<h4 style="margin-bottom:8px;">📈 错题本（按题聚合 · 来自 AI 批改）</h4>' +
+    '<p style="font-size:14px;color:var(--text-secondary);">共 <strong>' + all.length + '</strong> 道错题 · ' + totalVariants + ' 种错法 · 覆盖 ' + weeks.length + ' 个教学周，点击周次可展开/收起</p>' +
     '<div style="margin-top:10px;">' +
     '<button class="btn btn-outline" style="padding:4px 14px;font-size:12px;margin-right:8px;" onclick="setAllMistakeWeeks(true)">全部展开</button>' +
     '<button class="btn btn-outline" style="padding:4px 14px;font-size:12px;" onclick="setAllMistakeWeeks(false)">全部收起</button>' +
@@ -4828,8 +4860,10 @@ function buildMistakeWeekHtml(all) {
     var isCur = (w === curWeek);
     var open = !!_mistakeWeekOpen[w];
     var stat = mistakeWeekStatsHtml(ms);
-    var show = ms.slice(0, 30);
-    var restNote = ms.length > 30 ? '<div style="padding:8px 14px;font-size:12px;color:var(--text-muted);">该周共 ' + ms.length + ' 条，仅显示前 30 条，避免刷屏</div>' : '';
+    var wVariants = 0;
+    ms.forEach(function(m) { wVariants += (m.variant_count || (m.variants || []).length || 1); });
+    var show = ms.slice(0, 40);
+    var restNote = ms.length > 40 ? '<div style="padding:8px 14px;font-size:12px;color:var(--text-muted);">该周共 ' + ms.length + ' 道错题，仅显示前 40 道，避免刷屏</div>' : '';
     var body = '<div id="mistakeWeekBody_' + w + '" style="' + (open ? '' : 'display:none;') + '">' +
       (stat ? '<div style="padding:10px 14px 0;font-size:13px;color:var(--text-secondary);">' + (isCur ? '本周' : '该周') + '高频错误：</div><div style="padding:0 14px;">' + stat + '</div>' : '') +
       '<div style="padding:2px 14px 0;">' + show.map(mistakeHtml).join('') + '</div>' + restNote +
@@ -4837,10 +4871,10 @@ function buildMistakeWeekHtml(all) {
     return '<div style="margin-bottom:14px;">' +
       '<div style="display:flex;gap:8px;align-items:stretch;">' +
       '<button class="btn btn-outline" style="flex:1;min-width:0;padding:11px 14px;font-size:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleMistakeWeek(' + w + ')">' +
-      '<span>📅 第' + w + '周' + (isCur ? '（本周）' : '') + ' · ' + ms.length + ' 道</span>' +
+      '<span>📅 第' + w + '周' + (isCur ? '（本周）' : '') + ' · ' + ms.length + ' 道错题 · ' + wVariants + ' 种错法</span>' +
       '<span>' + (open ? '▾ 收起' : '▸ 展开') + '</span>' +
       '</button>' +
-      '<button class="btn btn-primary" style="padding:11px 16px;font-size:14px;white-space:nowrap;" onclick="downloadMistakePpt(' + w + ')" title="生成该周错题评讲PPT：题目黑色、答案红色，每两小题一面，附答错学生名单">📥 评讲PPT</button>' +
+      '<button class="btn btn-primary" style="padding:11px 16px;font-size:14px;white-space:nowrap;" onclick="downloadMistakePpt(' + w + ')" title="生成该周错题评讲PPT：每题一面，正确答案+不同错法+答错学生名单同页；模板背景与原版一致">📥 评讲PPT</button>' +
       '</div>' + body + '</div>';
   }).join('');
   return html;
