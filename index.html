@@ -3996,7 +3996,20 @@ async function renderMistakesBoard() {
     html += '<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;">';
     html += '<span style="font-size:13px;font-weight:600;color:var(--text);flex:1;line-height:1.8;">' + (i + 1) + '. ' + fmtFrac(escHtmlSafe(qShort)) + '</span>';
     html += '<span style="font-size:12px;color:#E8590C;white-space:nowrap;font-weight:600;">🔥 ' + m.error_students + '人做错</span></div>';
-    html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;line-height:1.8;">常见错误：' + fmtFrac(escHtmlSafe(m.error_type || '—')) + '</div>';
+    if (m.correct_answer) {
+      html += '<div style="font-size:12px;color:var(--success);margin-bottom:6px;line-height:1.8;">✅ 正确答案：' + fmtFrac(escHtmlSafe(m.correct_answer)) + '</div>';
+    }
+    var vs = m.variants || [];
+    if (vs.length > 0) {
+      html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;line-height:1.8;">⚠️ 不同错法（' + vs.length + ' 种）：';
+      html += vs.map(function(v) {
+        var t = v.student_answer ? ('答「' + v.student_answer + '」') : (v.error_type || '其他错误');
+        return '<span style="display:inline-block;background:#FFF1E6;border-radius:6px;padding:1px 8px;margin:2px 4px 2px 0;color:#E8590C;">' + fmtFrac(escHtmlSafe(t)) + ' ×' + v.count + '人</span>';
+      }).join('');
+      html += '</div>';
+    } else {
+      html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;line-height:1.8;">常见错误：' + fmtFrac(escHtmlSafe(m.error_type || '—')) + '</div>';
+    }
     html += '<button onclick="openLectureEditor(' + i + ')" style="width:100%;padding:8px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">✍️ 写分析思路并生成讲解视频</button>';
     html += '</div>';
   });
