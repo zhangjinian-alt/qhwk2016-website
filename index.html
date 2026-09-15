@@ -841,8 +841,22 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
 @keyframes qh-fall { to { transform:translateY(105vh) rotate(720deg); opacity:.55; } }
 .cal-day.has-learning { background:#EAF3DE; color:#3B6D11; font-weight:600; box-shadow:inset 0 0 0 2px #97C459; }
 .cal-day.all-done { background:#FAEEDA; color:#854F0B; font-weight:700; box-shadow:inset 0 0 0 2px #EF9F27; }
+/* 2026-09-15 v2：高清清新背景——天空渐变打底（顶部天蓝→中部近白→底部薄荷绿），
+   右上角太阳光晕、左上角云影、底部嫩绿光晕，三大色斑定位不重复，杜绝平铺细纹的"雾感"；
+   再叠一层 560px 大朵白云（高不透明度纯白，边缘清晰），儿童感十足且不干扰阅读 */
 body {
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><g fill='none' stroke='%234A90D9' stroke-opacity='.045' stroke-width='3'><circle cx='30' cy='30' r='14'/><path d='M78 22 q20 -14 40 0 q-8 12 -20 8 q-14 6 -20 -8z'/><path d='M18 102 q16 -18 32 0'/><path d='M108 92 q18 -20 36 0'/><circle cx='132' cy='142' r='10'/><path d='M38 142 q14 -12 28 0'/></g></svg>");
+  background:
+    radial-gradient(900px 480px at 88% -80px, rgba(255,214,102,.22), transparent 62%),
+    radial-gradient(760px 420px at -10% 22%, rgba(126,200,227,.15), transparent 60%),
+    radial-gradient(860px 460px at 55% 108%, rgba(151,196,89,.14), transparent 62%),
+    linear-gradient(180deg, #D7F0FF 0%, #E9F8FF 26%, #FCFFFF 58%, #F1FAEF 100%);
+}
+body::before {
+  content:"";
+  position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='560' height='430'><g fill='%23FFFFFF'><ellipse cx='110' cy='95' rx='72' ry='30'/><circle cx='84' cy='76' r='26'/><circle cx='120' cy='64' r='33'/><circle cx='152' cy='82' r='22'/><ellipse cx='430' cy='255' rx='62' ry='26'/><circle cx='408' cy='238' r='22'/><circle cx='440' cy='230' r='28'/><circle cx='466' cy='245' r='19'/><ellipse cx='250' cy='385' rx='48' ry='21'/><circle cx='234' cy='372' r='18'/><circle cx='260' cy='366' r='22'/></g></svg>");
+  background-size:560px auto;
+  opacity:.55;
 }
 </style>
 </head>
