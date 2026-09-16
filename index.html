@@ -5597,9 +5597,9 @@ function renderCumulativeLeaderboard(container, meta, data) {
   // 2026-09-16 星榜分层：1-10 五星金榜 / 11-20 四星银榜 / 21-30 三星铜榜
   // 10:50 二次迭代：改用立体金属星挂件图（stars/star-*.png），中间大两边小、弧形排列
   var starTier = function(rank) {
-    if (rank <= 10) return { img: 'stars/star-gold.png',   n: 5, sizes: [13,17,21,17,13], dys: [7,2,0,2,7], label: '五星金榜' };
-    if (rank <= 20) return { img: 'stars/star-silver.png', n: 4, sizes: [15,19,19,15], dys: [5,0,0,5],   label: '四星银榜' };
-    return              { img: 'stars/star-bronze.png', n: 3, sizes: [14,18,14],    dys: [4,0,4],     label: '三星铜榜' };
+    if (rank <= 10) return { img: 'stars/star-gold.png',   n: 5, sizes: [13,17,21,17,13], dys: [16,5,0,5,16], label: '五星金榜' };
+    if (rank <= 20) return { img: 'stars/star-silver.png', n: 4, sizes: [15,19,19,15], dys: [12,0,0,12], label: '四星银榜' };
+    return              { img: 'stars/star-bronze.png', n: 3, sizes: [14,18,14],    dys: [8,0,8],     label: '三星铜榜' };
   };
   var starRow = function(rank) {
     var t = starTier(rank);
@@ -5607,7 +5607,7 @@ function renderCumulativeLeaderboard(container, meta, data) {
     for (var i = 0; i < t.n; i++) {
       s += '<img src="' + t.img + '?cb=20260916a" alt="" style="width:' + t.sizes[i] + 'px;height:' + t.sizes[i] + 'px;margin:0 -1px;margin-top:' + t.dys[i] + 'px;filter:drop-shadow(0 1px 1px rgba(0,0,0,0.25));">';
     }
-    return '<div title="' + t.label + '" style="display:flex;justify-content:center;align-items:flex-start;height:28px;margin-bottom:4px;">' + s + '</div>';
+    return '<div title="' + t.label + '" style="display:flex;justify-content:center;align-items:flex-start;height:29px;margin-bottom:-4px;position:relative;z-index:2;">' + s + '</div>';
   };
   var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:16px;text-align:center;">';
   students.forEach(function(s, idx) {
