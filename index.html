@@ -1182,6 +1182,11 @@ body::before {
         </label>
         <button class="btn btn-primary" style="padding:9px 18px;" onclick="mallAddItem()">＋ 上架</button>
       </div>
+      <!-- 形象图标色板（可选，不选则按名称自动匹配） -->
+      <div style="margin-top:10px;font-size:12px;color:var(--text-muted);">
+        形象图标（可不选，默认按名称自动匹配）
+        <div id="mallIconPalette" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"></div>
+      </div>
     </div>
     <!-- 商品货架 -->
     <div id="mallItems" style="min-height:60px;"></div>
@@ -1195,6 +1200,8 @@ body::before {
       <h4 style="margin:0 0 8px;font-size:15px;">📋 兑换记录</h4>
       <div id="mallMyOrders" style="min-height:40px;"></div>
     </div>
+    <!-- 换图标弹层容器（2026-09-16） -->
+    <div id="mallIconPicker" style="display:none;"></div>
   </div>
 </div>
 
@@ -5750,6 +5757,7 @@ async function loadMall() {
   }
   if (adminEl) adminEl.style.display = isTeacher ? 'block' : 'none';
   if (tOrdersEl) tOrdersEl.style.display = isTeacher ? 'block' : 'none';
+  if (isTeacher) renderMallIconPaletteOnce();
   itemsEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">⏳ 加载中...</p>';
   try {
     var pItems = fetchWithAuth(isTeacher ? '/mall/items?all=1' : '/mall/items');
@@ -5783,6 +5791,84 @@ async function loadMall() {
   }
 }
 
+// 2026-09-16 商品形象图标：教师显式指定优先，否则按名称关键词自动匹配（吸引孩子）
+var _MALL_ICON_RULES = [
+  [/盲盒|礼物|礼品|惊喜/, '🎁'], [/零食|美味|糖果|甜品|薯片/, '🍪'], [/茶|奶茶|咖啡/, '🧋'],
+  [/合影|照片|拍照|相册/, '📸'], [/露营|野营|野餐|野外/, '⛺'], [/学霸|霸王|学神|状元|高手/, '👑'],
+  [/代表|班长|干部|岗位|小老师|助理/, '🚩'], [/同桌|座位|选座/, '💺'], [/免抄|抄写|作业豁免/, '🎟️'],
+  [/图书|绘本|阅读|借阅/, '📚'], [/文具|钢笔|铅笔|橡皮|尺子|本子/, '✏️'], [/玩具|乐高|拼图|手办/, '🧩'],
+  [/贴纸|印章|徽章/, '⭐'], [/电影|动画|影片/, '🎬'], [/运动|跳绳|篮球|足球|乒乓球/, '⚽'],
+  [/午餐|下午茶|点心|蛋糕|披萨/, '🍰'], [/游戏|棋牌|课间/, '🎲'], [/唱歌|音乐|表演|主持/, '🎤'],
+  [/植物|种植|多肉|花/, '🌱'], [/金鱼|小动物|宠物|蚕/, '🐠'], [/优先|免|券|卡/, '🎫'],
+  [/奖状|证书|表彰/, '🏆']
+];
+function mallIconFor(it) {
+  if (it.icon) return it.icon;
+  var name = it.name || '';
+  for (var i = 0; i < _MALL_ICON_RULES.length; i++) {
+    if (_MALL_ICON_RULES[i][0].test(name)) return _MALL_ICON_RULES[i][1];
+  }
+  return it.category === '实物' ? '🎁' : (it.category === '荣誉' ? '🏆' : '🎫');
+}
+// 商品图标色板（教师换图弹层）
+var MALL_ICON_PALETTE = ['🎁','🧸','🍭','🍪','🧋','🍰','🍕','📸','🏆','🥇','👑','🎫','🎟️','🚩','💺','📚','✏️','🧩','⚽','🎬','🎲','🎤','⛺','🌈'];
+var _mallPickTargetId = null;
+function mallShowIconPicker(itemId) {
+  _mallPickTargetId = itemId;
+  var el = document.getElementById('mallIconPicker');
+  if (!el) return;
+  var btns = '';
+  for (var i = 0; i < MALL_ICON_PALETTE.length; i++) {
+    btns += '<button onclick="mallChooseIcon(\'' + MALL_ICON_PALETTE[i] + '\')" style="font-size:22px;width:44px;height:44px;border:1px solid #E8ECF1;border-radius:10px;background:#fff;cursor:pointer;">' + MALL_ICON_PALETTE[i] + '</button>';
+  }
+  el.innerHTML = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:999;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)mallCloseIconPicker()">' +
+    '<div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;">' +
+    '<div style="font-size:14px;font-weight:600;margin-bottom:12px;">🎨 选一个形象图标</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;">' + btns + '</div>' +
+    '<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">' +
+    '<button onclick="mallChooseIcon(\'\')" style="font-size:13px;padding:6px 14px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;">自动匹配</button>' +
+    '<button onclick="mallCloseIconPicker()" style="font-size:13px;padding:6px 14px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;">取消</button>' +
+    '</div></div></div>';
+  el.style.display = 'block';
+}
+function mallCloseIconPicker() {
+  var el = document.getElementById('mallIconPicker');
+  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+  _mallPickTargetId = null;
+}
+async function mallChooseIcon(icon) {
+  if (!_mallPickTargetId) { mallCloseIconPicker(); return; }
+  try {
+    var resp = await fetchWithAuth('/mall/items/' + _mallPickTargetId, { method: 'PUT', body: JSON.stringify({ icon: icon }) });
+    var data = await resp.json().catch(function() { return {}; });
+    if (!resp.ok) { showToast(_mallErr(data, resp)); return; }
+    showToast('图标已更新');
+    mallCloseIconPicker();
+    loadMall();
+  } catch (e) { showToast(e.message || '更新失败'); }
+}
+// 上架表单的图标选择（默认空 = 自动匹配）
+var _mallFormIcon = '';
+function mallPickFormIcon(emoji) {
+  _mallFormIcon = emoji;
+  var wrap = document.getElementById('mallIconPalette');
+  if (!wrap) return;
+  var btns = wrap.getElementsByTagName('button');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].style.borderColor = (btns[i].dataset.emoji === emoji) ? 'var(--primary)' : '#E8ECF1';
+    btns[i].style.background = (btns[i].dataset.emoji === emoji) ? '#EFF6FF' : '#fff';
+  }
+}
+function renderMallIconPaletteOnce() {
+  var wrap = document.getElementById('mallIconPalette');
+  if (!wrap || wrap.childElementCount) return;
+  var html = '<button data-emoji="" onclick="mallPickFormIcon(\'\')" title="按名称自动匹配" style="font-size:18px;width:36px;height:36px;border:1.5px solid var(--primary);border-radius:9px;background:#EFF6FF;cursor:pointer;">✨</button>';
+  for (var i = 0; i < MALL_ICON_PALETTE.length; i++) {
+    html += '<button data-emoji="' + MALL_ICON_PALETTE[i] + '" onclick="mallPickFormIcon(\'' + MALL_ICON_PALETTE[i] + '\')" style="font-size:18px;width:36px;height:36px;border:1.5px solid #E8ECF1;border-radius:9px;background:#fff;cursor:pointer;">' + MALL_ICON_PALETTE[i] + '</button>';
+  }
+  wrap.innerHTML = html;
+}
+
 function renderMallItems(el, items, isTeacher) {
   var esc = _mallEsc;
   if (!items || items.length === 0) {
@@ -5796,7 +5882,7 @@ function renderMallItems(el, items, isTeacher) {
     var stockText = it.stock === -1 ? '不限量' : (it.stock > 0 ? '剩 ' + it.stock + ' 件' : '已兑完');
     var dim = (soldOut || (isTeacher && !it.active)) ? 'opacity:.55;' : '';
     html += '<div style="border:1px solid #E8ECF1;border-radius:12px;padding:14px;text-align:center;' + dim + '">';
-    html += '<div style="font-size:30px;line-height:1;">' + meta.icon + '</div>';
+    html += '<div style="font-size:34px;line-height:1;">' + mallIconFor(it) + '</div>';
     html += '<div style="font-size:14px;font-weight:600;margin-top:8px;">' + esc(it.name) + '</div>';
     if (it.description) html += '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">' + esc(it.description) + '</div>';
     html += '<div style="margin-top:8px;"><span style="font-size:12px;color:#fff;background:' + meta.color + ';border-radius:10px;padding:2px 10px;">' + esc(it.category) + '</span></div>';
@@ -5806,6 +5892,7 @@ function renderMallItems(el, items, isTeacher) {
       html += '<div style="margin-top:8px;display:flex;gap:6px;justify-content:center;">';
       html += '<button onclick="mallRestock(' + it.id + ', ' + it.stock + ')" style="font-size:12px;padding:4px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;">补货</button>';
       html += '<button onclick="mallToggleItem(' + it.id + ', ' + (it.active ? 0 : 1) + ')" style="font-size:12px;padding:4px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;">' + (it.active ? '下架' : '上架') + '</button>';
+      html += '<button onclick="mallShowIconPicker(' + it.id + ')" title="换个形象图标" style="font-size:12px;padding:4px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;">🎨</button>';
       html += '<button onclick="mallDeleteItem(' + it.id + ', \'' + esc(it.name).replace(/'/g, "\\'") + '\', ' + it.stock + ', ' + (it.active ? 1 : 0) + ')" style="font-size:12px;padding:4px 10px;border:1px solid #f3c8c8;border-radius:8px;background:#fff;cursor:pointer;color:#d9534f;">删除</button>';
       html += '</div>';
     } else if (!soldOut) {
@@ -5891,10 +5978,11 @@ async function mallAddItem() {
   if (!(cost >= 1)) { showToast('所需积分需 ≥ 1'); return; }
   if (isNaN(stock) || stock < -1) { showToast('库存填 -1（不限量）或 ≥0 的数字'); return; }
   try {
-    var resp = await fetchWithAuth('/mall/items', { method: 'POST', body: JSON.stringify({ name: name, category: category, cost: cost, stock: stock }) });
+    var resp = await fetchWithAuth('/mall/items', { method: 'POST', body: JSON.stringify({ name: name, category: category, cost: cost, stock: stock, icon: _mallFormIcon || '' }) });
     var data = await resp.json().catch(function() { return {}; });
     if (!resp.ok) { showToast(_mallErr(data, resp)); return; }
     document.getElementById('mallItemName').value = '';
+    _mallFormIcon = ''; mallPickFormIcon('');
     showToast('已上架「' + name + '」');
     loadMall();
   } catch (e) { showToast(e.message || '上架失败'); }
