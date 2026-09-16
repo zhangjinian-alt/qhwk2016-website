@@ -5778,6 +5778,7 @@ function renderMallItems(el, items, isTeacher) {
       html += '<div style="margin-top:8px;display:flex;gap:6px;justify-content:center;">';
       html += '<button onclick="mallRestock(' + it.id + ', ' + it.stock + ')" style="font-size:12px;padding:4px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;">补货</button>';
       html += '<button onclick="mallToggleItem(' + it.id + ', ' + (it.active ? 0 : 1) + ')" style="font-size:12px;padding:4px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;">' + (it.active ? '下架' : '上架') + '</button>';
+      html += '<button onclick="mallDeleteItem(' + it.id + ', \'' + esc(it.name).replace(/'/g, "\\'") + '\', ' + it.stock + ', ' + (it.active ? 1 : 0) + ')" style="font-size:12px;padding:4px 10px;border:1px solid #f3c8c8;border-radius:8px;background:#fff;cursor:pointer;color:#d9534f;">删除</button>';
       html += '</div>';
     } else if (!soldOut) {
       html += '<button class="btn btn-primary" style="margin-top:10px;padding:8px 20px;font-size:13px;" onclick="mallRedeem(' + it.id + ', \'' + esc(it.name).replace(/'/g, "\\'") + '\', ' + it.cost + ')">兑换</button>';
@@ -5893,6 +5894,20 @@ async function mallToggleItem(id, active) {
     showToast(active ? '商品已上架' : '商品已下架');
     loadMall();
   } catch (e) { showToast(e.message || '操作失败'); }
+}
+
+async function mallDeleteItem(id, name, stock, active) {
+  var tip = '确定删除商品「' + name + '」吗？';
+  if (active) tip += '\n\n该商品当前在售，建议先「下架」观察一段时间再删除。';
+  if (stock === -1 || stock > 0) tip += '\n剩余库存将一并清除（不影响已有兑换记录）。';
+  if (!confirm(tip)) return;
+  try {
+    var resp = await fetchWithAuth('/mall/items/' + id, { method: 'DELETE' });
+    var data = await resp.json().catch(function() { return {}; });
+    if (!resp.ok) { showToast(_mallErr(data, resp)); return; }
+    showToast('已删除「' + name + '」');
+    loadMall();
+  } catch (e) { showToast(e.message || '删除失败'); }
 }
 
 // 加载电子喜报（学习标兵 + 进步之星），教师/学生/家长三端共用
