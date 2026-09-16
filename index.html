@@ -5607,7 +5607,7 @@ function renderCumulativeLeaderboard(container, meta, data) {
     for (var i = 0; i < t.n; i++) {
       s += '<img src="' + t.img + '?cb=20260916a" alt="" style="width:' + t.sizes[i] + 'px;height:' + t.sizes[i] + 'px;margin:0 -1px;margin-top:' + t.dys[i] + 'px;filter:drop-shadow(0 1px 1px rgba(0,0,0,0.25));">';
     }
-    return '<div title="' + t.label + '" style="display:flex;justify-content:center;align-items:flex-start;height:29px;margin-bottom:-4px;position:relative;z-index:2;">' + s + '</div>';
+    return '<div title="' + t.label + '" style="display:flex;justify-content:center;align-items:flex-start;height:29px;margin-bottom:-8px;position:relative;z-index:2;">' + s + '</div>';
   };
   var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:16px;text-align:center;">';
   students.forEach(function(s, idx) {
