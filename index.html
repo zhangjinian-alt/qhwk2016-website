@@ -5621,7 +5621,7 @@ function renderCumulativeLeaderboard(container, meta, data) {
       : '<div style="' + avatarStyle + 'display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:700;font-size:28px;">' + esc(s.name ? s.name.slice(-2) : '?') + '</div>';
     var rankBadge = idx < 3
       ? '<div style="position:absolute;top:-6px;left:50%;transform:translateX(-50%);font-size:20px;z-index:2;">' + medalLabels[idx] + '</div>'
-      : '<div style="position:absolute;top:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:var(--primary);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700;z-index:2;">' + rank + '</div>';
+      : '';
     html += '<div style="padding:10px 4px;border-radius:12px;transition:background .2s;" onmouseover="this.style.background=\'#F7F9FC\'" onmouseout="this.style.background=\'transparent\'">';
     html += starRow(rank);
     html += '<div style="' + wrapperStyle + '">' + rankBadge + avatarHtml + '</div>';
