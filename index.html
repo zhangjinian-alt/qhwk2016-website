@@ -1154,6 +1154,50 @@ body::before {
   </div>
 </div>
 
+<!-- 积分商城（2026-09-16 新增）：学生用五维积分兑换奖品，教师上架/审核 -->
+<div class="container section" id="mallSection">
+  <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+      <h3 style="margin:0;font-size:18px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f381" xlink:href="#tw-1f381"/></svg> 积分商城</h3>
+      <span id="mallBalanceMeta" style="font-size:13px;color:var(--text-muted);"></span>
+    </div>
+    <!-- 教师管理区（仅教师可见） -->
+    <div id="mallAdminArea" style="display:none;margin-bottom:20px;padding:16px;border:1px dashed var(--primary);border-radius:12px;background:#F7FAFE;">
+      <h4 style="margin:0 0 10px;font-size:15px;">🧰 商品管理（教师）</h4>
+      <div id="mallAdminItems" style="margin-bottom:12px;"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+        <label style="font-size:12px;color:var(--text-muted);">奖品名称
+          <input id="mallItemName" type="text" placeholder="如：免抄写券×1" style="display:block;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:14px;width:160px;">
+        </label>
+        <label style="font-size:12px;color:var(--text-muted);">类别
+          <select id="mallItemCategory" style="display:block;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+            <option>特权</option><option>荣誉</option><option>实物</option>
+          </select>
+        </label>
+        <label style="font-size:12px;color:var(--text-muted);">所需积分
+          <input id="mallItemCost" type="number" min="1" value="100" style="display:block;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:14px;width:90px;">
+        </label>
+        <label style="font-size:12px;color:var(--text-muted);">库存(-1不限)
+          <input id="mallItemStock" type="number" min="-1" value="-1" style="display:block;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:14px;width:90px;">
+        </label>
+        <button class="btn btn-primary" style="padding:9px 18px;" onclick="mallAddItem()">＋ 上架</button>
+      </div>
+    </div>
+    <!-- 商品货架 -->
+    <div id="mallItems" style="min-height:60px;"></div>
+    <!-- 教师待审核区 -->
+    <div id="mallTeacherOrders" style="display:none;margin-top:20px;">
+      <h4 style="margin:0 0 8px;font-size:15px;">📥 待处理兑换申请（教师）</h4>
+      <div id="mallPendingOrders"></div>
+    </div>
+    <!-- 学生兑换记录 -->
+    <div style="margin-top:20px;">
+      <h4 style="margin:0 0 8px;font-size:15px;">📋 兑换记录</h4>
+      <div id="mallMyOrders" style="min-height:40px;"></div>
+    </div>
+  </div>
+</div>
+
 <!-- 个人评价（底部 - 需登录） -->
 <div class="container section" id="personalEvalSection">
   <h2 class="section-title" id="personalEvalTitle"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f464" xlink:href="#tw-1f464"/></svg> <span id="personalEvalTitleText">个人综合素养五维评价</span></h2>
@@ -5365,6 +5409,9 @@ function renderEvaluate() {
   // 综合素养五维积分总榜（2026-09-16 修复：区块 9-15 从家校互通迁入本页，但 renderEvaluate 一直没调用加载，
   // 直进多元评价页时总榜空白；此前靠先逛家校互通页 renderParent 顺带灌数据才显示）
   loadCumulativeLeaderboard();
+
+  // 积分商城（2026-09-16 新增）
+  loadMall();
 }
 
 // 学生端：加载真实五维评价 + 本周学习任务（五维评价页学生分支）
@@ -5634,6 +5681,218 @@ function renderCumulativeLeaderboard(container, meta, data) {
   });
   html += '</div>';
   container.innerHTML = html;
+}
+
+// ===== 积分商城（2026-09-16 新增） =====
+// 口径：可用积分 = 学期累计五维总分 - (已兑换 + 审核中)；教师批准才扣库存，驳回即退分
+var MALL_CATEGORY_META = {
+  '特权': { icon: '🎫', color: '#4A90D9' },
+  '荣誉': { icon: '🏆', color: '#C9803C' },
+  '实物': { icon: '🎁', color: '#7A9B57' }
+};
+
+function _mallEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function _mallErr(data, resp) {
+  if (data && data.detail) return (typeof data.detail === 'string') ? data.detail : '请求失败';
+  return '请求失败 (' + resp.status + ')';
+}
+
+function _mallStatusChip(st) {
+  if (st === 'approved') return '<span style="font-size:12px;color:#2E7D32;background:#E6F4EA;border-radius:10px;padding:2px 10px;">✅ 已兑换</span>';
+  if (st === 'pending') return '<span style="font-size:12px;color:#B26A00;background:#FFF4E0;border-radius:10px;padding:2px 10px;">⏳ 审核中</span>';
+  if (st === 'rejected') return '<span style="font-size:12px;color:#666;background:#EFEFEF;border-radius:10px;padding:2px 10px;">已驳回</span>';
+  return '<span style="font-size:12px;color:var(--text-muted);">' + _mallEsc(st) + '</span>';
+}
+
+async function loadMall() {
+  var itemsEl = document.getElementById('mallItems');
+  if (!itemsEl) return;
+  var balEl = document.getElementById('mallBalanceMeta');
+  var adminEl = document.getElementById('mallAdminArea');
+  var tOrdersEl = document.getElementById('mallTeacherOrders');
+  var myOrdersEl = document.getElementById('mallMyOrders');
+  var pendEl = document.getElementById('mallPendingOrders');
+  var isTeacher = isCloudLoggedIn() && appData.mode === 'teacher';
+  if (!isCloudLoggedIn()) {
+    itemsEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">请先登录后逛积分商城 🎁</p>';
+    if (myOrdersEl) myOrdersEl.innerHTML = '';
+    if (balEl) balEl.textContent = '';
+    if (adminEl) adminEl.style.display = 'none';
+    if (tOrdersEl) tOrdersEl.style.display = 'none';
+    return;
+  }
+  if (adminEl) adminEl.style.display = isTeacher ? 'block' : 'none';
+  if (tOrdersEl) tOrdersEl.style.display = isTeacher ? 'block' : 'none';
+  itemsEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">⏳ 加载中...</p>';
+  try {
+    var pItems = fetchWithAuth(isTeacher ? '/mall/items?all=1' : '/mall/items');
+    var pOrders = fetchWithAuth('/mall/orders?limit=50');
+    var pExtra = isTeacher
+      ? fetchWithAuth('/mall/orders?status=pending&limit=100')
+      : fetchWithAuth('/mall/balance');
+    var rs = await Promise.all([pItems, pOrders, pExtra]);
+    for (var i = 0; i < rs.length; i++) {
+      if (!rs[i].ok) throw new Error('请求失败 (' + rs[i].status + ')');
+    }
+    var items = await rs[0].json();
+    var myOrders = await rs[1].json();
+    var pending = [], bal = null;
+    if (isTeacher) {
+      pending = await rs[2].json();
+      if (balEl) balEl.textContent = '教师管理模式 · 共 ' + items.filter(function(x) { return x.active; }).length + ' 件商品在售';
+    } else {
+      bal = await rs[2].json();
+      if (balEl) balEl.textContent = '💰 可用积分 ' + bal.balance + ' 分（累计 ' + bal.earned + ' · 已兑换 ' + bal.used + ' · 审核中 ' + bal.pending + '）';
+    }
+    renderMallItems(itemsEl, items, isTeacher);
+    renderMallOrders(myOrdersEl, isTeacher ? myOrders.slice(0, 20) : myOrders, isTeacher);
+    if (isTeacher) renderMallPending(pendEl, pending);
+  } catch (e) {
+    itemsEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">' + _mallEsc(e.message || '加载失败') + '</p>';
+  }
+}
+
+function renderMallItems(el, items, isTeacher) {
+  var esc = _mallEsc;
+  if (!items || items.length === 0) {
+    el.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">商城暂未上架商品，敬请期待～</p>';
+    return;
+  }
+  var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;">';
+  items.forEach(function(it) {
+    var meta = MALL_CATEGORY_META[it.category] || { icon: '🎁', color: '#4A90D9' };
+    var soldOut = it.stock === 0;
+    var stockText = it.stock === -1 ? '不限量' : (it.stock > 0 ? '剩 ' + it.stock + ' 件' : '已兑完');
+    var dim = (soldOut || (isTeacher && !it.active)) ? 'opacity:.55;' : '';
+    html += '<div style="border:1px solid #E8ECF1;border-radius:12px;padding:14px;text-align:center;' + dim + '">';
+    html += '<div style="font-size:30px;line-height:1;">' + meta.icon + '</div>';
+    html += '<div style="font-size:14px;font-weight:600;margin-top:8px;">' + esc(it.name) + '</div>';
+    if (it.description) html += '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">' + esc(it.description) + '</div>';
+    html += '<div style="margin-top:8px;"><span style="font-size:12px;color:#fff;background:' + meta.color + ';border-radius:10px;padding:2px 10px;">' + esc(it.category) + '</span></div>';
+    html += '<div style="font-size:16px;font-weight:700;color:var(--primary);margin-top:8px;">' + it.cost + ' 分</div>';
+    html += '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + (isTeacher && !it.active ? '已下架 · ' : '') + stockText + '</div>';
+    if (isTeacher) {
+      html += '<div style="margin-top:8px;display:flex;gap:6px;justify-content:center;">';
+      html += '<button onclick="mallRestock(' + it.id + ', ' + it.stock + ')" style="font-size:12px;padding:4px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;">补货</button>';
+      html += '<button onclick="mallToggleItem(' + it.id + ', ' + (it.active ? 0 : 1) + ')" style="font-size:12px;padding:4px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;">' + (it.active ? '下架' : '上架') + '</button>';
+      html += '</div>';
+    } else if (!soldOut) {
+      html += '<button class="btn btn-primary" style="margin-top:10px;padding:8px 20px;font-size:13px;" onclick="mallRedeem(' + it.id + ', \'' + esc(it.name).replace(/'/g, "\\'") + '\', ' + it.cost + ')">兑换</button>';
+    } else {
+      html += '<div style="margin-top:10px;font-size:12px;color:var(--text-muted);">已兑完</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderMallOrders(el, orders, isTeacherView) {
+  var esc = _mallEsc;
+  if (!el) return;
+  if (!orders || orders.length === 0) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);">还没有兑换记录，攒够积分快来换吧～</p>';
+    return;
+  }
+  var html = '<div>';
+  orders.forEach(function(o) {
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 4px;border-bottom:1px solid #F0F2F5;flex-wrap:wrap;">';
+    html += '<div style="font-size:14px;">' + (isTeacherView ? '<b>' + esc(o.student_name) + '</b> · ' : '') + esc(o.item_name) + ' <span style="color:var(--primary);font-weight:600;">' + o.cost + ' 分</span></div>';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-left:auto;">';
+    html += '<span style="font-size:12px;color:var(--text-muted);">' + esc((o.created_at || '').slice(0, 10)) + '</span>';
+    html += _mallStatusChip(o.status);
+    html += '</div></div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderMallPending(el, orders) {
+  var esc = _mallEsc;
+  if (!el) return;
+  if (!orders || orders.length === 0) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);">暂无待处理申请 ✓</p>';
+    return;
+  }
+  var html = '<div>';
+  orders.forEach(function(o) {
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 4px;border-bottom:1px solid #F0F2F5;flex-wrap:wrap;">';
+    html += '<div style="font-size:14px;"><b>' + esc(o.student_name) + '</b> 兑换 ' + esc(o.item_name) + ' <span style="color:var(--primary);font-weight:600;">' + o.cost + ' 分</span></div>';
+    html += '<div style="display:flex;gap:8px;margin-left:auto;">';
+    html += '<button class="btn btn-primary" style="padding:6px 14px;font-size:13px;" onclick="mallHandle(' + o.id + ', \'approve\')">✅ 批准</button>';
+    html += '<button style="padding:6px 14px;font-size:13px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;" onclick="mallHandle(' + o.id + ', \'reject\')">驳回</button>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function mallRedeem(itemId, itemName, cost) {
+  if (!confirm('确定用 ' + cost + ' 分兑换「' + itemName + '」吗？\n提交后积分会被冻结，老师批准后生效，驳回自动退回。')) return;
+  try {
+    var resp = await fetchWithAuth('/mall/redeem', { method: 'POST', body: JSON.stringify({ item_id: itemId }) });
+    var data = await resp.json().catch(function() { return {}; });
+    if (!resp.ok) { showToast(_mallErr(data, resp)); return; }
+    showToast('🎉 兑换申请已提交，等老师审核！');
+    loadMall();
+  } catch (e) { showToast(e.message || '兑换失败'); }
+}
+
+async function mallHandle(orderId, action) {
+  if (action === 'approve' && !confirm('确认批准该兑换？将扣除库存并给同学入账。')) return;
+  if (action === 'reject' && !confirm('确认驳回该兑换？积分将退回给学生。')) return;
+  try {
+    var resp = await fetchWithAuth('/mall/orders/' + orderId + '/handle', { method: 'POST', body: JSON.stringify({ action: action }) });
+    var data = await resp.json().catch(function() { return {}; });
+    if (!resp.ok) { showToast(_mallErr(data, resp)); return; }
+    showToast(action === 'approve' ? '已批准 ✅' : '已驳回，积分已退回');
+    loadMall();
+  } catch (e) { showToast(e.message || '操作失败'); }
+}
+
+async function mallAddItem() {
+  var name = (document.getElementById('mallItemName').value || '').trim();
+  var category = document.getElementById('mallItemCategory').value;
+  var cost = parseInt(document.getElementById('mallItemCost').value, 10);
+  var stock = parseInt(document.getElementById('mallItemStock').value, 10);
+  if (!name) { showToast('请填写奖品名称'); return; }
+  if (!(cost >= 1)) { showToast('所需积分需 ≥ 1'); return; }
+  if (isNaN(stock) || stock < -1) { showToast('库存填 -1（不限量）或 ≥0 的数字'); return; }
+  try {
+    var resp = await fetchWithAuth('/mall/items', { method: 'POST', body: JSON.stringify({ name: name, category: category, cost: cost, stock: stock }) });
+    var data = await resp.json().catch(function() { return {}; });
+    if (!resp.ok) { showToast(_mallErr(data, resp)); return; }
+    document.getElementById('mallItemName').value = '';
+    showToast('已上架「' + name + '」');
+    loadMall();
+  } catch (e) { showToast(e.message || '上架失败'); }
+}
+
+async function mallRestock(id, currentStock) {
+  var input = prompt('给商品补货：当前库存 ' + (currentStock === -1 ? '不限量' : currentStock) + '，请输入新库存数（-1 表示不限量）', currentStock === -1 ? '-1' : String(currentStock + 10));
+  if (input === null) return;
+  var v = parseInt(input, 10);
+  if (isNaN(v) || v < -1) { showToast('库存需为 -1 或 ≥0 的整数'); return; }
+  try {
+    var resp = await fetchWithAuth('/mall/items/' + id, { method: 'PUT', body: JSON.stringify({ stock: v }) });
+    var data = await resp.json().catch(function() { return {}; });
+    if (!resp.ok) { showToast(_mallErr(data, resp)); return; }
+    showToast('库存已更新');
+    loadMall();
+  } catch (e) { showToast(e.message || '补货失败'); }
+}
+
+async function mallToggleItem(id, active) {
+  try {
+    var resp = await fetchWithAuth('/mall/items/' + id, { method: 'PUT', body: JSON.stringify({ active: !!active }) });
+    var data = await resp.json().catch(function() { return {}; });
+    if (!resp.ok) { showToast(_mallErr(data, resp)); return; }
+    showToast(active ? '商品已上架' : '商品已下架');
+    loadMall();
+  } catch (e) { showToast(e.message || '操作失败'); }
 }
 
 // 加载电子喜报（学习标兵 + 进步之星），教师/学生/家长三端共用
