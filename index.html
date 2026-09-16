@@ -5810,6 +5810,41 @@ function mallIconFor(it) {
   }
   return it.category === '实物' ? '🎁' : (it.category === '荣誉' ? '🏆' : '🎫');
 }
+// 商品图标渐变色卡（2026-09-16 晚升级：emoji 坐彩色渐变徽章上，更吸引学生）
+var _MALL_ICON_GRAD = {
+  '🎁':['#FF9A9E','#FECFEF'], '🧸':['#F6D365','#FDA085'], '🍭':['#FBC2EB','#FD79A8'],
+  '🍪':['#FFE259','#FFA751'], '🧋':['#C79081','#DFA579'], '🍰':['#FFC3A0','#FFAFBD'],
+  '🍕':['#FFB347','#FFCC33'], '📸':['#A1C4FD','#C2E9FB'], '🏆':['#F7971E','#FFD200'],
+  '🥇':['#F7971E','#FFD200'], '👑':['#FBAB7E','#F7CE68'], '🎫':['#43E97B','#38F9D7'],
+  '🎟️':['#FA709A','#FEE140'], '🚩':['#FF6A88','#FF99AC'], '💺':['#4FACFE','#00F2FE'],
+  '📚':['#667EEA','#9F7AEA'], '✏️':['#FFF1A8','#FFD166'], '🧩':['#A18CD1','#FBC2EB'],
+  '⚽':['#A8E063','#56AB2F'], '🎬':['#355C7D','#6C5B7B'], '🎲':['#5EE7DF','#66A6FF'],
+  '🎤':['#F953C6','#B91D73'], '⛺':['#2AF598','#009EFD'], '🌱':['#C9F27E','#6BCB77'],
+  '🐠':['#89F7FE','#66A6FF'], '🌈':['#FFD3A5','#FD6585']
+};
+var _MALL_GRAD_FALLBACK = [['#89F7FE','#66A6FF'],['#FBC2EB','#FD79A8'],['#F6D365','#FDA085'],['#A1C4FD','#C2E9FB'],['#43E97B','#38F9D7'],['#FA709A','#FEE140'],['#667EEA','#9F7AEA'],['#FFDEE9','#FFB199']];
+function _mallIconBadgeCss() {
+  if (document.getElementById('mallBadgeCss')) return;
+  var s = document.createElement('style');
+  s.id = 'mallBadgeCss';
+  s.textContent = '.mall-ib{position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex:none;box-shadow:0 6px 14px rgba(0,0,0,.14),inset 0 -4px 8px rgba(0,0,0,.10),inset 0 4px 8px rgba(255,255,255,.55);border:2px solid rgba(255,255,255,.85);}'
+    + '.mall-ib .mib-s{position:absolute;top:-32%;left:-8%;width:72%;height:56%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(255,255,255,.8),rgba(255,255,255,0) 70%);pointer-events:none;}'
+    + '.mall-ib .mib-e{position:relative;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.18));}'
+    + '.mall-card{transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;}'
+    + '.mall-card:hover{transform:translateY(-4px);border-color:var(--primary)!important;box-shadow:0 10px 22px rgba(74,144,217,.22)!important;}'
+    + '.mall-card:hover .mall-ib{animation:mallBounce .65s ease;}'
+    + '@keyframes mallBounce{0%,100%{transform:translateY(0) scale(1)}35%{transform:translateY(-9px) scale(1.08)}65%{transform:translateY(0) scale(.98)}82%{transform:translateY(-4px) scale(1.02)}}';
+  document.head.appendChild(s);
+}
+function _mallIconBadge(emoji, size, it) {
+  var name = (it && it.name) || emoji || 'x';
+  var h = 0;
+  for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  var g = _MALL_ICON_GRAD[emoji] || _MALL_GRAD_FALLBACK[h % _MALL_GRAD_FALLBACK.length];
+  var es = Math.round(size * 0.5);
+  return '<span class="mall-ib" style="width:' + size + 'px;height:' + size + 'px;background:linear-gradient(135deg,' + g[0] + ',' + g[1] + ');">'
+    + '<span class="mib-s"></span><span class="mib-e" style="font-size:' + es + 'px;">' + (emoji || '🎁') + '</span></span>';
+}
 // 商品图标色板（教师换图弹层）
 var MALL_ICON_PALETTE = ['🎁','🧸','🍭','🍪','🧋','🍰','🍕','📸','🏆','🥇','👑','🎫','🎟️','🚩','💺','📚','✏️','🧩','⚽','🎬','🎲','🎤','⛺','🌈'];
 var _mallPickTargetId = null;
@@ -5819,7 +5854,7 @@ function mallShowIconPicker(itemId) {
   if (!el) return;
   var btns = '';
   for (var i = 0; i < MALL_ICON_PALETTE.length; i++) {
-    btns += '<button onclick="mallChooseIcon(\'' + MALL_ICON_PALETTE[i] + '\')" style="font-size:22px;width:44px;height:44px;border:1px solid #E8ECF1;border-radius:10px;background:#fff;cursor:pointer;">' + MALL_ICON_PALETTE[i] + '</button>';
+    btns += '<button onclick="mallChooseIcon(\'' + MALL_ICON_PALETTE[i] + '\')" style="width:48px;height:48px;border:1.5px solid #E8ECF1;border-radius:12px;background:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;">' + _mallIconBadge(MALL_ICON_PALETTE[i], 32) + '</button>';
   }
   el.innerHTML = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:999;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)mallCloseIconPicker()">' +
     '<div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;">' +
@@ -5862,15 +5897,16 @@ function mallPickFormIcon(emoji) {
 function renderMallIconPaletteOnce() {
   var wrap = document.getElementById('mallIconPalette');
   if (!wrap || wrap.childElementCount) return;
-  var html = '<button data-emoji="" onclick="mallPickFormIcon(\'\')" title="按名称自动匹配" style="font-size:18px;width:36px;height:36px;border:1.5px solid var(--primary);border-radius:9px;background:#EFF6FF;cursor:pointer;">✨</button>';
+  var html = '<button data-emoji="" onclick="mallPickFormIcon(\'\')" title="按名称自动匹配" style="width:40px;height:40px;border:1.5px solid var(--primary);border-radius:11px;background:#EFF6FF;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-size:16px;">✨</button>';
   for (var i = 0; i < MALL_ICON_PALETTE.length; i++) {
-    html += '<button data-emoji="' + MALL_ICON_PALETTE[i] + '" onclick="mallPickFormIcon(\'' + MALL_ICON_PALETTE[i] + '\')" style="font-size:18px;width:36px;height:36px;border:1.5px solid #E8ECF1;border-radius:9px;background:#fff;cursor:pointer;">' + MALL_ICON_PALETTE[i] + '</button>';
+    html += '<button data-emoji="' + MALL_ICON_PALETTE[i] + '" onclick="mallPickFormIcon(\'' + MALL_ICON_PALETTE[i] + '\')" style="width:40px;height:40px;border:1.5px solid #E8ECF1;border-radius:11px;background:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;">' + _mallIconBadge(MALL_ICON_PALETTE[i], 26) + '</button>';
   }
   wrap.innerHTML = html;
 }
 
 function renderMallItems(el, items, isTeacher) {
   var esc = _mallEsc;
+  _mallIconBadgeCss();
   if (!items || items.length === 0) {
     el.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">商城暂未上架商品，敬请期待～</p>';
     return;
@@ -5881,8 +5917,8 @@ function renderMallItems(el, items, isTeacher) {
     var soldOut = it.stock === 0;
     var stockText = it.stock === -1 ? '不限量' : (it.stock > 0 ? '剩 ' + it.stock + ' 件' : '已兑完');
     var dim = (soldOut || (isTeacher && !it.active)) ? 'opacity:.55;' : '';
-    html += '<div style="border:1px solid #E8ECF1;border-radius:12px;padding:14px;text-align:center;' + dim + '">';
-    html += '<div style="font-size:34px;line-height:1;">' + mallIconFor(it) + '</div>';
+    html += '<div class="mall-card" style="border:1px solid #E8ECF1;border-radius:14px;padding:14px;text-align:center;' + dim + '">';
+    html += '<div style="margin-bottom:4px;">' + _mallIconBadge(mallIconFor(it), 64, it) + '</div>';
     html += '<div style="font-size:14px;font-weight:600;margin-top:8px;">' + esc(it.name) + '</div>';
     if (it.description) html += '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">' + esc(it.description) + '</div>';
     html += '<div style="margin-top:8px;"><span style="font-size:12px;color:#fff;background:' + meta.color + ';border-radius:10px;padding:2px 10px;">' + esc(it.category) + '</span></div>';
