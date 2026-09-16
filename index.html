@@ -1776,15 +1776,37 @@ async function cloudLogin(username, password) {
   if (resp.ok) {
     const r = await resp.json();
     setCloudToken(r.access_token);
+    // 2026-09-16 商城权限修复：云端账号真实角色落盘（界面角色标签本地可随意切，不能作为权限依据）
+    try { localStorage.setItem("qhwk_cloud_role", r.role || "student"); } catch (e) {}
     return { ok: true, role: r.role || 'teacher' };
   }
   return { ok: false };
+}
+
+// 读取云端账号真实角色；老会话未存时向 /auth/status 补取并缓存
+function getCloudRole() {
+  try { return localStorage.getItem("qhwk_cloud_role") || ""; } catch (e) { return ""; }
+}
+async function ensureCloudRole() {
+  var r = getCloudRole();
+  if (r) return r;
+  if (!isCloudLoggedIn()) return "";
+  try {
+    const resp = await fetch(API_BASE + "/auth/status", { headers: { "Authorization": "Bearer " + getCloudToken() } });
+    if (resp.ok) {
+      const d = await resp.json();
+      try { localStorage.setItem("qhwk_cloud_role", d.role || "student"); } catch (e) {}
+      return d.role || "student";
+    }
+  } catch (e) {}
+  return "";
 }
 
 // 登出
 function cloudLogout() {
   clearCloudToken(); cloudDataVersion = 0; setSyncStatus("disconnected");
   clearStudentProfile();
+  try { localStorage.removeItem("qhwk_cloud_role"); } catch (e) {}
   // 清雷达缓存：避免下次不同账号登入看到上家残留
   _radarValues = null; _radarRange = 'week'; _radarOwnerKey = '';
   window._teacherRadar = null;
@@ -5715,7 +5737,9 @@ async function loadMall() {
   var tOrdersEl = document.getElementById('mallTeacherOrders');
   var myOrdersEl = document.getElementById('mallMyOrders');
   var pendEl = document.getElementById('mallPendingOrders');
-  var isTeacher = isCloudLoggedIn() && appData.mode === 'teacher';
+  // 2026-09-16 修复：教师判定改用云端账号真实角色（此前用界面角色标签 appData.mode，
+  // 本地可随意切，学生标签下残留教师管理面板且请求 403）
+  var isTeacher = isCloudLoggedIn() && (await ensureCloudRole()) === 'teacher';
   if (!isCloudLoggedIn()) {
     itemsEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">请先登录后逛积分商城 🎁</p>';
     if (myOrdersEl) myOrdersEl.innerHTML = '';
@@ -5752,6 +5776,10 @@ async function loadMall() {
     if (isTeacher) renderMallPending(pendEl, pending);
   } catch (e) {
     itemsEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">' + _mallEsc(e.message || '加载失败') + '</p>';
+    // 失败时同步清掉可能残留的旧渲染，避免"半新半旧"误导（2026-09-16）
+    if (balEl) balEl.textContent = '';
+    if (adminEl) adminEl.style.display = 'none';
+    if (tOrdersEl) tOrdersEl.style.display = 'none';
   }
 }
 
