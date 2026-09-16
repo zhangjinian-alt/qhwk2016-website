@@ -1143,11 +1143,11 @@ body::before {
   </div>
 </div>
 
-<!-- 五维评价累计积分总榜（2026-09-15 从家校互通迁入） -->
+<!-- 综合素养五维积分榜（2026-09-15 从家校互通迁入；2026-09-16 更名并扩至前30名） -->
 <div class="container section" id="cumulativeLeaderboardSection">
   <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
-      <h3 style="margin:0;font-size:18px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3c6" xlink:href="#tw-1f3c6"/></svg> 五维评价积分总榜</h3>
+      <h3 style="margin:0;font-size:18px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3c6" xlink:href="#tw-1f3c6"/></svg> 综合素养五维积分榜</h3>
       <span id="cumulativeLeaderboardMeta" style="font-size:13px;color:var(--text-muted);"></span>
     </div>
     <div id="cumulativeLeaderboard" style="min-height:60px;"></div>
@@ -5543,7 +5543,7 @@ function _defaultLeaderboardWeek() {
   return getTeachWeek();
 }
 
-// ===== 五维评价累计积分总榜 =====
+// ===== 综合素养五维积分榜（原五维评价累计积分总榜，2026-09-16 更名） =====
 async function loadCumulativeLeaderboard() {
   var container = document.getElementById('cumulativeLeaderboard');
   var meta = document.getElementById('cumulativeLeaderboardMeta');
