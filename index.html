@@ -5590,17 +5590,19 @@ function renderCumulativeLeaderboard(container, meta, data) {
   // 奖牌色
   var medalColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
   var medalLabels = ['🥇', '🥈', '🥉'];
-  // 2026-09-16 星榜分层：1-10 五星金榜 / 11-20 四星银榜 / 21-30 三星铜榜（头像上方星标激励）
+  // 2026-09-16 星榜分层：1-10 五星金榜 / 11-20 四星银榜 / 21-30 三星铜榜（头像上方 twemoji 星标激励）
   var starTier = function(rank) {
-    if (rank <= 10) return { n: 5, color: '#FFB300', label: '五星金榜' };
-    if (rank <= 20) return { n: 4, color: '#8FA3B8', label: '四星银榜' };
-    return { n: 3, color: '#C9803C', label: '三星铜榜' };
+    if (rank <= 10) return { n: 5, filter: 'none', label: '五星金榜' };
+    if (rank <= 20) return { n: 4, filter: 'grayscale(1) brightness(1.18) contrast(0.92)', label: '四星银榜' };
+    return { n: 3, filter: 'sepia(0.9) saturate(2.4) hue-rotate(-12deg) brightness(0.94)', label: '三星铜榜' };
   };
   var starRow = function(rank) {
     var t = starTier(rank);
     var s = '';
-    for (var i = 0; i < t.n; i++) s += '<span style="color:' + t.color + ';text-shadow:0 1px 2px rgba(0,0,0,0.15);">★</span>';
-    return '<div title="' + t.label + '" style="font-size:13px;line-height:1;height:15px;margin-bottom:6px;letter-spacing:2px;">' + s + '</div>';
+    for (var i = 0; i < t.n; i++) {
+      s += '<svg class="tw" viewBox="0 0 36 36" style="width:15px;height:15px;filter:' + t.filter + ';"><use href="#tw-2b50" xlink:href="#tw-2b50"/></svg>';
+    }
+    return '<div title="' + t.label + '" style="height:18px;line-height:1;margin-bottom:5px;white-space:nowrap;">' + s + '</div>';
   };
   var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:16px;text-align:center;">';
   students.forEach(function(s, idx) {
