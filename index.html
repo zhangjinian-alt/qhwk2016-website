@@ -175,6 +175,26 @@ img { max-width:100%; display:block; }
   vertical-align:-0.35em; margin:0 2px;
   filter:drop-shadow(0 2px 4px rgba(0,0,0,.15));
 }
+/* 会转动眼珠的角色形象：容器叠在原图上，眼珠在眼眶里张望 */
+.hero h1 .hero-role-wrap { position:relative; display:inline-block; }
+.hero h1 .hero-eye {
+  position:absolute; left:23.7%; top:25%; width:42.95%; height:26.17%;
+  border-radius:50%; overflow:hidden; pointer-events:none;
+  background:url('mascot-eye-hole.png?v=20260917') center/100% 100% no-repeat;
+}
+.hero h1 .hero-eye-iris {
+  position:absolute; inset:0;
+  background:url('mascot-iris.png?v=20260917') center/100% 100% no-repeat;
+  animation:heroEyeMove 8s ease-in-out infinite; will-change:transform;
+}
+@keyframes heroEyeMove {
+  0%,14%   { transform:translate(0,0); }
+  24%,38%  { transform:translate(-15%,7%); }
+  48%,62%  { transform:translate(15%,-5%); }
+  72%,80%  { transform:translate(2%,9%); }
+  90%,100% { transform:translate(0,0); }
+}
+@media (prefers-reduced-motion: reduce) { .hero h1 .hero-eye-iris { animation:none; } }
 .hero-cta { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
 .btn {
   display:inline-flex; align-items:center; gap:8px;
@@ -2897,8 +2917,8 @@ function applyStudentHomeStats(data) {
 }
 
 function heroRoleImg() {
-  // 首页 hero 标题里的角色形象（图片替代"角色"文字）
-  return '<img class="hero-role-img" src="role-mascot.png?v=20260906" alt="角色" loading="eager">';
+  // 首页 hero 标题里的角色形象（图片替代"角色"文字，眼珠可转动）
+  return '<span class="hero-role-wrap"><img class="hero-role-img" src="role-mascot.png?v=20260917" alt="角色" loading="eager"><span class="hero-eye" aria-hidden="true"><span class="hero-eye-iris"></span></span></span>';
 }
 
 function updateWelcome() {
