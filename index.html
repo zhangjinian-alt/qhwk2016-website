@@ -5571,18 +5571,30 @@ async function loadMeritWall(options) {
     var data = await resp.json();
     window._meritWallData = data;
     var title = mode === 'individual' ? '🏅 我的功勋墙' : '🏅 班级功勋墙';
-    renderMeritWall(containerId, data.medals || [], title, data.class_name, data.week);
+    // 2026-09-17 满分题数基准提示：系统自填时透明展示，缺失时警示
+    var fb = data.full_score_baseline || null;
+    var baselineNote = '';
+    if (fb && fb.source === 'teacher' && fb.value > 0) {
+      baselineNote = '<span style="color:var(--text-muted);">💯 满分基准：本周总题数须 ≥ ' + fb.value + ' 题（教师核定）</span>';
+    } else if (fb && fb.source === 'inferred' && fb.value > 0) {
+      baselineNote = '<span style="color:var(--text-muted);">💯 满分基准：本周总题数须 ≥ ' + fb.value + ' 题（系统按全班已批改作业自动推断，已回填答案库）</span>';
+    } else if (fb && fb.source === 'none') {
+      baselineNote = '<span style="color:#d9534f;">⚠️ 本周未设满分题数基准（答案键缺失或未填总题数），满分暂按「全对」统计，只传一面的同学可能被计入。请在教师端「答案库」补填总题数。</span>';
+    }
+    renderMeritWall(containerId, data.medals || [], title, data.class_name, data.week, baselineNote);
   } catch (e) {
     console.log('功勋墙加载失败:', e.message);
     renderMeritWall(containerId, appData.medals, '功勋墙（离线预览）');
   }
 }
 
-function renderMeritWall(containerId, medals, title, className, week) {
+function renderMeritWall(containerId, medals, title, className, week, baselineNote) {
   var container = document.getElementById(containerId);
   if (!container) return;
   var subtitle = '';
   if (className && week) subtitle = '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">' + className + ' · 第 ' + week + ' 周</p>';
+  // 2026-09-17 满分基准来源提示（教师核定/系统自填/缺失警示）
+  if (baselineNote) subtitle += '<p style="font-size:12px;margin:-6px 0 12px;">' + baselineNote + '</p>';
   var html = '<div style="margin-top:24px;"><h3 style="margin-bottom:12px;">' + title + '</h3>' + subtitle;
   html += '<div class="medal-grid">' + medals.map(function(m) {
     var locked = !m.unlocked && !m.count;
@@ -10585,8 +10597,8 @@ function showAnswerKeyUpload() {
     '<input type="file" id="akFileInput" accept="image/jpeg,image/png,image/webp,application/pdf,.pdf" style="display:none;" onchange="onAnswerKeyFileSelected(this)"></div>' +
     '<div class="form-group"><label>文本答案（可选，图片和文本可只填一种）</label>' +
     '<textarea id="akText" placeholder="如：&#10;1. 5/6&#10;2. 1/4&#10;3. 3/5" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;min-height:80px;resize:vertical;"></textarea></div>' +
-    '<div class="form-group"><label>本题总题数（选填，如 38）<span style="font-weight:400;color:var(--text-muted);font-size:12px;">　核定后，满分榜只统计题数做齐的学生——只传一面全对不算满分</span></label>' +
-    '<input type="number" id="akTotalQuestions" min="0" max="200" placeholder="如：38（不确定可留空）" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;"></div>' +
+    '<div class="form-group"><label>本题总题数（选填，如 38）<span style="font-weight:400;color:var(--text-muted);font-size:12px;">　核定后，满分榜只统计题数做齐的学生——只传一面全对不算满分；可留空，系统会按全班已批改作业的题数众数自动推断并回填</span></label>' +
+    '<input type="number" id="akTotalQuestions" min="0" max="200" placeholder="如：38（不确定可留空，系统自动推断）" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;"></div>' +
     '<div style="display:flex;gap:10px;margin-top:16px;">' +
     '<button type="submit" class="btn btn-primary" style="flex:1;" id="akSubmitBtn">📤 上传标准答案</button>' +
     '<button type="button" onclick="closeModalDirect()" class="btn btn-outline" style="flex:1;">取消</button>' +
