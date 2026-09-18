@@ -9982,7 +9982,7 @@ async function loadHwTeacherList(filter) {
         '<div class="hw-info">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
         '<span style="font-weight:500;font-size:14px;">' + h.student_name + ' — ' + (h.title || '数学作业') +
-        (h.title && answerKeyTitles.indexOf(h.title) >= 0 ? '<span class="ak-badge">🔑 有标准答案</span>' : '') +
+        (h.title && hwHasAk(h.title) ? '<span class="ak-badge">🔑 有标准答案</span>' : '') +
         (h.suspect_review ? '<span class="ak-badge" style="background:#FFF4E5;color:#B25E00;cursor:help;" title="自动质检：' + h.suspect_review + '。AI 看手写形近数偶有误读，建议点复核确认">⚠️ 建议复核</span>' : '') +
         '</span>' +
         '<span class="hw-status ' + h.status + '">' + hwStatusIcon[h.status] + ' ' + hwStatusLabel[h.status] + '</span></div>' +
@@ -9994,7 +9994,7 @@ async function loadHwTeacherList(filter) {
         '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">' +
         ((h.status === 'graded' || h.status === 'reviewed') ? '<button class="btn btn-primary" style="padding:6px 14px;font-size:13px;" onclick="reviewHw(' + h.id + ')">' + (h.status === 'reviewed' ? '📝 重新复核' : '📝 复核确认') + '</button>' : '') +
         (h.status === 'graded' || h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="viewHwDetail(' + h.id + ')">👁️ 查看详情</button>' : '') +
-        (h.status !== 'grading' && h.title && answerKeyTitles.indexOf(h.title) >= 0 ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--primary);" onclick="regradeHw(' + h.id + ')">🔄 重新批改</button>' : '') +
+        ((h.status === 'graded' || h.status === 'reviewed') ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--primary);" onclick="regradeHw(' + h.id + ')" title="用当前标准答案重新批改（会清空已复核标记）">🔄 重新批改</button>' : '') +
         (h.status === 'failed' ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--warning);" onclick="regradeHw(' + h.id + ')">🔄 重新批改</button>' : '') +
         '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--danger);" onclick="deleteHw(' + h.id + ')">🗑️ 删除</button>' +
         '</div></div></div>';
@@ -10552,6 +10552,17 @@ async function deleteHw(hwId) {
 // 已加载的标准答案列表（供作业列表判断是否可重新批改）
 var answerKeyTitles = [];
 
+// 2026-09-18 标题口径再改版：答案库标题已去掉「答案」二字，与作业标题完全一致（第3周周末作业）。
+// 本函数保留「答案」后缀容错，兼容历史带后缀的答案记录。
+function hwHasAk(title) {
+  if (!title) return false;
+  var t = String(title).split('答案').join('');
+  for (var i = 0; i < answerKeyTitles.length; i++) {
+    if (String(answerKeyTitles[i] || '').split('答案').join('') === t) return true;
+  }
+  return false;
+}
+
 async function loadAnswerKeyList() {
   var list = document.getElementById('answerKeyList');
   if (!list) return;
@@ -10589,10 +10600,10 @@ async function loadAnswerKeyList() {
 function showAnswerKeyUpload() {
   var html = '<div class="hw-detail">' +
     '<h3 style="margin-bottom:16px;">🔑 上传标准答案</h3>' +
-    '<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">标准答案通过<strong>标题</strong>与学生作业关联。2026-09-15 起答案标题统一为「第' + getTeachWeek() + '周周末作业答案」，已预填直接上传即可；学生作业标题「第' + getTeachWeek() + '周周末作业」会自动关联，无需手动对齐。同一标题重复上传会覆盖旧答案。</p>' +
+    '<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">标准答案通过<strong>标题</strong>与学生作业关联。答案标题与学生作业标题<strong>完全一致</strong>（如「第' + getTeachWeek() + '周周末作业」），已预填直接上传即可。同一标题重复上传会覆盖旧答案。</p>' +
     '<form onsubmit="submitAnswerKeyUpload(event)">' +
     '<div class="form-group"><label>答案标题 <span style="color:var(--danger);">*</span></label>' +
-    '<input type="text" id="akTitle" value="第' + getTeachWeek() + '周周末作业答案" placeholder="如：第2周周末作业答案" required style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;"></div>' +
+    '<input type="text" id="akTitle" value="第' + getTeachWeek() + '周周末作业" placeholder="如：第2周周末作业" required style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;"></div>' +
     '<div class="form-group"><label>标准答案图片或PDF（推荐，拍正确答案照片或上传PDF）</label>' +
     '<div class="hw-upload-area" id="akDropZone" onclick="document.getElementById(\'akFileInput\').click()" style="padding:20px;">' +
     '<p id="akFileLabel" style="font-size:13px;color:var(--text-muted);margin:0;">点击选择答案图片（jpg/png）或PDF</p>' +
@@ -10688,7 +10699,7 @@ function _regradeErrMsg(e) {
 }
 
 async function regradeHw(hwId) {
-  if (!confirm('确定用标准答案重新批改这份作业吗？')) return;
+  if (!confirm('确定重新批改这份作业吗？\n· 将用当前标准答案重新识别批改\n· 已有的复核标记会被清空，需重新复核')) return;
   try {
     var resp = await fetchWithAuth('/homework/' + hwId + '/regrade', { method: 'POST' });
     if (!resp.ok) {
