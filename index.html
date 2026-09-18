@@ -5484,8 +5484,12 @@ async function renderStudentEval() {
   html += '<h3 id="radarTitle" style="margin-bottom:16px;">' + esc(displayName) + '综合素养五维雷达图</h3>';
   html += '<canvas id="radar5D" width="460" height="460"></canvas></div>';
   html += '<div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);flex:1;">';
-  html += '<h3 style="margin-bottom:16px;">📋 本周表现小结</h3>';
-  html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">2026秋季学期 · 第 ' + getTeachWeek() + ' 周 · 403班</p>';
+  // 周次标签必须用后端返回的数据周（week），不能用 getTeachWeek()：
+  // 后端在当周无老师评分时会回退到最近一周有评分的数据（如第2周），
+  // 若标签取当前教学周就会出现「数据是第2周、标题显示第3周」的错位（2026-09-18 修复）
+  var evalWeek = parseInt(evalData.week) || getTeachWeek();
+  html += '<h3 style="margin-bottom:16px;">📋 ' + (evalWeek === getTeachWeek() ? '本周表现小结' : '第 ' + evalWeek + ' 周表现小结') + '</h3>';
+  html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">2026秋季学期 · 第 ' + evalWeek + ' 周 · 403班</p>';
   html += '<div style="font-size:14px;color:var(--text-secondary);line-height:2.2;">';
   html += '<p>🎯 五维总分：<b style="color:var(--primary);font-size:18px;">' + parseFloat(evalData.total).toFixed(1) + '</b> 分</p>';
   html += '<p>❤️ 学习兴趣：' + evalData.interest + ' 分 <span style="color:var(--text-muted);font-size:12px;">（同步课堂/培优微课 · 完整观看）</span></p>';
