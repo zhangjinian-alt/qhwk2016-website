@@ -5492,11 +5492,11 @@ async function renderStudentEval() {
   html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">2026秋季学期 · 第 ' + evalWeek + ' 周 · 403班</p>';
   html += '<div style="font-size:14px;color:var(--text-secondary);line-height:2.2;">';
   html += '<p>🎯 五维总分：<b style="color:var(--primary);font-size:18px;">' + parseFloat(evalData.total).toFixed(1) + '</b> 分</p>';
-  html += '<p>❤️ 学习兴趣：' + evalData.interest + ' 分 <span style="color:var(--text-muted);font-size:12px;">（同步课堂/培优微课 · 完整观看）</span></p>';
-  html += '<p>✅ 学习效果：' + evalData.effect + ' 分 <span style="color:var(--text-muted);font-size:12px;">（周末作业正确率+错题订正）</span></p>';
+  html += '<p>❤️ 学习兴趣：' + evalData.interest + ' 分 <span style="color:var(--text-muted);font-size:12px;">（学完：同步课堂或培优微课）</span></p>';
+  html += '<p>✅ 学习效果：' + evalData.effect + ' 分 <span style="color:var(--text-muted);font-size:12px;">（8分x正确率+订正2分）</span></p>';
   html += '<p>🧠 思维品质：' + evalData.think + ' 分 <span style="color:var(--text-muted);font-size:12px;">（回答/质疑/补充+素养题得分）</span></p>';
-  html += '<p>🤝 合作交流：' + evalData.coop + ' 分 <span style="color:var(--text-muted);font-size:12px;">（小组交流+师徒互助）</span></p>';
-  html += '<p>📖 学习习惯：' + evalData.habit + ' 分 <span style="color:var(--text-muted);font-size:12px;">（作业提交+书写+草稿）</span></p>';
+  html += '<p>🤝 行为表现：' + evalData.coop + ' 分 <span style="color:var(--text-muted);font-size:12px;">（合作+互助+纪律）</span></p>';
+  html += '<p>📖 学习习惯：' + evalData.habit + ' 分 <span style="color:var(--text-muted);font-size:12px;">（笔记+书写+作业+草稿）</span></p>';
   html += '</div></div></div>';
 
   // 本周学习任务（按分层推送的视频）
