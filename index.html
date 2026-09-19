@@ -9083,13 +9083,94 @@ function addHwFiles(fileList) {
     hwSelectedFiles.push(arr[i]);
     hwFileRotations.push(0);
   }
+  hwSingleConfirmed = false;  // 选图变化，重置确认标记
+  hwDupConfirmed = false;
   renderHwPreviewGrid();
+  // 同面重复即时检测（2026-09-19）：刚选完就提示，早发现早补拍
+  hwCheckDupSides().then(function(pairs) {
+    if (pairs.length) {
+      var pr = pairs[0];
+      showToast('⚠️ 第 ' + (pr.a + 1) + ' 张与第 ' + (pr.b + 1) + ' 张照片疑似同一面，可能漏拍了另一面，请检查（可点 ✕ 移除重拍）', 'error');
+    }
+  });
 }
 
 function removeHwImage(idx) {
   hwSelectedFiles.splice(idx, 1);
   hwFileRotations.splice(idx, 1);
+  hwSingleConfirmed = false;  // 选图变化，重置确认标记
+  hwDupConfirmed = false;
   renderHwPreviewGrid();
+  // 移除后重新检测同面重复（2026-09-19）
+  hwCheckDupSides().then(function(pairs) {
+    if (pairs.length) showToast('仍有 ' + pairs.length + ' 组照片疑似同一面，可点 ✕ 移除重拍', 'error');
+  });
+}
+
+// ===== 同面重复检测（2026-09-19 叶兆熹案：两面作业拍成两张同一面）=====
+// 每张图缩成 32×32 灰度矩阵、减去自身均值（抗光照差异）后求平均绝对差，
+// 差值小 = 内容几乎一样 = 疑似同一面。仅作提示，最终由用户确认。
+var hwDupSuspectPairs = [];   // [{a, b, diff}] 疑似同一面的图片索引对
+var HW_DUP_DIFF_THRESHOLD = 16;
+var hwSingleConfirmed = false;   // 单张提交已确认（选图变化后重置）
+var hwDupConfirmed = false;      // 同面重复已确认仍提交（选图变化后重置）
+
+function _hwGrayMatrix(file) {
+  return new Promise(function(resolve) {
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function() {
+      try {
+        var N = 32;
+        var cv = document.createElement('canvas');
+        cv.width = N; cv.height = N;
+        var ctx = cv.getContext('2d');
+        ctx.drawImage(img, 0, 0, N, N);
+        var data = ctx.getImageData(0, 0, N, N).data;
+        var g = new Array(N * N);
+        for (var i = 0; i < N * N; i++) {
+          g[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
+        }
+        resolve(g);
+      } catch (e) { resolve(null); }
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = function() { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
+function _hwMatDiff(g1, g2) {
+  var m1 = 0, m2 = 0, i;
+  for (i = 0; i < g1.length; i++) { m1 += g1[i]; m2 += g2[i]; }
+  m1 /= g1.length; m2 /= g2.length;
+  var s = 0;
+  for (i = 0; i < g1.length; i++) s += Math.abs((g1[i] - m1) - (g2[i] - m2));
+  return s / g1.length;
+}
+
+// 两两比对，返回疑似同一面的索引对；fileArr 缺省用当前已选图片
+async function hwCheckDupSides(fileArr) {
+  var own = !fileArr;
+  var arr = fileArr || hwSelectedFiles;
+  if (own) hwDupSuspectPairs = [];
+  var out = [];
+  var mats = [];
+  for (var i = 0; i < arr.length; i++) mats.push(await _hwGrayMatrix(arr[i]));
+  for (var a = 0; a < mats.length; a++) {
+    if (!mats[a]) continue;
+    for (var b = a + 1; b < mats.length; b++) {
+      if (!mats[b]) continue;
+      var d = _hwMatDiff(mats[a], mats[b]);
+      if (d <= HW_DUP_DIFF_THRESHOLD) out.push({ a: a, b: b, diff: Math.round(d) });
+    }
+  }
+  if (own) { hwDupSuspectPairs = out; renderHwPreviewGrid(); }
+  return out;
+}
+
+function _hwIdxIsDupSuspect(i) {
+  return hwDupSuspectPairs.some(function(p) { return p.a === i || p.b === i; });
 }
 
 // 手动旋转：每点一次顺时针转 90°（2026-09-15 防横拍倒拍案：萧弼薰倒 180°）
@@ -9148,7 +9229,8 @@ function renderHwPreviewGrid() {
     reader.onload = function(e) {
       if (cell) cell.innerHTML = '<img src="' + e.target.result + '" alt="作业图' + (i + 1) + '" style="' + rotStyle + '">' +
         '<button type="button" class="hw-preview-remove" title="移除这张" onclick="removeHwImage(' + i + ')">✕</button>' +
-        '<button type="button" class="hw-preview-rotate" title="转正：每点一次顺时针转90°" onclick="rotateHwImage(' + i + ')">↻</button>';
+        '<button type="button" class="hw-preview-rotate" title="转正：每点一次顺时针转90°" onclick="rotateHwImage(' + i + ')">↻</button>' +
+        (_hwIdxIsDupSuspect(i) ? '<div style="position:absolute;bottom:4px;left:4px;background:rgba(230,126,34,.92);color:#fff;font-size:11px;padding:2px 6px;border-radius:6px;pointer-events:none;">疑似同一面</div>' : '');
     };
     reader.readAsDataURL(f);
   });
@@ -9391,10 +9473,33 @@ async function submitHwUpload(e) {
     } catch (re) { console.warn('旋转重绘失败，按原图上传', re); }
   }
 
-  // 防漏交提醒（2026-09-15）：只选 1 张时提示确认正反两面
+  // 防漏拍提醒（2026-09-15 建档，2026-09-19 升级为弹窗确认）：只选 1 张时确认正反两面
   var status0 = document.getElementById('hwUploadStatus');
-  if (files.length === 1 && status0) {
-    status0.innerHTML = '<p style="color:var(--warning);font-size:13px;">⚠️ 你只选了 1 张照片——作业正反两面都拍了吗？漏拍可先点「清空重选」补齐再交。</p>';
+  if (files.length === 1 && !hwSingleConfirmed) {
+    var _goAdd = window.confirm('⚠️ 你只选了 1 张照片。\n\n作业如果有正反两面，请两面都拍：漏拍的那面 AI 批改不了，老师也看不到。\n\n点「确定」返回补拍另一面，点「取消」确认只交这一面。');
+    if (_goAdd) {
+      if (status0) status0.innerHTML = '<p style="color:var(--warning);font-size:13px;">📷 请补拍另一面：点上方选图区追加照片（可一次多选），或点 ✕ 移除后重拍。</p>';
+      return;
+    }
+    hwSingleConfirmed = true;
+  }
+  if (files.length === 1) {
+    if (status0) status0.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">已确认只交 1 张（单面作业）</p>';
+  } else if (status0) {
+    status0.innerHTML = '';
+  }
+
+  // 同面重复检测（2026-09-19 叶兆熹案：两面作业拍成两张同一面）：
+  // 旋转转正后的最终图两两灰度比对，几乎一样 → 弹窗确认补拍
+  var _dupPairs = hwDupConfirmed ? [] : await hwCheckDupSides(files);
+  if (_dupPairs.length) {
+    var _pr = _dupPairs[0];
+    var _goFix = window.confirm('⚠️ 检测到第 ' + (_pr.a + 1) + ' 张和第 ' + (_pr.b + 1) + ' 张照片内容几乎一样（疑似同一面）。\n\n两面作业需要正反两面各拍一张，很可能漏拍了另一面；同一面拍两次，AI 批改不了没拍到的那面。\n\n点「确定」返回补拍/换图，点「取消」仍要提交。');
+    if (_goFix) {
+      if (status0) status0.innerHTML = '<p style="color:var(--warning);font-size:13px;">🔁 已返回：请点 ✕ 移除重复的照片，补拍另一面后再提交。</p>';
+      return;
+    }
+    hwDupConfirmed = true;
   }
 
   var btn = document.getElementById('hwSubmitBtn');
@@ -9486,6 +9591,11 @@ async function submitHwUpload(e) {
         showToast('同样的作业已经提交过，不能重复提交', 'error');
         if (status) status.innerHTML = '<p style="color:var(--danger);font-size:13px;">📚 ' + (dupDetail.message || '这份作业你已经提交过') + '</p>' +
           '<p style="color:var(--primary);font-size:13px;margin-top:6px;">💡 请到<strong>「学习反馈」- 作业反馈</strong>查看这份作业的批改结果。如确需补交（例如漏拍了页面），请先撤回原来的提交，再重新拍照上传。</p>';
+      } else if (dupDetail.code === 'DUPLICATE_SAME_SIDE') {
+        // 2026-09-19：同批多张照片疑似同一面（两面作业拍重了）
+        showToast('多张照片疑似同一面，请补拍另一面', 'error');
+        if (status) status.innerHTML = '<p style="color:var(--danger);font-size:13px;">🔁 ' + (dupDetail.message || '多张照片疑似同一面') + '</p>' +
+          '<p style="color:var(--primary);font-size:13px;margin-top:6px;">💡 两面作业请<strong>正反两面各拍一张</strong>（选图时可一次多选），补拍另一面后重新提交。</p>';
       } else {
         showToast(dupDetail.message || errMsg || '提交太频繁，请稍候再试', 'error');
         if (status) status.innerHTML = '<p style="color:var(--warning);font-size:13px;">⏳ ' + (dupDetail.message || errMsg || '提交太频繁') + '</p>';
@@ -9515,6 +9625,8 @@ function resetHwForm(fileInput) {
   if (fileInput) fileInput.value = '';
   hwSelectedFiles = [];      // 清空多图选择
   hwFileRotations = [];      // 清空旋转角度
+  hwSingleConfirmed = false; // 重置单张确认标记
+  hwDupConfirmed = false;    // 重置同面确认标记
   renderHwPreviewGrid();
   var status = document.getElementById('hwUploadStatus');
   if (status) status.innerHTML = '';
