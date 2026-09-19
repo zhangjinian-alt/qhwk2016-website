@@ -10082,9 +10082,17 @@ function onHwSearchInput(v) {
 }
 
 // ===== 按周收起/展开（教学周口径，周五到周四，与 getTeachWeek 一致） =====
+// 默认状态：当周展开，以前的周默认收起（每周组头仍可单独点击收起/展开）
 function toggleHwWeekGroup() {
   hwWeekGrouped = !hwWeekGrouped;
   _hwCollapsedWeeks = {};
+  if (hwWeekGrouped) {
+    var curWeek = getTeachWeek();
+    (_hwTeacherItems || []).forEach(function(h) {
+      var wi = _hwWeekInfo(h);
+      if (wi && wi.week < curWeek) _hwCollapsedWeeks[wi.week] = true;
+    });
+  }
   var btn = document.getElementById('hwWeekGroupBtn');
   if (btn) {
     if (hwWeekGrouped) { btn.classList.add('active'); btn.textContent = '📅 按周收起：开'; }
