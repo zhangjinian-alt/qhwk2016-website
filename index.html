@@ -10011,7 +10011,17 @@ function renderHwGrading() {
       '<button class="hw-filter-btn" onclick="filterHw(\'pending\',this)">待批改</button>' +
       '<button class="hw-filter-btn" onclick="filterHw(\'failed\',this)">批改失败</button>' +
       '</div>' +
+      // 姓名搜索 + 按周收起（2026-09-19：纯前端过滤，定位某位同学的作业）
+      '<div class="hw-filter-bar" style="align-items:center;">' +
+      '<input id="hwSearchInput" type="text" placeholder="🔍 输入学生姓名定位作业" oninput="onHwSearchInput(this.value)" style="flex:1;min-width:180px;padding:8px 14px;border:1px solid var(--border);border-radius:16px;font-size:13px;outline:none;background:var(--bg-card);color:var(--text-primary);">' +
+      '<button class="hw-filter-btn" id="hwWeekGroupBtn" onclick="toggleHwWeekGroup()">📅 按周收起</button>' +
+      '</div>' +
       '<div id="hwTeacherList"></div>';
+    // 重进页面恢复搜索词与按周分组状态
+    var si = document.getElementById('hwSearchInput');
+    if (si && hwSearchKw) si.value = hwSearchKw;
+    var wb = document.getElementById('hwWeekGroupBtn');
+    if (wb && hwWeekGrouped) { wb.classList.add('active'); wb.textContent = '📅 按周收起：开'; }
     loadAnswerKeyList();
     loadHwTeacherList('all');
     loadHwPendingManage();
@@ -10029,6 +10039,11 @@ function renderHwGrading() {
 }
 
 var hwCurrentFilter = 'all';
+// 2026-09-19：按周收起 + 姓名搜索（纯前端过滤，不改后端接口）
+var _hwTeacherItems = [];        // 最近一次接口返回的全量列表
+var hwSearchKw = '';             // 姓名搜索关键字
+var hwWeekGrouped = false;       // 是否按教学周分组（组头可收起）
+var _hwCollapsedWeeks = {};      // 各周折叠状态 { week: true }
 
 // 批改中自动刷新（2026-09-11）：AI 批改一份要 3-10 分钟（Thinking 模式 + 并发上限 2），
 // 老师点完"重新批改"若页面不自动更新，会误以为失败。列表里只要还有 grading 就定时轮询。
@@ -10058,6 +10073,109 @@ function filterHw(filter, btn) {
   loadHwTeacherList(filter);
 }
 
+// ===== 姓名搜索（纯前端过滤，250ms 防抖避免逐键重绘闪图） =====
+var _hwSearchTimer = null;
+function onHwSearchInput(v) {
+  hwSearchKw = String(v || '').trim();
+  if (_hwSearchTimer) clearTimeout(_hwSearchTimer);
+  _hwSearchTimer = setTimeout(function() { _hwSearchTimer = null; _renderHwTeacherList(); }, 250);
+}
+
+// ===== 按周收起/展开（教学周口径，周五到周四，与 getTeachWeek 一致） =====
+function toggleHwWeekGroup() {
+  hwWeekGrouped = !hwWeekGrouped;
+  _hwCollapsedWeeks = {};
+  var btn = document.getElementById('hwWeekGroupBtn');
+  if (btn) {
+    if (hwWeekGrouped) { btn.classList.add('active'); btn.textContent = '📅 按周收起：开'; }
+    else { btn.classList.remove('active'); btn.textContent = '📅 按周收起'; }
+  }
+  _renderHwTeacherList();
+}
+
+function toggleHwWeek(w) {
+  _hwCollapsedWeeks[w] = !_hwCollapsedWeeks[w];
+  _renderHwTeacherList();
+}
+
+// 由提交日期反推教学周（用显示日期 slice(0,10)，与卡片上的日期一致）
+function _hwWeekInfo(item) {
+  var dstr = (item.created_at || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dstr)) return null;
+  var w = getTeachWeek(new Date(dstr + 'T00:00:00'));
+  var start = new Date(TEACH_WEEK_START + 'T00:00:00');
+  var ws = new Date(start.getTime() + (w - 1) * 7 * 86400000);
+  var we = new Date(ws.getTime() + 4 * 86400000);
+  function f(x) { var m = x.getMonth() + 1, d = x.getDate(); return (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d; }
+  return { week: w, label: '第 ' + w + ' 周（' + f(ws) + ' ~ ' + f(we) + '）' };
+}
+
+// 单张作业卡片（原 loadHwTeacherList 内联 map 内容抽出，供平铺/按周两种布局复用）
+function _hwCardHtml(h) {
+  var imgCount = h.image_count > 1 ? '<span class="hw-thumb-badge">' + h.image_count + '图</span>' : '';
+  return '<div class="hw-list-item">' +
+    '<div class="hw-thumb-wrap" title="点击放大查看" onclick="hwThumbLightbox(' + h.id + ')"><img class="hw-thumb" src="' + h.image_url + '" alt="作业">' + imgCount + '</div>' +
+    '<div class="hw-info">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+    '<span style="font-weight:500;font-size:14px;">' + h.student_name + ' — ' + (h.title || '数学作业') +
+    (h.title && hwHasAk(h.title) ? '<span class="ak-badge">🔑 有标准答案</span>' : '') +
+    (h.suspect_review ? '<span class="ak-badge" style="background:#FFF4E5;color:#B25E00;cursor:help;" title="自动质检：' + h.suspect_review + '。AI 看手写形近数偶有误读，建议点复核确认">⚠️ 建议复核</span>' : '') +
+    '</span>' +
+    '<span class="hw-status ' + h.status + '">' + hwStatusIcon[h.status] + ' ' + hwStatusLabel[h.status] + '</span></div>' +
+    (h.status === 'graded' || h.status === 'reviewed' ?
+      '<p style="font-size:13px;color:var(--text-secondary);">正确率：<strong style="color:var(--success);">' + h.accuracy + '%</strong> (' + scoreFrac(h.total_correct, h.total_count) + ')</p>' : '') +
+    (h.status === 'grading' ?
+      '<p style="font-size:13px;color:var(--primary);">🤖 AI 正在重新批改，一份约需 3-10 分钟，本页会自动刷新，无需重复点击</p>' : '') +
+    '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0,10) + (h.reviewed_at ? ' · 复核于 ' + h.reviewed_at.slice(0,10) : '') + '</p>' +
+    '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">' +
+    ((h.status === 'graded' || h.status === 'reviewed') ? '<button class="btn btn-primary" style="padding:6px 14px;font-size:13px;" onclick="reviewHw(' + h.id + ')">' + (h.status === 'reviewed' ? '📝 重新复核' : '📝 复核确认') + '</button>' : '') +
+    (h.status === 'graded' || h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="viewHwDetail(' + h.id + ')">👁️ 查看详情</button>' : '') +
+    ((h.status === 'graded' || h.status === 'reviewed') ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--primary);" onclick="regradeHw(' + h.id + ')" title="用当前标准答案重新批改（会清空已复核标记）">🔄 重新批改</button>' : '') +
+    (h.status === 'failed' ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--warning);" onclick="regradeHw(' + h.id + ')">🔄 重新批改</button>' : '') +
+    '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--danger);" onclick="deleteHw(' + h.id + ')">🗑️ 删除</button>' +
+    '</div></div></div>';
+}
+
+// 渲染（平铺 / 按周分组两种布局，共用同一份 _hwTeacherItems）
+function _renderHwTeacherList() {
+  var list = document.getElementById('hwTeacherList');
+  if (!list) return;
+  var items = _hwTeacherItems || [];
+  if (hwSearchKw) {
+    items = items.filter(function(h) { return String(h.student_name || '').indexOf(hwSearchKw) !== -1; });
+  }
+  if (items.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:48px;color:var(--text-muted);">' +
+      '<div style="font-size:36px;margin-bottom:8px;">' + (hwSearchKw ? '🔍' : '📭') + '</div>' +
+      '<p>' + (hwSearchKw
+        ? '没有找到姓名包含「' + escHtmlSafe(hwSearchKw) + '」的作业'
+        : '暂无' + (hwCurrentFilter === 'all' ? '' : hwStatusLabel[hwCurrentFilter] + '状态的') + '作业') + '</p></div>';
+    return;
+  }
+  if (!hwWeekGrouped) {
+    list.innerHTML = items.map(_hwCardHtml).join('');
+    return;
+  }
+  // 按教学周分组（新周在上），组头点击收起/展开
+  var groups = {}, order = [];
+  items.forEach(function(h) {
+    var wi = _hwWeekInfo(h) || { week: 0, label: '未知周次' };
+    if (!groups[wi.week]) { groups[wi.week] = { label: wi.label, items: [] }; order.push(wi.week); }
+    groups[wi.week].items.push(h);
+  });
+  order.sort(function(a, b) { return b - a; });
+  list.innerHTML = order.map(function(w) {
+    var g = groups[w];
+    var collapsed = !!_hwCollapsedWeeks[w];
+    var body = collapsed ? '' : g.items.map(_hwCardHtml).join('');
+    return '<div style="margin-bottom:16px;">' +
+      '<div onclick="toggleHwWeek(' + w + ')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg);border-radius:12px;margin-bottom:10px;user-select:none;">' +
+      '<span style="font-weight:600;font-size:14px;">📅 ' + g.label + ' · ' + g.items.length + ' 份<span style="color:var(--text-muted);font-weight:400;">' + (collapsed ? ' ▸' : ' ▾') + '</span></span>' +
+      '<span style="font-size:12px;color:var(--text-muted);">' + (collapsed ? '点击展开' : '点击收起') + '</span></div>' +
+      body + '</div>';
+  }).join('');
+}
+
 async function loadHwTeacherList(filter) {
   var list = document.getElementById('hwTeacherList');
   if (!list) { _stopHwAutoRefresh(); return; }
@@ -10068,49 +10186,15 @@ async function loadHwTeacherList(filter) {
     var resp = await fetchWithAuth('/homework/list?status=' + statusParam);
     if (!resp.ok) throw new Error('获取列表失败');
     var items = await resp.json();
+    _hwTeacherItems = items;
 
-    if (items.length === 0) {
-      _stopHwAutoRefresh();
-      var emptySig = 'empty:' + filter;
-      if (emptySig !== _hwListSignature) {
-        _hwListSignature = emptySig;
-        list.innerHTML = '<div style="text-align:center;padding:48px;color:var(--text-muted);">' +
-          '<div style="font-size:36px;margin-bottom:8px;">📭</div>' +
-          '<p>暂无' + (filter === 'all' ? '' : hwStatusLabel[filter] + '状态的') + '作业</p></div>';
-      }
-      return;
-    }
-
-    // 2026-09-14：内容签名一致则跳过重绘（轮询防闪烁），筛选条件参与签名
-    var newSig = filter + '|' + JSON.stringify(items);
+    // 2026-09-14：内容签名一致则跳过重绘（轮询防闪烁），筛选条件与搜索词参与签名
+    var newSig = filter + '|' + hwSearchKw + '|' + JSON.stringify(items);
     if (newSig === _hwListSignature) { _scheduleHwAutoRefresh(items); return; }
     _hwListSignature = newSig;
     var _prevScrollY = window.scrollY;
 
-    list.innerHTML = items.map(function(h) {
-      var imgCount = h.image_count > 1 ? '<span class="hw-thumb-badge">' + h.image_count + '图</span>' : '';
-      return '<div class="hw-list-item">' +
-        '<div class="hw-thumb-wrap" title="点击放大查看" onclick="hwThumbLightbox(' + h.id + ')"><img class="hw-thumb" src="' + h.image_url + '" alt="作业">' + imgCount + '</div>' +
-        '<div class="hw-info">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
-        '<span style="font-weight:500;font-size:14px;">' + h.student_name + ' — ' + (h.title || '数学作业') +
-        (h.title && hwHasAk(h.title) ? '<span class="ak-badge">🔑 有标准答案</span>' : '') +
-        (h.suspect_review ? '<span class="ak-badge" style="background:#FFF4E5;color:#B25E00;cursor:help;" title="自动质检：' + h.suspect_review + '。AI 看手写形近数偶有误读，建议点复核确认">⚠️ 建议复核</span>' : '') +
-        '</span>' +
-        '<span class="hw-status ' + h.status + '">' + hwStatusIcon[h.status] + ' ' + hwStatusLabel[h.status] + '</span></div>' +
-        (h.status === 'graded' || h.status === 'reviewed' ?
-          '<p style="font-size:13px;color:var(--text-secondary);">正确率：<strong style="color:var(--success);">' + h.accuracy + '%</strong> (' + scoreFrac(h.total_correct, h.total_count) + ')</p>' : '') +
-        (h.status === 'grading' ?
-          '<p style="font-size:13px;color:var(--primary);">🤖 AI 正在重新批改，一份约需 3-10 分钟，本页会自动刷新，无需重复点击</p>' : '') +
-        '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0,10) + (h.reviewed_at ? ' · 复核于 ' + h.reviewed_at.slice(0,10) : '') + '</p>' +
-        '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">' +
-        ((h.status === 'graded' || h.status === 'reviewed') ? '<button class="btn btn-primary" style="padding:6px 14px;font-size:13px;" onclick="reviewHw(' + h.id + ')">' + (h.status === 'reviewed' ? '📝 重新复核' : '📝 复核确认') + '</button>' : '') +
-        (h.status === 'graded' || h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="viewHwDetail(' + h.id + ')">👁️ 查看详情</button>' : '') +
-        ((h.status === 'graded' || h.status === 'reviewed') ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--primary);" onclick="regradeHw(' + h.id + ')" title="用当前标准答案重新批改（会清空已复核标记）">🔄 重新批改</button>' : '') +
-        (h.status === 'failed' ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--warning);" onclick="regradeHw(' + h.id + ')">🔄 重新批改</button>' : '') +
-        '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--danger);" onclick="deleteHw(' + h.id + ')">🗑️ 删除</button>' +
-        '</div></div></div>';
-    }).join('');
+    _renderHwTeacherList();
     // 重绘后恢复滚动位置，避免老师正在看下面时列表跳顶
     if (typeof _prevScrollY === 'number' && Math.abs(window.scrollY - _prevScrollY) > 2) {
       window.scrollTo(0, _prevScrollY);
