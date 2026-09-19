@@ -1362,7 +1362,12 @@ body::before {
       <p style="color:#888;font-size:13px;margin:0 0 12px;text-align:center;line-height:1.5;">登录后数据自动同步云端，换设备不丢失</p>
       <p style="background:#FFF7E6;border:1px solid #FFE7BA;color:#D48806;font-size:12px;margin:0 0 16px;padding:8px 10px;border-radius:8px;line-height:1.6;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f393" xlink:href="#tw-1f393"/></svg> 学生请使用学校分配的账号登录，登录后可查看个人五维评价与学习数据</p>
       <input type="text" id="cloudUsername" placeholder="用户名" autocomplete="username" style="width:100%;padding:12px;margin-bottom:12px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
-      <input type="password" id="cloudPassword" placeholder="密码" autocomplete="current-password" style="width:100%;padding:12px;margin-bottom:16px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+      <input type="password" id="cloudPassword" placeholder="密码" autocomplete="current-password" style="width:100%;padding:12px;margin-bottom:10px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:#666;margin:0 0 10px;cursor:pointer;-webkit-user-select:none;user-select:none;">
+        <input type="checkbox" id="cloudRemember" checked style="width:16px;height:16px;accent-color:#4A90D9;flex:none;">
+        <span>记住账号密码（30 天内免输入）</span>
+      </label>
+      <div id="cloudRememberHint" style="display:none;background:#EFF6FF;border:1px solid #BFD8F0;color:#31708F;font-size:12px;margin:0 0 10px;padding:7px 9px;border-radius:8px;line-height:1.5;"></div>
       <button id="cloudLoginBtn" onclick="doCloudLogin()" style="width:100%;padding:12px;background:#4A90D9;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600;">登录</button>
       <div style="text-align:center;margin-top:12px;">
         <a href="javascript:void(0)" onclick="showCloudRegisterView()" style="color:#4A90D9;font-size:13px;text-decoration:none;">还没有账号？注册一个</a>
@@ -1787,11 +1792,51 @@ function reconcileVideoUrls() {
     .catch(function(e) { console.log('视频URL对账失败:', e.message); });
 }
 
-// 登录
-async function cloudLogin(username, password) {
+// ===== 记住账号密码（30 天保存期，2026-09-19） =====
+// 体验：登录一次，保存期内打开页面自动恢复登录态（token 过期则静默重登），无需再输账号密码。
+// 安全：凭据经 XOR 混淆后落 localStorage（非明文）；手动退出登录即清除；保存期到自动失效。
+var REMEMBER_CRED_KEY = "qhwk_saved_cred";
+var REMEMBER_DAYS = 30;
+function _obfuscate(s) {
+  var k = "qhwk2026", out = "";
+  for (var i = 0; i < s.length; i++) out += String.fromCharCode(s.charCodeAt(i) ^ k.charCodeAt(i % k.length));
+  try { return btoa(unescape(encodeURIComponent(out))); } catch (e) { return ""; }
+}
+function _deobfuscate(s) {
+  try {
+    var bin = decodeURIComponent(escape(atob(s)));
+    var k = "qhwk2026", out = "";
+    for (var i = 0; i < bin.length; i++) out += String.fromCharCode(bin.charCodeAt(i) ^ k.charCodeAt(i % k.length));
+    return out;
+  } catch (e) { return ""; }
+}
+function saveRememberCred(u, p) {
+  try {
+    localStorage.setItem(REMEMBER_CRED_KEY, JSON.stringify({ u: _obfuscate(u), p: _obfuscate(p), ts: Date.now() }));
+  } catch (e) {}
+}
+function getRememberCred() {
+  try {
+    var raw = JSON.parse(localStorage.getItem(REMEMBER_CRED_KEY) || "null");
+    if (!raw || !raw.ts) return null;
+    if (Date.now() - raw.ts > REMEMBER_DAYS * 86400000) { localStorage.removeItem(REMEMBER_CRED_KEY); return null; }
+    var u = _deobfuscate(raw.u || ""), p = _deobfuscate(raw.p || "");
+    if (!u || !p) return null;
+    return { username: u, password: p, ts: raw.ts };
+  } catch (e) { return null; }
+}
+function clearRememberCred() { try { localStorage.removeItem(REMEMBER_CRED_KEY); } catch (e) {} }
+function rememberDaysLeft() {
+  var c = getRememberCred();
+  if (!c) return 0;
+  return Math.max(1, Math.ceil((c.ts + REMEMBER_DAYS * 86400000 - Date.now()) / 86400000));
+}
+
+// 登录（remember=true 时后端签发 30 天长效 token）
+async function cloudLogin(username, password, remember) {
   const resp = await fetch(API_BASE + "/auth/login", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ username: username, password: password, remember: !!remember })
   });
   if (resp.ok) {
     const r = await resp.json();
@@ -1800,7 +1845,7 @@ async function cloudLogin(username, password) {
     try { localStorage.setItem("qhwk_cloud_role", r.role || "student"); } catch (e) {}
     return { ok: true, role: r.role || 'teacher' };
   }
-  return { ok: false };
+  return { ok: false, status: resp.status };
 }
 
 // 读取云端账号真实角色；老会话未存时向 /auth/status 补取并缓存
@@ -1826,6 +1871,8 @@ async function ensureCloudRole() {
 function cloudLogout() {
   clearCloudToken(); cloudDataVersion = 0; setSyncStatus("disconnected");
   clearStudentProfile();
+  // 手动退出即清除「记住的账号密码」（防共用设备残留）；静默续期不走这里，不受影响
+  clearRememberCred();
   try { localStorage.removeItem("qhwk_cloud_role"); } catch (e) {}
   // 清雷达缓存：避免下次不同账号登入看到上家残留
   _radarValues = null; _radarRange = 'week'; _radarOwnerKey = '';
@@ -1856,6 +1903,23 @@ function openCloudLoginModal() {
     return;
   }
   document.getElementById("cloudLoginModal").style.display = "flex";
+  // 记住账号密码：保存期内打开登录框自动填充，可直接点登录（换号/改密时直接改输入框即可，登录成功会覆盖/续期）
+  try {
+    var cred = getRememberCred();
+    var hint = document.getElementById("cloudRememberHint");
+    if (cred) {
+      document.getElementById("cloudUsername").value = cred.username;
+      document.getElementById("cloudPassword").value = cred.password;
+      var cb = document.getElementById("cloudRemember");
+      if (cb) cb.checked = true;
+      if (hint) {
+        hint.textContent = "已记住该账号（剩 " + rememberDaysLeft() + " 天），点「登录」即可；如换了账号或改了密码，直接在上方重新输入后登录一次即可更新记忆。";
+        hint.style.display = "block";
+      }
+    } else if (hint) {
+      hint.style.display = "none";
+    }
+  } catch (e) {}
 }
 function closeCloudLoginModal() {
   document.getElementById("cloudLoginModal").style.display = "none";
@@ -1869,9 +1933,12 @@ async function doCloudLogin() {
   if (!username || !password) { showToast("请输入用户名和密码"); return; }
   const btn = document.getElementById("cloudLoginBtn");
   btn.textContent = "登录中..."; btn.disabled = true;
-  const loginRes = await cloudLogin(username, password);
+  const rememberChecked = !!(document.getElementById("cloudRemember") && document.getElementById("cloudRemember").checked);
+  const loginRes = await cloudLogin(username, password, rememberChecked);
   btn.textContent = "登录"; btn.disabled = false;
   if (loginRes.ok) {
+    // 记住账号密码：勾选 → 保存凭据（每次登录续期 30 天）；未勾选 → 清除（明确不留）
+    if (rememberChecked) saveRememberCred(username, password); else clearRememberCred();
     closeCloudLoginModal(); setSyncStatus("syncing");
     // 根据后端角色自动切换教师/学生模式（2026-09-06：教师云端登录后直接进管理模式）
     if (loginRes.role === 'teacher') {
@@ -2096,6 +2163,39 @@ async function validateCloudToken() {
     if (resp.status === 401) { clearCloudToken(); setSyncStatus("disconnected"); return false; }
     return true;
   } catch (e) { return true; }
+}
+
+// 静默重登：token 已失效但「记住的账号密码」在保存期内 → 自动续登，全程无感（2026-09-19）
+// init 启动时调用：token 有效走原路；失效但有凭据则静默重登后继续同步流程；凭据失效（密码已改/账号删除）自动清除
+async function trySilentRelogin() {
+  var cred = getRememberCred();
+  if (!cred) return false;
+  try {
+    var r = await cloudLogin(cred.username, cred.password, true);
+    if (r.ok) {
+      // 学生身份档案补拉（教师账号 403 忽略；教师模式仍需 PIN 认证，静默重登不绕过）
+      try {
+        const meResp = await fetch(API_BASE + "/student/me", { headers: { "Authorization": "Bearer " + getCloudToken() } });
+        if (meResp.ok) {
+          const me = await meResp.json();
+          setStudentProfile(me);
+          if (me.display_name) {
+            appData.userName = me.display_name;
+            localStorage.setItem(DATA_KEY, encryptData(appData));
+          }
+        }
+      } catch (e) {}
+      var dispName = (getStudentProfile() && getStudentProfile().display_name) || cred.username;
+      showToast("已自动登录：" + dispName);
+      return true;
+    }
+    // 凭据确实失效（401 密码已改 / 403 账号禁用）→ 清除，避免每次启动白试
+    if (r.status === 401 || r.status === 403) clearRememberCred();
+    return false;
+  } catch (e) {
+    // 网络异常：保留凭据，下次启动再试
+    return false;
+  }
 }
 
 window.addEventListener("beforeunload", syncOnUnload);
@@ -11366,6 +11466,8 @@ async function init() {
 
   // Validate cloud token and auto-sync
   var tokenValid = await validateCloudToken();
+  // 记住账号密码：token 已失效但凭据在 30 天保存期内 → 静默重登，学生打开即用、免输账号密码
+  if (!tokenValid) tokenValid = await trySilentRelogin();
   if (tokenValid && isCloudLoggedIn()) {
     setSyncStatus("syncing");
     const cloudData = await loadFromCloud();
