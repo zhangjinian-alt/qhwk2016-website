@@ -9663,17 +9663,49 @@ function _hwCamCapture() {
   if (!v || !v.videoWidth) { showToast('摄像头还没准备好，再按一次', 'error'); return; }
   _hwPlayShutter();   // 咔嚓声：明确"拍了"
   _hwShutterFlash();  // 绿色圆弧：明确"拍了"
-  var cv = document.createElement('canvas');
-  cv.width = v.videoWidth; cv.height = v.videoHeight;
-  cv.getContext('2d', { willReadFrequently: true }).drawImage(v, 0, 0);
-  _hwCam.frameCv = cv;
-  _hwBuildGrad(cv);
-  var det = _hwDetectPaper(cv);
-  if (det && !_hwValidateQuad(cv, det)) det = null;  // 垃圾框（如把整张画面当纸）直接弃用
-  _hwCam.corners = det || _hwDefaultCorners(cv);
-  if (det) _hwSnapAllCorners();  // 自动框出的角点再向真实纸边吸附一次
-  _hwShowCrop(det ? '已自动框出纸张边缘并贴齐纸角 · 可拖 4 个圆点对准纸角，或拖 4 个长条对齐纸边'
-                  : '未自动识别纸边 · 请把 4 个圆点拖到纸的四个角（松手自动贴角）');
+  // 优先 ImageCapture.takePhoto 抓全分辨率照片（视频流常只有 720p，直接截帧会糊）
+  _hwGrabHiRes(v, function(hi) {
+    var cv = hi;
+    if (!cv) {
+      cv = document.createElement('canvas');
+      cv.width = v.videoWidth; cv.height = v.videoHeight;
+      cv.getContext('2d', { willReadFrequently: true }).drawImage(v, 0, 0);
+    }
+    _hwCam.frameCv = cv;
+    _hwBuildGrad(cv);
+    var det = _hwDetectPaper(cv);
+    if (det && !_hwValidateQuad(cv, det)) det = null;  // 垃圾框（如把整张画面当纸）直接弃用
+    _hwCam.corners = det || _hwDefaultCorners(cv);
+    if (det) _hwSnapAllCorners();  // 自动框出的角点再向真实纸边吸附一次
+    _hwShowCrop(det ? '已自动框出纸张边缘并贴齐纸角 · 可拖 4 个圆点对准纸角，或拖 4 个长条对齐纸边'
+                    : '未自动识别纸边 · 请把 4 个圆点拖到纸的四个角（松手自动贴角）');
+  });
+}
+
+// 全分辨率抓帧：支持 ImageCapture 的浏览器（安卓 Chrome 等）takePhoto 拿满血照片，否则回退视频截帧
+function _hwGrabHiRes(v, cb) {
+  try {
+    var track = _hwCam.stream && _hwCam.stream.getVideoTracks()[0];
+    if (track && typeof window.ImageCapture !== 'undefined') {
+      var ic = new ImageCapture(track);
+      ic.takePhoto().then(function(blob) {
+        var img = new Image();
+        img.onload = function() {
+          var MAXP = 4096, w = img.width, h = img.height;
+          if (Math.max(w, h) > MAXP) { var s = MAXP / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+          var cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          cv.getContext('2d', { willReadFrequently: true }).drawImage(img, 0, 0, w, h);
+          try { URL.revokeObjectURL(img.src); } catch (e) {}
+          cb(cv);
+        };
+        img.onerror = function() { cb(null); };
+        img.src = URL.createObjectURL(blob);
+      }).catch(function() { cb(null); });
+      return;
+    }
+  } catch (e) {}
+  cb(null);
 }
 
 function _hwDefaultCorners(cv) {
@@ -9698,7 +9730,7 @@ function _hwDetectPaper(srcCv) {
       if (x > SW*0.35 && x < SW*0.65 && y > SH*0.35 && y < SH*0.65) { cSum += g0; cN++; }
       else if (x < SW*0.06 || x >= SW*0.94 || y < SH*0.06 || y >= SH*0.94) { eSum += g0; eN++; }
     }
-    if (!cN || !eN || (cSum / cN) - (eSum / eN) < 18) return null;  // 纸和背景亮度接近，认不准
+    if (!cN || !eN || (cSum / cN) - (eSum / eN) < 12) return null;  // 纸和背景亮度接近，认不准
     var hist = new Uint32Array(256);
     for (i = 0; i < N; i++) hist[gray[i]]++;
     var total = N, sumAll = 0;
@@ -9712,17 +9744,43 @@ function _hwDetectPaper(srcCv) {
       if (between > best) { best = between; thr = i; }
     }
     if (thr < 0) return null;
+    // 闭运算（先膨胀后收缩，半径2）桥接书本中缝阴影/折痕，避免亮区被切成两块
+    var R = 2, mB = new Uint8Array(N), mC = new Uint8Array(N);
+    for (i = 0; i < N; i++) mB[i] = gray[i] > thr ? 1 : 0;
+    var yy, xx, dy2, dx2, on;
+    for (y = 0; y < SH; y++) for (x = 0; x < SW; x++) {
+      on = 0;
+      for (dy2 = -R; dy2 <= R && !on; dy2++) {
+        yy = y + dy2; if (yy < 0 || yy >= SH) continue;
+        for (dx2 = -R; dx2 <= R; dx2++) {
+          xx = x + dx2; if (xx < 0 || xx >= SW) continue;
+          if (mB[yy * SW + xx]) { on = 1; break; }
+        }
+      }
+      mC[y * SW + x] = on;  // 膨胀结果暂存 mC
+    }
+    for (y = 0; y < SH; y++) for (x = 0; x < SW; x++) {
+      on = 1;
+      for (dy2 = -R; dy2 <= R && on; dy2++) {
+        yy = y + dy2; if (yy < 0 || yy >= SH) { on = 0; break; }
+        for (dx2 = -R; dx2 <= R; dx2++) {
+          xx = x + dx2; if (xx < 0 || xx >= SW) { on = 0; break; }
+          if (!mC[yy * SW + xx]) { on = 0; break; }
+        }
+      }
+      mB[y * SW + x] = on;  // mB 复用为闭运算最终掩码
+    }
     var lab = new Int32Array(N), stack = new Int32Array(N), bestId = 0, bestCnt = 0, id = 0;
     for (var s0 = 0; s0 < N; s0++) {
-      if (lab[s0] || gray[s0] <= thr) continue;
+      if (lab[s0] || !mB[s0]) continue;
       id++; var sp = 0, cnt = 0; stack[sp++] = s0; lab[s0] = id;
       while (sp > 0) {
         p = stack[--sp]; cnt++;
         var px = p % SW, py = (p / SW) | 0;
-        if (px > 0 && !lab[p-1] && gray[p-1] > thr) { lab[p-1] = id; stack[sp++] = p-1; }
-        if (px < SW-1 && !lab[p+1] && gray[p+1] > thr) { lab[p+1] = id; stack[sp++] = p+1; }
-        if (py > 0 && !lab[p-SW] && gray[p-SW] > thr) { lab[p-SW] = id; stack[sp++] = p-SW; }
-        if (py < SH-1 && !lab[p+SW] && gray[p+SW] > thr) { lab[p+SW] = id; stack[sp++] = p+SW; }
+        if (px > 0 && !lab[p-1] && mB[p-1]) { lab[p-1] = id; stack[sp++] = p-1; }
+        if (px < SW-1 && !lab[p+1] && mB[p+1]) { lab[p+1] = id; stack[sp++] = p+1; }
+        if (py > 0 && !lab[p-SW] && mB[p-SW]) { lab[p-SW] = id; stack[sp++] = p-SW; }
+        if (py < SH-1 && !lab[p+SW] && mB[p+SW]) { lab[p+SW] = id; stack[sp++] = p+SW; }
       }
       if (cnt > bestCnt) { bestCnt = cnt; bestId = id; }
     }
@@ -10017,7 +10075,7 @@ function _hwWarpCrop() {
   var d3 = Math.hypot(cs[3][0]-cs[0][0], cs[3][1]-cs[0][1]);
   var d4 = Math.hypot(cs[2][0]-cs[1][0], cs[2][1]-cs[1][1]);
   var W = Math.round(Math.max(d1, d2)), H = Math.round(Math.max(d3, d4));
-  var MAXS = 1600;
+  var MAXS = 2400;
   if (Math.max(W, H) > MAXS) { var s0 = MAXS / Math.max(W, H); W = Math.round(W * s0); H = Math.round(H * s0); }
   W = Math.max(W, 200); H = Math.max(H, 200);
   var h = _hwSolveH([[0, 0], [W, 0], [W, H], [0, H]], cs);
@@ -10078,6 +10136,30 @@ function _hwAutoContrastCanvas(cv) {
   return cv;
 }
 
+// 轻度 unsharp 锐化（5 点十字模糊差分）：透视拉平插值会让文字边缘发虚，锐化补回
+function _hwUnsharpMask(cv, amount) {
+  try {
+    var w = cv.width, h = cv.height;
+    var ctx = cv.getContext('2d', { willReadFrequently: true });
+    var im = ctx.getImageData(0, 0, w, h), d = im.data;
+    var src = new Uint8ClampedArray(d);  // 原始副本
+    var row = w * 4;
+    for (var y = 1; y < h - 1; y++) {
+      for (var x = 1; x < w - 1; x++) {
+        var o = (y * w + x) * 4;
+        for (var c = 0; c < 3; c++) {
+          var i = o + c;
+          var blur = (src[i] * 2 + src[i - 4] + src[i + 4] + src[i - row] + src[i + row]) / 6;
+          var val = src[i] + amount * (src[i] - blur);
+          d[i] = val < 0 ? 0 : (val > 255 ? 255 : val);
+        }
+      }
+    }
+    ctx.putImageData(im, 0, 0);
+  } catch (e) {}
+  return cv;
+}
+
 function _hwCamConfirm() {
   var okBtn = document.getElementById('hwCamOk');
   if (okBtn) { okBtn.disabled = true; okBtn.textContent = '⏳ 裁纸增亮中...'; }
@@ -10085,6 +10167,7 @@ function _hwCamConfirm() {
     try {
       var out = _hwWarpCrop();
       _hwAutoContrastCanvas(out);
+      _hwUnsharpMask(out, 0.7);  // 轻度锐化：抵消透视插值造成的文字发虚
       out.toBlob(function(blob) {
         if (okBtn) { okBtn.disabled = false; okBtn.textContent = '✓ 用这张'; }
         if (!blob) { showToast('照片处理失败，请重拍', 'error'); return; }
@@ -10093,7 +10176,7 @@ function _hwCamConfirm() {
         addHwFiles([new File([blob], name, { type: 'image/jpeg' })]);
         _hwCam.added++;
         _hwBackToCapture();
-      }, 'image/jpeg', 0.85);
+      }, 'image/jpeg', 0.92);
     } catch (err) {
       console.warn('[智能拍照] 处理失败', err);
       if (okBtn) { okBtn.disabled = false; okBtn.textContent = '✓ 用这张'; }
