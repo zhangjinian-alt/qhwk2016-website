@@ -871,6 +871,8 @@ body::before {
 .hw-cam-btn:disabled { opacity:.5; cursor:default; }
 .hw-crop-handle { position:absolute; width:32px; height:32px; margin:-16px 0 0 -16px; border-radius:50%; background:rgba(74,144,217,.9); border:3px solid #fff; box-shadow:0 1px 8px rgba(0,0,0,.55); touch-action:none; cursor:grab; z-index:6; }
 .hw-crop-handle:active { cursor:grabbing; }
+.hw-crop-edge { position:absolute; width:38px; height:18px; margin:-9px 0 0 -19px; border-radius:9px; background:rgba(74,144,217,.85); border:2.5px solid #fff; box-shadow:0 1px 6px rgba(0,0,0,.5); touch-action:none; cursor:move; z-index:6; }
+.hw-crop-edge:active { background:#4CD964; border-color:#fff; }
 /* 2026-09-20 年哥需求（对标扫描全能王）：快门绿色圆弧反馈 + 点按对焦框动画 */
 .hw-cam-bar { flex-wrap:wrap; row-gap:8px; }
 .hw-cam-shutter.shot { animation: hwShotRing .75s ease-out; }
@@ -9353,7 +9355,7 @@ function _hwRotateFileUpright(file, deg) {
 // ===== 智能拍作业（2026-09-19）：自动取纸裁边 + 方向转正 + 对比度拉伸 =====
 // 年哥需求：拍照只取作业纸张（纸外桌面裁掉）、横拍/倒拍不再歪读、偏暗偏灰铅笔字先增亮。
 // 拍完走既有 addHwFiles 流程（预览/同面检测/复核提交全不变）。检测/校正全在前端 canvas 完成。
-var _hwCam = { stream:null, video:null, modal:null, frameCv:null, corners:[], dragIdx:-1, added:0 };
+var _hwCam = { stream:null, video:null, modal:null, frameCv:null, corners:[], dragIdx:-1, dragEdge:null, grad:null, added:0 };
 
 function _hwCamFallback() {
   // 无摄像头权限/不支持的浏览器（部分桌面、旧机型）：降级调系统相机拍摄
@@ -9416,7 +9418,7 @@ function _hwCamShowCap(show) {
 
 function closeHwCamera() {
   try { if (_hwCam.stream) _hwCam.stream.getTracks().forEach(function(t) { t.stop(); }); } catch (e) {}
-  _hwCam.stream = null; _hwCam.video = null; _hwCam.frameCv = null; _hwCam.dragIdx = -1;
+  _hwCam.stream = null; _hwCam.video = null; _hwCam.frameCv = null; _hwCam.dragIdx = -1; _hwCam.dragEdge = null; _hwCam.grad = null;
   if (_hwCam.modal) { _hwCam.modal.remove(); _hwCam.modal = null; }
   if (_hwCam.added) showToast('📷 已拍 ' + _hwCam.added + ' 张并加入列表，可继续追加或提交', 'success');
   _hwCam.added = 0;
@@ -9507,6 +9509,98 @@ function _hwSnapAllCorners() {
   _hwCam.corners = _hwCam.corners.map(function(c) { return _hwSnapCorner(f, c); });
 }
 
+// 梯度场：拍一帧建一次（360 宽降采样 Sobel），供「边吸附」「四边形验证」共用
+function _hwBuildGrad(cv) {
+  try {
+    var SW = 360, sc = SW / cv.width, SH = Math.max(1, Math.round(cv.height * sc));
+    var c = document.createElement('canvas'); c.width = SW; c.height = SH;
+    var ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(cv, 0, 0, SW, SH);
+    var d = ctx.getImageData(0, 0, SW, SH).data;
+    var N = SW * SH, gray = new Float32Array(N);
+    for (var i = 0; i < N; i++) gray[i] = d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11;
+    var g = new Float32Array(N);
+    for (var y = 1; y < SH - 1; y++) {
+      for (var x = 1; x < SW - 1; x++) {
+        var i = y * SW + x;
+        var gx = gray[i - SW + 1] + 2 * gray[i + 1] + gray[i + SW + 1] - gray[i - SW - 1] - 2 * gray[i - 1] - gray[i + SW - 1];
+        var gy = gray[i + SW - 1] + 2 * gray[i + SW] + gray[i + SW + 1] - gray[i - SW - 1] - 2 * gray[i - SW] - gray[i - SW + 1];
+        g[i] = Math.sqrt(gx * gx + gy * gy);
+      }
+    }
+    _hwCam.grad = { w: SW, h: SH, sc: sc, data: g };
+  } catch (e) { _hwCam.grad = null; }
+}
+
+function _hwGradAt(x, y) {
+  var G = _hwCam.grad; if (!G) return 0;
+  var xi = Math.round(x * G.sc), yi = Math.round(y * G.sc);
+  if (xi < 1) xi = 1; if (yi < 1) yi = 1;
+  if (xi > G.w - 2) xi = G.w - 2; if (yi > G.h - 2) yi = G.h - 2;
+  var best = 0;
+  for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+    var v = G.data[(yi + dy) * G.w + (xi + dx)];
+    if (v > best) best = v;
+  }
+  return best;
+}
+
+// 四边支持率：每条边采样点附近出现强梯度的比例——真正的纸边一定贴着一条强边缘线
+function _hwQuadSupport(quad) {
+  var fr = [];
+  for (var e = 0; e < 4; e++) {
+    var a = quad[e], b = quad[(e + 1) % 4];
+    var L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    var M = Math.max(8, Math.min(32, Math.round(L / 30)));
+    var hit = 0;
+    for (var s = 0; s < M; s++) {
+      var t = (s + 0.5) / M;
+      if (_hwGradAt(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t) > 25) hit++;
+    }
+    fr.push(hit / M);
+  }
+  return fr;
+}
+
+// 自动框质量验证：拦掉「整张画面当纸」「等于默认框」「四边没有边缘证据」的垃圾框
+function _hwValidateQuad(cv, quad) {
+  var area = 0;
+  for (var k = 0; k < 4; k++) {
+    var a = quad[k], b = quad[(k + 1) % 4];
+    area += a[0] * b[1] - b[0] * a[1];
+  }
+  if (Math.abs(area) / 2 / (cv.width * cv.height) > 0.9) return false;
+  var def = _hwDefaultCorners(cv), diag = Math.hypot(cv.width, cv.height), near = 0;
+  for (k = 0; k < 4; k++) {
+    if (Math.hypot(quad[k][0] - def[k][0], quad[k][1] - def[k][1]) < diag * 0.04) near++;
+  }
+  if (near === 4) return false;
+  var fr = _hwQuadSupport(quad), strong = 0;
+  for (k = 0; k < 4; k++) if (fr[k] > 0.4) strong++;
+  return strong >= 3;
+}
+
+// 边吸附：第 i 条边两端沿法线同步平移，找梯度最强的平行位置——「四条边贴住纸边」的核心
+function _hwSnapEdge(i) {
+  var f = _hwCam.frameCv;
+  if (!f || !_hwCam.grad) return;
+  var j = (i + 1) % 4;
+  var a = _hwCam.corners[i], b = _hwCam.corners[j];
+  var ex = b[0] - a[0], ey = b[1] - a[1];
+  var L = Math.hypot(ex, ey); if (L < 10) return;
+  var nx = -ey / L, ny = ex / L;
+  var R = Math.min(f.width, f.height) * 0.06, step = Math.max(2, Math.round(R / 24));
+  var best = 0, bestD = 0;
+  for (var d = -R; d <= R; d += step) {
+    var s = _hwGradAt(a[0] + nx * d, a[1] + ny * d) + _hwGradAt(b[0] + nx * d, b[1] + ny * d);
+    if (s > best) { best = s; bestD = d; }
+  }
+  if (best > 40) {  // 边缘证据足够才吸附，避免空白处乱跳
+    _hwCam.corners[i] = [a[0] + nx * bestD, a[1] + ny * bestD];
+    _hwCam.corners[j] = [b[0] + nx * bestD, b[1] + ny * bestD];
+  }
+}
+
 function _hwCamCapture() {
   var v = _hwCam.video;
   if (!v || !v.videoWidth) { showToast('摄像头还没准备好，再按一次', 'error'); return; }
@@ -9516,11 +9610,13 @@ function _hwCamCapture() {
   cv.width = v.videoWidth; cv.height = v.videoHeight;
   cv.getContext('2d', { willReadFrequently: true }).drawImage(v, 0, 0);
   _hwCam.frameCv = cv;
+  _hwBuildGrad(cv);
   var det = _hwDetectPaper(cv);
+  if (det && !_hwValidateQuad(cv, det)) det = null;  // 垃圾框（如把整张画面当纸）直接弃用
   _hwCam.corners = det || _hwDefaultCorners(cv);
   if (det) _hwSnapAllCorners();  // 自动框出的角点再向真实纸边吸附一次
-  _hwShowCrop(det ? '已自动框出纸张边缘并贴齐纸角，可拖动 4 个蓝点微调'
-                  : '没认出纸张边缘，请把 4 个蓝点拖到纸的四个角（松手会自动贴住纸边）');
+  _hwShowCrop(det ? '已自动框出纸张边缘并贴齐纸角 · 可拖 4 个圆点对准纸角，或拖 4 个长条对齐纸边'
+                  : '未自动识别纸边 · 请把 4 个圆点拖到纸的四个角（松手自动贴角）');
 }
 
 function _hwDefaultCorners(cv) {
@@ -9608,22 +9704,31 @@ function _hwShowCrop(tipText) {
     '</div>';
   var imgCv = crop.querySelector('#hwCropImg');
   imgCv.getContext('2d').drawImage(f, 0, 0, iw, ih);
-  for (var i = 0; i < 4; i++) {
+  var i;
+  for (i = 0; i < 4; i++) {
     var hnd = document.createElement('div');
     hnd.className = 'hw-crop-handle'; hnd.dataset.idx = i;
     crop.querySelector('#hwCropBox').appendChild(hnd);
   }
+  for (i = 0; i < 4; i++) {  // 边中点长条手柄：拖动整条边对齐纸边
+    var eh = document.createElement('div');
+    eh.className = 'hw-crop-edge'; eh.dataset.idx = i;
+    crop.querySelector('#hwCropBox').appendChild(eh);
+  }
   _hwLayoutHandles();
   _hwBindHandleDrag(imgCv);
+  _hwBindEdgeDrag(imgCv);
   m.querySelector('.hw-cam-bar').innerHTML =
     '<button type="button" class="hw-cam-btn" id="hwCamRetake">↺ 重拍</button>' +
     '<button type="button" class="hw-cam-btn" id="hwCamRot">⟳ 转 90°</button>' +
     '<button type="button" class="hw-cam-btn" id="hwCamRedetect">🎯 重新识别</button>' +
+    '<button type="button" class="hw-cam-btn" id="hwCamMagnet">🧲 贴边</button>' +
     '<button type="button" class="hw-cam-btn" id="hwCamPreview">👁 看效果</button>' +
     '<button type="button" class="hw-cam-btn" id="hwCamOk" style="background:#4A90D9;">✓ 用这张</button>';
   m.querySelector('#hwCamRetake').onclick = _hwBackToCapture;
   m.querySelector('#hwCamRot').onclick = _hwCamRotate;
   m.querySelector('#hwCamRedetect').onclick = _hwCamRedetect;
+  m.querySelector('#hwCamMagnet').onclick = _hwCamMagnetAll;
   m.querySelector('#hwCamPreview').onclick = _hwCamPreviewFixed;
   m.querySelector('#hwCamOk').onclick = _hwCamConfirm;
 }
@@ -9632,10 +9737,19 @@ function _hwLayoutHandles() {
   var m = _hwCam.modal, f = _hwCam.frameCv; if (!m || !f) return;
   var pv = document.getElementById('hwPvCanvas'); if (pv) pv.remove();  // 调整角点即撤下矫正预览
   var handles = m.querySelectorAll('.hw-crop-handle');
-  for (var i = 0; i < handles.length; i++) {
-    var c = _hwCam.corners[i];
+  var i, c, c2;
+  for (i = 0; i < handles.length; i++) {
+    c = _hwCam.corners[i];
     handles[i].style.left = (c[0] / f.width * 100) + '%';
     handles[i].style.top = (c[1] / f.height * 100) + '%';
+  }
+  var edges = m.querySelectorAll('.hw-crop-edge');
+  for (i = 0; i < edges.length; i++) {
+    c = _hwCam.corners[i]; c2 = _hwCam.corners[(i + 1) % 4];
+    var mx = (c[0] + c2[0]) / 2, my = (c[1] + c2[1]) / 2;
+    edges[i].style.left = (mx / f.width * 100) + '%';
+    edges[i].style.top = (my / f.height * 100) + '%';
+    edges[i].style.transform = 'rotate(' + Math.atan2(c2[1] - c[1], c2[0] - c[0]) + 'rad)';
   }
   var poly = m.querySelector('#hwCropPoly'); if (!poly) return;
   var pc = poly.getContext('2d');
@@ -9682,6 +9796,49 @@ function _hwBindHandleDrag(imgCv) {
   }
 }
 
+// 拖边：整条边沿法线平移，松手吸附到最强梯度线（纸边）
+function _hwBindEdgeDrag(imgCv) {
+  var m = _hwCam.modal; if (!m) return;
+  var edges = m.querySelectorAll('.hw-crop-edge');
+  for (var i = 0; i < edges.length; i++) {
+    (function(h) {
+      h.addEventListener('pointerdown', function(e) {
+        var idx = +h.dataset.idx;
+        var a = _hwCam.corners[idx], b = _hwCam.corners[(idx + 1) % 4];
+        var ex = b[0] - a[0], ey = b[1] - a[1], L = Math.hypot(ex, ey) || 1;
+        _hwCam.dragEdge = {
+          idx: idx,
+          nx: -ey / L, ny: ex / L,
+          start: _hwCam.corners.map(function(c) { return c.slice(); }),
+          mid0: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+        };
+        try { h.setPointerCapture(e.pointerId); } catch (er) {}
+        e.preventDefault();
+      });
+      h.addEventListener('pointermove', function(e) {
+        var de = _hwCam.dragEdge; if (!de) return;
+        var r = imgCv.getBoundingClientRect();
+        var s = _hwCam.frameCv.width / r.width;  // 显示坐标 → 原图坐标（等比）
+        var cx = (e.clientX - r.left) * s, cy = (e.clientY - r.top) * s;
+        var d = (cx - de.mid0[0]) * de.nx + (cy - de.mid0[1]) * de.ny;
+        var i2 = de.idx, j = (i2 + 1) % 4;
+        _hwCam.corners[i2] = [de.start[i2][0] + de.nx * d, de.start[i2][1] + de.ny * d];
+        _hwCam.corners[j] = [de.start[j][0] + de.nx * d, de.start[j][1] + de.ny * d];
+        _hwLayoutHandles();
+      });
+      var end2 = function() {
+        if (_hwCam.dragEdge) {
+          _hwSnapEdge(_hwCam.dragEdge.idx);  // 松手：整条边吸附到纸边
+          _hwLayoutHandles();
+          _hwCam.dragEdge = null;
+        }
+      };
+      h.addEventListener('pointerup', end2);
+      h.addEventListener('pointercancel', end2);
+    })(edges[i]);
+  }
+}
+
 // 🎯 重新识别：自动框纸没认准时可再跑一次检测 + 角点吸附
 function _hwCamRedetect() {
   var f = _hwCam.frameCv; if (!f) return;
@@ -9695,6 +9852,16 @@ function _hwCamRedetect() {
   } else {
     showToast('还是没认出来，请手动把 4 个蓝点拖到纸的四个角', 'error');
   }
+}
+
+// 🧲 贴边：四条边依次吸附到最近的强边缘线（纸边），再微调四角
+function _hwCamMagnetAll() {
+  var f = _hwCam.frameCv; if (!f) return;
+  for (var i = 0; i < 4; i++) _hwSnapEdge(i);
+  _hwSnapAllCorners();
+  _hwLayoutHandles();
+  var tip = _hwCam.modal && _hwCam.modal.querySelector('.hw-cam-tip');
+  if (tip) tip.textContent = '已自动贴边 · 检查四条边是否贴住纸边，不对可拖边/拖角再试';
 }
 
 // 👁 矫正预览：先看"拉平+增亮"后的成品效果，满意再点用这张（点绿框图可撤下继续调）
@@ -9751,6 +9918,7 @@ function _hwCamRotate() {
   var ctx = c2.getContext('2d', { willReadFrequently: true });
   ctx.translate(h / 2, w / 2); ctx.rotate(Math.PI / 2); ctx.drawImage(f, -w / 2, -h / 2);
   _hwCam.frameCv = c2;
+  _hwBuildGrad(c2);  // 帧转了，梯度场跟着重建（吸附/验证依赖它）
   var cs = _hwCam.corners.map(function(c) { return [h - c[1], c[0]]; });
   _hwCam.corners = [cs[3], cs[0], cs[1], cs[2]];
   _hwShowCrop('已转正，拖动 4 个蓝点微调纸边后确认');
