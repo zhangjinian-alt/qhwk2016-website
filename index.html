@@ -4264,49 +4264,96 @@ function toggleAllLectureWeeks(open) {
 async function renderMistakesBoard() {
   var el = document.getElementById('mistakesBoard');
   if (!el) return;
-  var mistakes = [];
+  // 2026-09-20：教师端错题榜改为按教学周折叠（默认展开本周，历史周收起），口径与单周一致
+  var allWeeks = [];
   try {
-    var resp = await fetchWithAuth('/class-mistakes?week=' + _lectureWeek + '&limit=10');
+    var resp = await fetchWithAuth('/class-mistakes?all_weeks=1&limit=10');
     if (resp.ok) {
       var data = await resp.json();
-      mistakes = data.mistakes || [];
+      allWeeks = data.weeks || [];
     }
   } catch (e) {}
-  if (mistakes.length === 0) {
+  if (allWeeks.length === 0) {
     el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);padding:8px 0;">本周暂无已批改的错题数据。学生提交作业并经 AI 批改后，这里会自动出现本周错题榜。</p>';
     return;
   }
-  window._mistakesList = mistakes;
+  var curWeek = getTeachWeek();
+  // 折叠状态缓存：默认本周展开、历史周收起（与复习推荐同款体验）
+  if (!_mistakeBoardOpen._init) { _mistakeBoardOpen = { _init: true }; allWeeks.forEach(function(wd) { _mistakeBoardOpen[wd.week] = wd.week === curWeek; }); }
+  var totalCnt = allWeeks.reduce(function(s, wd) { return s + wd.mistakes.length; }, 0);
   var html = '<div style="background:#FFF9F0;border:1.5px solid #FFE0B2;border-radius:12px;padding:14px;margin-bottom:16px;">';
-  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">' +
+  html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
     '<span style="font-size:18px;">📊</span>' +
-    '<span style="font-weight:700;font-size:14px;">本周错题榜（Top ' + mistakes.length + '）</span>' +
-    '<span style="font-size:11px;color:var(--text-muted);">选择题目写分析思路，一键生成 AI 讲解视频</span></div>';
-  mistakes.forEach(function(m, i) {
-    var qShort = m.question.length > 60 ? m.question.slice(0, 60) + '…' : m.question;
-    html += '<div style="background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:10px;">';
-    html += '<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;">';
-    html += '<span style="font-size:13px;font-weight:600;color:var(--text);flex:1;line-height:1.8;">' + (i + 1) + '. ' + fmtFrac(escHtmlSafe(qShort)) + '</span>';
-    html += '<span style="font-size:12px;color:#E8590C;white-space:nowrap;font-weight:600;">🔥 ' + m.error_students + '人做错</span></div>';
-    if (m.correct_answer) {
-      html += '<div style="font-size:12px;color:var(--success);margin-bottom:6px;line-height:1.8;">✅ 正确答案：' + fmtFrac(escHtmlSafe(m.correct_answer)) + '</div>';
-    }
-    var vs = m.variants || [];
-    if (vs.length > 0) {
-      html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;line-height:1.8;">⚠️ 不同错法（' + vs.length + ' 种）：';
-      html += vs.map(function(v) {
-        var t = v.student_answer ? ('答「' + v.student_answer + '」') : (v.error_type || '其他错误');
-        return '<span style="display:inline-block;background:#FFF1E6;border-radius:6px;padding:1px 8px;margin:2px 4px 2px 0;color:#E8590C;">' + fmtFrac(escHtmlSafe(t)) + ' ×' + v.count + '人</span>';
-      }).join('');
+    '<span style="font-weight:700;font-size:14px;">错题榜（按周）</span>' +
+    '<span style="font-size:11px;color:var(--text-muted);">共 ' + totalCnt + ' 道易错题 · ' + allWeeks.length + ' 个教学周，点击周次可展开/收起</span>' +
+    '<span style="flex:1;"></span>' +
+    '<button class="btn btn-outline" style="padding:4px 14px;font-size:12px;margin-right:8px;" onclick="setAllMistakeBoardWeeks(true)">全部展开</button>' +
+    '<button class="btn btn-outline" style="padding:4px 14px;font-size:12px;" onclick="setAllMistakeBoardWeeks(false)">全部收起</button></div>';
+  window._mistakesList = [];
+  allWeeks.forEach(function(wd) {
+    var w = wd.week, mistakes = wd.mistakes;
+    var open = !!_mistakeBoardOpen[w];
+    var isCur = w === curWeek;
+    html += '<div onclick="toggleMistakeBoardWeek(' + w + ')" style="display:flex;justify-content:space-between;align-items:center;margin:12px 0 8px;padding:9px 16px;background:#fff;border:1.5px solid ' + (isCur ? 'var(--primary)' : 'var(--border)') + ';border-radius:999px;cursor:pointer;user-select:none;">' +
+      '<span style="font-weight:600;font-size:13px;color:' + (isCur ? 'var(--primary)' : 'var(--text)') + ';">🎯 第' + w + '周' + (isCur ? '（本周）' : '') + ' · ' + mistakes.length + ' 道易错题</span>' +
+      '<span style="font-size:12px;color:var(--text-muted);">' + (open ? '▾ 收起' : '▸ 展开') + '</span></div>';
+    html += '<div id="mistakeBoardWeekBody_' + w + '" style="' + (open ? '' : 'display:none;') + '">';
+    mistakes.forEach(function(m, i) {
+      var idx = window._mistakesList.length;
+      m._week = w;  // 生成讲解视频时按题所属周提交
+      window._mistakesList.push(m);
+      var qShort = m.question.length > 60 ? m.question.slice(0, 60) + '…' : m.question;
+      html += '<div style="background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:10px;">';
+      html += '<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;">';
+      html += '<span style="font-size:13px;font-weight:600;color:var(--text);flex:1;line-height:1.8;">' + (i + 1) + '. ' + fmtFrac(escHtmlSafe(qShort)) + '</span>';
+      html += '<span style="font-size:12px;color:#E8590C;white-space:nowrap;font-weight:600;">🔥 ' + m.error_students + '人做错</span></div>';
+      if (m.correct_answer) {
+        html += '<div style="font-size:12px;color:var(--success);margin-bottom:6px;line-height:1.8;">✅ 正确答案：' + fmtFrac(escHtmlSafe(m.correct_answer)) + '</div>';
+      }
+      var vs = m.variants || [];
+      if (vs.length > 0) {
+        html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;line-height:1.8;">⚠️ 不同错法（' + vs.length + ' 种）：';
+        html += vs.map(function(v) {
+          var t = v.student_answer ? ('答「' + v.student_answer + '」') : (v.error_type || '其他错误');
+          return '<span style="display:inline-block;background:#FFF1E6;border-radius:6px;padding:1px 8px;margin:2px 4px 2px 0;color:#E8590C;">' + fmtFrac(escHtmlSafe(t)) + ' ×' + v.count + '人</span>';
+        }).join('');
+        html += '</div>';
+      } else {
+        html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;line-height:1.8;">常见错误：' + fmtFrac(escHtmlSafe(m.error_type || '—')) + '</div>';
+      }
+      html += '<button onclick="event.stopPropagation();openLectureEditor(' + idx + ')" style="width:100%;padding:8px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">✍️ 写分析思路并生成讲解视频</button>';
       html += '</div>';
-    } else {
-      html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;line-height:1.8;">常见错误：' + fmtFrac(escHtmlSafe(m.error_type || '—')) + '</div>';
-    }
-    html += '<button onclick="openLectureEditor(' + i + ')" style="width:100%;padding:8px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">✍️ 写分析思路并生成讲解视频</button>';
+    });
     html += '</div>';
   });
   html += '</div>';
   el.innerHTML = html;
+}
+
+// 错题榜按周折叠：切换 / 全部展开收起（原地重绘，不重新拉取）
+function toggleMistakeBoardWeek(w) {
+  _mistakeBoardOpen[w] = !_mistakeBoardOpen[w];
+  var body = document.getElementById('mistakeBoardWeekBody_' + w);
+  if (body) body.style.display = _mistakeBoardOpen[w] ? '' : 'none';
+  // 同步行内箭头文字
+  var bars = document.querySelectorAll('[onclick="toggleMistakeBoardWeek(' + w + ')"]');
+  bars.forEach(function(bar) {
+    var t = bar.querySelector('span:last-child');
+    if (t) t.textContent = _mistakeBoardOpen[w] ? '▾ 收起' : '▸ 展开';
+  });
+}
+
+function setAllMistakeBoardWeeks(open) {
+  window._mistakesList.forEach(function(m) { _mistakeBoardOpen[m._week] = open; });
+  var el = document.getElementById('mistakesBoard');
+  if (!el) return;
+  el.querySelectorAll('[id^="mistakeBoardWeekBody_"]').forEach(function(body) {
+    body.style.display = open ? '' : 'none';
+  });
+  el.querySelectorAll('[onclick^="toggleMistakeBoardWeek"]').forEach(function(bar) {
+    var t = bar.querySelector('span:last-child');
+    if (t) t.textContent = open ? '▾ 收起' : '▸ 展开';
+  });
 }
 
 function openLectureEditor(idx) {
@@ -4331,7 +4378,7 @@ async function submitLectureGenerate(idx) {
   var resp = await fetchWithAuth('/ai-lecture/generate', {
     method: 'POST',
     body: JSON.stringify({
-      week: _lectureWeek,
+      week: m._week || _lectureWeek,
       question: m.question,
       analysis: analysis,
       error_type: m.error_type || '',
