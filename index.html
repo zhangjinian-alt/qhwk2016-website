@@ -6814,7 +6814,7 @@ function draw5DRadar() {
   } else if (window._studentEval) {
     // 学生真实五维数据（各维度满分 10 分）
     var ev = window._studentEval;
-    labels = ['学习兴趣', '学习效果', '思维品质', '合作交流', '学习习惯'];
+    labels = ['学习兴趣', '学习效果', '思维品质', '行为表现', '学习习惯'];
     values = [ev.interest, ev.effect, ev.think, ev.coop, ev.habit].map(function(v) {
       return Math.max(0, Math.min(1, (Number(v) || 0) / 10));
     });
