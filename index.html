@@ -10967,6 +10967,14 @@ async function viewHwDetail(hwId) {
     var hw = await resp.json();
     var grade = {};
     try { grade = JSON.parse(hw.grade_result); } catch(e) {}
+    // 2026-09-20 修复：教师复核后「查看详情」仍显示 AI 原始结果（如复核 85.3% 详情却 97.3%）。
+    // 与 reviewHw/viewHwFeedback 同口径：已有教师修正版（teacher_reviewed）则优先展示。
+    if (hw.teacher_reviewed) {
+      try {
+        var prevReviewed = JSON.parse(hw.teacher_reviewed);
+        if (prevReviewed && prevReviewed.problems) grade = prevReviewed;
+      } catch(e) {}
+    }
 
     var problemsHtml = '';
     if (grade.problems && grade.problems.length > 0) {
