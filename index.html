@@ -9441,20 +9441,29 @@ function openHwCamera() {
   m.querySelector('#hwCamCancel').onclick = closeHwCamera;
   m.querySelector('#hwCamShutter').onclick = _hwCamCapture;
   video.addEventListener('click', _hwCamFocusAt);  // 点按对焦（扫描全能王同款绿框反馈）
-  navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 } },
-    audio: false
-  }).then(function(stream) {
-    _hwCam.stream = stream;
-    video.srcObject = stream;
-    _hwCamShowCap(true);
-    return video.play();
-  }).catch(function(err) {
-    console.warn('[智能拍照] 摄像头打开失败：', err);
-    closeHwCamera();
-    showToast('摄像头打不开（检查权限），已改用系统相机', 'error');
-    _hwCamFallback();
-  });
+  // 2026-09-20 修复：ideal 只是建议，多摄手机上浏览器可能挑到广角/前摄（看起来像"视频摄像机"）。
+  // 先 exact 强制后置主摄 → 失败降回 ideal → 再降任意摄像头 → 全失败走系统相机。
+  var _gmTry = function(c) { return navigator.mediaDevices.getUserMedia({ video: c, audio: false }); };
+  _gmTry({ facingMode: { exact: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 } })
+    .catch(function() {
+      return _gmTry({ facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 } });
+    })
+    .catch(function() {
+      return _gmTry(true);
+    })
+    .then(function(stream) {
+      if (!stream) throw new Error('no camera stream');
+      if (!_hwCam.modal) { try { stream.getTracks().forEach(function(t) { t.stop(); }); } catch (e) {} return; }  // 弹窗已被关闭
+      _hwCam.stream = stream;
+      video.srcObject = stream;
+      _hwCamShowCap(true);
+      return video.play();
+    }).catch(function(err) {
+      console.warn('[智能拍照] 摄像头打开失败：', err);
+      closeHwCamera();
+      showToast('摄像头打不开（检查权限），已改用系统相机', 'error');
+      _hwCamFallback();
+    });
 }
 
 function _hwCamShowCap(show) {
