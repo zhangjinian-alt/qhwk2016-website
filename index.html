@@ -4095,6 +4095,7 @@ var _lectureWeek = getTeachWeek();  // 2026-09-14：错题榜/讲解生成统一
 // 教师端按周折叠状态（ISO周号 -> bool）；_lectureAll 缓存全量数据，切换折叠免重新拉取
 var _lectureWeekOpen = {};
 var _lectureAll = [];
+var _mistakeBoardOpen = { _init: false };  // 错题榜按周折叠状态（2026-09-20，漏声明会让整块错题榜渲染中断）
 
 async function renderAiLectures(role) {
   var el = document.getElementById('aiLectureList');
