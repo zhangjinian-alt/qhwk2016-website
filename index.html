@@ -888,6 +888,16 @@ body::before {
   82% { transform:scale(1); opacity:1; }
   100% { transform:scale(1); opacity:0; }
 }
+/* 2026-09-20 防糊三件套：拍前稳定提示 / 补光灯 / 拍后糊片确认 */
+.hw-cam-chip { position:absolute; left:50%; transform:translateX(-50%); top:calc(58px + env(safe-area-inset-top)); padding:6px 16px; border-radius:16px; font-size:13px; color:#fff; background:rgba(0,0,0,.55); z-index:6; pointer-events:none; transition:background .25s; white-space:nowrap; }
+.hw-cam-chip.ok { background:rgba(48,168,82,.75); }
+.hw-cam-chip.warn { background:rgba(214,88,42,.8); }
+.hw-cam-torch { position:absolute; right:14px; top:calc(52px + env(safe-area-inset-top)); width:42px; height:42px; border-radius:50%; border:none; background:rgba(0,0,0,.5); color:#fff; font-size:19px; cursor:pointer; z-index:6; }
+.hw-cam-torch.on { background:rgba(255,204,0,.85); }
+.hw-blur-ask { position:absolute; inset:0; background:rgba(0,0,0,.78); display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:9; padding:0 30px; text-align:center; }
+.hw-blur-ask .hw-blur-msg { color:#fff; font-size:16px; line-height:1.7; }
+.hw-blur-ask .hw-blur-thumb { max-width:70%; max-height:38vh; border-radius:8px; box-shadow:0 4px 18px rgba(0,0,0,.6); }
+.hw-blur-ask .hw-blur-btns { display:flex; gap:14px; }
 </style>
 </head>
 <body>
@@ -9403,7 +9413,7 @@ function _hwRotateFileUpright(file, deg) {
 // ===== 智能拍作业（2026-09-19）：自动取纸裁边 + 方向转正 + 对比度拉伸 =====
 // 年哥需求：拍照只取作业纸张（纸外桌面裁掉）、横拍/倒拍不再歪读、偏暗偏灰铅笔字先增亮。
 // 拍完走既有 addHwFiles 流程（预览/同面检测/复核提交全不变）。检测/校正全在前端 canvas 完成。
-var _hwCam = { stream:null, video:null, modal:null, frameCv:null, corners:[], dragIdx:-1, dragEdge:null, grad:null, added:0 };
+var _hwCam = { stream:null, video:null, modal:null, frameCv:null, corners:[], dragIdx:-1, dragEdge:null, grad:null, added:0, watchTimer:null, busy:false, torchOn:false };
 
 function _hwCamFallback() {
   // 无摄像头权限/不支持的浏览器（部分桌面、旧机型）：降级调系统相机拍摄
@@ -9424,7 +9434,17 @@ function openHwCamera() {
     '<div class="hw-cam-view">' +
       '<div id="hwCamCap" style="position:absolute;inset:0;display:none;">' +
         '<div class="hw-cam-tip">对准作业纸填满虚线框 · 点一下画面可对焦 · 光线不足也能自动增亮</div>' +
+        '<div class="hw-cam-chip" id="hwCamChip">稳定中…</div>' +
+        '<button type="button" class="hw-cam-torch" id="hwCamTorch" title="补光灯" style="display:none;">💡</button>' +
         '<div class="hw-cam-guide"></div>' +
+        '<div class="hw-blur-ask" id="hwBlurAsk">' +
+          '<img class="hw-blur-thumb" id="hwBlurThumb" alt="">' +
+          '<div class="hw-blur-msg" id="hwBlurMsg">这张可能拍糊了，文字容易看不清。<br>建议拿稳手机重拍一张。</div>' +
+          '<div class="hw-blur-btns">' +
+            '<button type="button" class="hw-cam-btn" id="hwBlurRetake">重拍这张</button>' +
+            '<button type="button" class="hw-cam-btn" id="hwBlurKeep">就用这张</button>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
       '<div id="hwCamCrop" style="position:absolute;inset:0;display:none;"></div>' +
     '</div>' +
@@ -9451,7 +9471,7 @@ function openHwCamera() {
   // 2026-09-20 修复：ideal 只是建议，多摄手机上浏览器可能挑到广角/前摄（看起来像"视频摄像机"）。
   // 先 exact 强制后置主摄 → 失败降回 ideal → 再降任意摄像头 → 全失败走系统相机。
   var _gmTry = function(c) { return navigator.mediaDevices.getUserMedia({ video: c, audio: false }); };
-  _gmTry({ facingMode: { exact: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 } })
+  _gmTry({ facingMode: { exact: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 }, advanced: [{ focusMode: 'continuous' }] })
     .catch(function() {
       return _gmTry({ facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 } });
     })
@@ -9464,6 +9484,21 @@ function openHwCamera() {
       _hwCam.stream = stream;
       video.srcObject = stream;
       _hwCamShowCap(true);
+      // 防糊：启动拍前稳定监测；支持常亮补光的机型（多数安卓）显示💡按钮
+      _hwCamWatchStart();
+      try {
+        var trk = stream.getVideoTracks()[0];
+        var cp = trk && trk.getCapabilities ? trk.getCapabilities() : {};
+        if (cp.torch) {
+          var tb = m.querySelector('#hwCamTorch');
+          tb.style.display = '';
+          tb.onclick = function() {
+            _hwCam.torchOn = !_hwCam.torchOn;
+            trk.applyConstraints({ advanced: [{ torch: _hwCam.torchOn }] }).catch(function() {});
+            tb.classList.toggle('on', _hwCam.torchOn);
+          };
+        }
+      } catch (eT) {}
       return video.play();
     }).catch(function(err) {
       console.warn('[智能拍照] 摄像头打开失败：', err);
@@ -9480,6 +9515,8 @@ function _hwCamShowCap(show) {
 }
 
 function closeHwCamera() {
+  if (_hwCam.watchTimer) { clearInterval(_hwCam.watchTimer); _hwCam.watchTimer = null; }
+  _hwCam.busy = false; _hwCam.torchOn = false;
   try { if (_hwCam.stream) _hwCam.stream.getTracks().forEach(function(t) { t.stop(); }); } catch (e) {}
   _hwCam.stream = null; _hwCam.video = null; _hwCam.frameCv = null; _hwCam.dragIdx = -1; _hwCam.dragEdge = null; _hwCam.grad = null;
   if (_hwCam.modal) { _hwCam.modal.remove(); _hwCam.modal = null; }
@@ -9664,54 +9701,163 @@ function _hwSnapEdge(i) {
   }
 }
 
+// 清晰度打分：320 宽灰度 Laplacian 方差。⚠️ 只用于同一组照片之间的相对比较（连拍择优），
+// 不做绝对阈值判糊（实测糊片因表格粗线/大字标题/压缩噪声方差也会很高，绝对阈值不可靠）
+function _hwSharpness(cv) {
+  try {
+    var SW = 320, sc = SW / cv.width, SH = Math.max(1, Math.round(cv.height * sc));
+    var c = document.createElement('canvas'); c.width = SW; c.height = SH;
+    var ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(cv, 0, 0, SW, SH);
+    var d = ctx.getImageData(0, 0, SW, SH).data;
+    var N = SW * SH, g = new Float32Array(N), i;
+    for (i = 0; i < N; i++) g[i] = d[i*4] * 0.3 + d[i*4+1] * 0.59 + d[i*4+2] * 0.11;
+    var sum = 0, sum2 = 0, n = 0, x, y;
+    for (y = 1; y < SH - 1; y++) {
+      for (x = 1; x < SW - 1; x++) {
+        i = y * SW + x;
+        var lap = 4 * g[i] - g[i-1] - g[i+1] - g[i-SW] - g[i+SW];
+        sum += lap; sum2 += lap * lap; n++;
+      }
+    }
+    if (!n) return 0;
+    var mean = sum / n;
+    return sum2 / n - mean * mean;
+  } catch (e) { return 0; }
+}
+
+// 拍前稳定监测：300ms 采一帧 120×90 小图，连续帧差大→"请拿稳手机"；持续不动→"✓ 稳定"；
+// 画面整体偏暗→提示开灯。只提示不拦截，不挡快门。
+function _hwCamWatchStart() {
+  if (_hwCam.watchTimer) clearInterval(_hwCam.watchTimer);
+  var prev = null, streak = 0;
+  var cv = document.createElement('canvas'); cv.width = 120; cv.height = 90;
+  var ctx = cv.getContext('2d', { willReadFrequently: true });
+  _hwCam.watchTimer = setInterval(function() {
+    var m = _hwCam.modal, v = _hwCam.video;
+    if (!m || !v || !v.videoWidth || _hwCam.busy) return;
+    var cap = m.querySelector('#hwCamCap');
+    if (!cap || cap.style.display === 'none') return;
+    try { ctx.drawImage(v, 0, 0, 120, 90); } catch (e) { return; }
+    var d = ctx.getImageData(0, 0, 120, 90).data;
+    var g = new Float32Array(120 * 90), sum = 0;
+    for (var i = 0; i < g.length; i++) { g[i] = d[i*4] * 0.3 + d[i*4+1] * 0.59 + d[i*4+2] * 0.11; sum += g[i]; }
+    var chip = m.querySelector('#hwCamChip');
+    if (!chip) return;
+    if (prev) {
+      var diff = 0;
+      for (i = 0; i < g.length; i++) diff += Math.abs(g[i] - prev[i]);
+      diff /= g.length;
+      if (diff > 4.5) { streak = 0; chip.className = 'hw-cam-chip warn'; chip.textContent = '⚠️ 请拿稳手机'; }
+      else if (sum / g.length < 68) { chip.className = 'hw-cam-chip warn'; chip.textContent = '💡 光线偏暗，建议开灯再拍'; }
+      else {
+        streak++;
+        if (streak >= 2) { chip.className = 'hw-cam-chip ok'; chip.textContent = '✓ 稳定 · 可拍摄'; }
+      }
+    }
+    prev = g;
+  }, 300);
+}
+
 function _hwCamCapture() {
   var v = _hwCam.video;
   if (!v || !v.videoWidth) { showToast('摄像头还没准备好，再按一次', 'error'); return; }
+  if (_hwCam.busy) return;
+  _hwCam.busy = true;
   _hwPlayShutter();   // 咔嚓声：明确"拍了"
   _hwShutterFlash();  // 绿色圆弧：明确"拍了"
-  // 优先 ImageCapture.takePhoto 抓全分辨率照片（视频流常只有 720p，直接截帧会糊）
-  _hwGrabHiRes(v, function(hi) {
-    var cv = hi;
-    if (!cv) {
-      cv = document.createElement('canvas');
-      cv.width = v.videoWidth; cv.height = v.videoHeight;
-      cv.getContext('2d', { willReadFrequently: true }).drawImage(v, 0, 0);
+  var chip = _hwCam.modal && _hwCam.modal.querySelector('#hwCamChip');
+  if (chip) { chip.className = 'hw-cam-chip'; chip.textContent = '📷 连拍 3 张择优中…'; }
+  // 防糊核心：连拍 3 张取最清晰一张（第一张后稍候，正好给自动对焦收敛时间）
+  _hwGrabBest(v, function(best) {
+    _hwCam.busy = false;
+    if (!best) { showToast('拍失败了，再试一次', 'error'); return; }
+    if (best.score < 18) {  // 极糊才提醒（保守阈值，正常手抖片靠连拍择优解决）
+      _hwCam.pendingCv = best.cv;
+      _hwShowBlurAsk(best.cv);
+      return;
     }
-    _hwCam.frameCv = cv;
-    _hwBuildGrad(cv);
-    var det = _hwDetectPaper(cv);
-    if (det && !_hwValidateQuad(cv, det)) det = null;  // 垃圾框（如把整张画面当纸）直接弃用
-    _hwCam.corners = det || _hwDefaultCorners(cv);
-    if (det) _hwSnapAllCorners();  // 自动框出的角点再向真实纸边吸附一次
-    _hwShowCrop(det ? '已自动框出纸张边缘并贴齐纸角 · 可拖 4 个圆点对准纸角，或拖 4 个长条对齐纸边'
-                    : '未自动识别纸边 · 请把 4 个圆点拖到纸的四个角（松手自动贴角）');
+    _hwCamAfterShot(best.cv);
   });
 }
 
-// 全分辨率抓帧：支持 ImageCapture 的浏览器（安卓 Chrome 等）takePhoto 拿满血照片，否则回退视频截帧
-function _hwGrabHiRes(v, cb) {
+function _hwCamAfterShot(cv) {
+  _hwCam.frameCv = cv;
+  _hwBuildGrad(cv);
+  var det = _hwDetectPaper(cv);
+  if (det && !_hwValidateQuad(cv, det)) det = null;  // 垃圾框（如把整张画面当纸）直接弃用
+  _hwCam.corners = det || _hwDefaultCorners(cv);
+  if (det) _hwSnapAllCorners();  // 自动框出的角点再向真实纸边吸附一次
+  _hwShowCrop(det ? '已自动框出纸张边缘并贴齐纸角 · 可拖 4 个圆点对准纸角，或拖 4 个长条对齐纸边'
+                  : '未自动识别纸边 · 请把 4 个圆点拖到纸的四个角（松手自动贴角）');
+}
+
+// 拍后糊片确认：弹层给缩略图，重拍/硬用二选一
+function _hwShowBlurAsk(cv) {
+  var m = _hwCam.modal; if (!m) return;
+  var ask = m.querySelector('#hwBlurAsk');
+  var th = m.querySelector('#hwBlurThumb');
   try {
-    var track = _hwCam.stream && _hwCam.stream.getVideoTracks()[0];
-    if (track && typeof window.ImageCapture !== 'undefined') {
-      var ic = new ImageCapture(track);
-      ic.takePhoto().then(function(blob) {
-        var img = new Image();
-        img.onload = function() {
-          var MAXP = 4096, w = img.width, h = img.height;
-          if (Math.max(w, h) > MAXP) { var s = MAXP / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
-          var cv = document.createElement('canvas');
-          cv.width = w; cv.height = h;
-          cv.getContext('2d', { willReadFrequently: true }).drawImage(img, 0, 0, w, h);
-          try { URL.revokeObjectURL(img.src); } catch (e) {}
-          cb(cv);
-        };
-        img.onerror = function() { cb(null); };
-        img.src = URL.createObjectURL(blob);
-      }).catch(function() { cb(null); });
-      return;
-    }
-  } catch (e) {}
-  cb(null);
+    var TW = 420, s = Math.min(1, TW / cv.width);
+    var c = document.createElement('canvas');
+    c.width = Math.round(cv.width * s); c.height = Math.round(cv.height * s);
+    c.getContext('2d').drawImage(cv, 0, 0, c.width, c.height);
+    th.src = c.toDataURL('image/jpeg', 0.8);
+  } catch (e) { th.removeAttribute('src'); }
+  ask.style.display = 'flex';
+  m.querySelector('#hwBlurRetake').onclick = function() { ask.style.display = 'none'; };
+  m.querySelector('#hwBlurKeep').onclick = function() { ask.style.display = 'none'; _hwCamAfterShot(_hwCam.pendingCv); };
+}
+
+// 连拍择优抓帧：支持 ImageCapture（安卓 Chrome 等）→ takePhoto 连拍 3 张全分辨率；
+// 不支持（iPhone Safari 等）→ 视频流连截 3 帧（间隔稍长，留给自动对焦收敛）。
+// 逐张用 _hwSharpness 打分，只回清晰度最高的一张。
+function _hwGrabBest(v, cb) {
+  var results = [];
+  var track = _hwCam.stream && _hwCam.stream.getVideoTracks()[0];
+  var canIC = !!(track && typeof window.ImageCapture !== 'undefined');
+  var N = 3;
+  var grabOne;
+  if (canIC) {
+    grabOne = function(done) {
+      try {
+        var ic = new ImageCapture(track);
+        ic.takePhoto().then(function(blob) {
+          var img = new Image();
+          img.onload = function() {
+            var MAXP = 4096, w = img.width, h = img.height;
+            if (Math.max(w, h) > MAXP) { var s = MAXP / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+            var cv = document.createElement('canvas');
+            cv.width = w; cv.height = h;
+            cv.getContext('2d', { willReadFrequently: true }).drawImage(img, 0, 0, w, h);
+            try { URL.revokeObjectURL(img.src); } catch (e) {}
+            done(cv);
+          };
+          img.onerror = function() { done(null); };
+          img.src = URL.createObjectURL(blob);
+        }).catch(function() { done(null); });
+      } catch (e) { done(null); }
+    };
+  } else {
+    grabOne = function(done) {
+      try {
+        var cv = document.createElement('canvas');
+        cv.width = v.videoWidth; cv.height = v.videoHeight;
+        cv.getContext('2d', { willReadFrequently: true }).drawImage(v, 0, 0);
+        done(cv);
+      } catch (e) { done(null); }
+    };
+  }
+  (function next(k) {
+    grabOne(function(cv) {
+      if (cv) results.push({ cv: cv, score: _hwSharpness(cv) });
+      if (k + 1 < N) setTimeout(function() { next(k + 1); }, canIC ? 450 : 350);
+      else {
+        results.sort(function(a, b) { return b.score - a.score; });
+        cb(results.length ? results[0] : null);
+      }
+    });
+  })(0);
 }
 
 function _hwDefaultCorners(cv) {
@@ -10035,6 +10181,9 @@ function _hwBackToCapture() {
     });
   })(m.querySelector('#hwCamShutter'));
   _hwCamShowCap(true);
+  _hwCam.busy = false;
+  var chip0 = m.querySelector('#hwCamChip');
+  if (chip0) { chip0.className = 'hw-cam-chip'; chip0.textContent = '稳定中…'; }
   if (_hwCam.video && _hwCam.stream) { _hwCam.video.play().catch(function(){}); }
 }
 
