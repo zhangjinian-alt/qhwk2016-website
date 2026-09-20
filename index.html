@@ -2963,7 +2963,7 @@ function renderPageContent(page) {
       renderEnrichment();
       break;
     case 'parent': renderParent(); renderHwUpload(); renderMaterials(); break;
-    case 'feedback': renderFeedback(); renderReviewRecommendations(); renderHwGrading(); break;
+    case 'feedback': renderFeedback(); renderReviewRecommendations(); renderHwGrading(); renderAiLectures(getCurrentRole()); break;
     case 'evaluate': renderEvaluate(); updateClassEvalVisibility(); break;
     case 'about': pushAboutToCloudIfTeacher(); renderAbout(); loadPublicAbout(); break;
   }
