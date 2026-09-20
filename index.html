@@ -871,6 +871,21 @@ body::before {
 .hw-cam-btn:disabled { opacity:.5; cursor:default; }
 .hw-crop-handle { position:absolute; width:32px; height:32px; margin:-16px 0 0 -16px; border-radius:50%; background:rgba(74,144,217,.9); border:3px solid #fff; box-shadow:0 1px 8px rgba(0,0,0,.55); touch-action:none; cursor:grab; z-index:6; }
 .hw-crop-handle:active { cursor:grabbing; }
+/* 2026-09-20 年哥需求（对标扫描全能王）：快门绿色圆弧反馈 + 点按对焦框动画 */
+.hw-cam-bar { flex-wrap:wrap; row-gap:8px; }
+.hw-cam-shutter.shot { animation: hwShotRing .75s ease-out; }
+@keyframes hwShotRing {
+  0% { box-shadow:0 0 0 0 rgba(76,217,100,.9); border-color:#4CD964; }
+  60% { border-color:#4CD964; }
+  100% { box-shadow:0 0 0 36px rgba(76,217,100,0); border-color:rgba(255,255,255,.35); }
+}
+.hw-focus-box { position:absolute; width:76px; height:76px; margin:-38px 0 0 -38px; border:2.5px solid #4CD964; border-radius:8px; pointer-events:none; z-index:7; animation:hwFocusIn .95s ease-out forwards; }
+@keyframes hwFocusIn {
+  0% { transform:scale(1.6); opacity:0; }
+  22% { transform:scale(1); opacity:1; }
+  70% { opacity:1; }
+  100% { opacity:0; }
+}
 </style>
 </head>
 <body>
@@ -9358,7 +9373,7 @@ function openHwCamera() {
   m.innerHTML =
     '<div class="hw-cam-view">' +
       '<div id="hwCamCap" style="position:absolute;inset:0;display:none;">' +
-        '<div class="hw-cam-tip">对准作业纸，让纸填满虚线框 · 光线不足也能自动增亮</div>' +
+        '<div class="hw-cam-tip">对准作业纸填满虚线框 · 点一下画面可对焦 · 光线不足也能自动增亮</div>' +
         '<div class="hw-cam-guide"></div>' +
       '</div>' +
       '<div id="hwCamCrop" style="position:absolute;inset:0;display:none;"></div>' +
@@ -9376,6 +9391,7 @@ function openHwCamera() {
   _hwCam.video = video;
   m.querySelector('#hwCamCancel').onclick = closeHwCamera;
   m.querySelector('#hwCamShutter').onclick = _hwCamCapture;
+  video.addEventListener('click', _hwCamFocusAt);  // 点按对焦（扫描全能王同款绿框反馈）
   navigator.mediaDevices.getUserMedia({
     video: { facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 } },
     audio: false
@@ -9406,17 +9422,105 @@ function closeHwCamera() {
   _hwCam.added = 0;
 }
 
+// 快门音（WebAudio 合成"咔嚓"，无需音频文件；按下即是用户手势，AudioContext 可直接启动）
+function _hwPlayShutter() {
+  try {
+    var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    _hwPlayShutter.ctx = _hwPlayShutter.ctx || new AC();
+    var ac = _hwPlayShutter.ctx;
+    if (ac.state === 'suspended') ac.resume();
+    [0, 0.085].forEach(function(t0, i) {
+      var len = Math.floor(ac.sampleRate * 0.05);
+      var buf = ac.createBuffer(1, len, ac.sampleRate);
+      var ch = buf.getChannelData(0);
+      for (var j = 0; j < len; j++) ch[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / len, 3);
+      var src = ac.createBufferSource(); src.buffer = buf;
+      var f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 1600;
+      var g = ac.createGain(); g.gain.value = i ? 0.45 : 0.75;
+      src.connect(f); f.connect(g); g.connect(ac.destination);
+      src.start(ac.currentTime + t0);
+    });
+  } catch (e) {}
+}
+
+// 快门绿色圆弧反馈：拍过一眼就能看出"这张已经拍了"
+function _hwShutterFlash() {
+  var sb = document.getElementById('hwCamShutter');
+  if (!sb) return;
+  sb.classList.remove('shot'); void sb.offsetWidth; sb.classList.add('shot');
+}
+
+// 点按对焦：绿框动画（所有机型都有视觉反馈）+ 尽力请求相机真对焦（安卓部分机型生效）
+function _hwCamFocusAt(e) {
+  var v = _hwCam.video; if (!v || !v.videoWidth) return;
+  var r = v.getBoundingClientRect();
+  var vw = v.videoWidth, vh = v.videoHeight;
+  var s = Math.min(r.width / vw, r.height / vh);
+  var ox = (r.width - vw * s) / 2, oy = (r.height - vh * s) / 2;
+  var nx = Math.min(Math.max((e.clientX - r.left - ox) / (vw * s), 0), 1);
+  var ny = Math.min(Math.max((e.clientY - r.top - oy) / (vh * s), 0), 1);
+  var fb = document.createElement('div');
+  fb.className = 'hw-focus-box';
+  fb.style.left = (e.clientX - r.left) + 'px';
+  fb.style.top = (e.clientY - r.top) + 'px';
+  v.parentElement.appendChild(fb);
+  setTimeout(function() { fb.remove(); }, 980);
+  try {
+    var track = _hwCam.stream && _hwCam.stream.getVideoTracks()[0];
+    if (track) {
+      var caps = track.getCapabilities ? track.getCapabilities() : {};
+      var adv = [];
+      if (caps.focusMode && caps.focusMode.indexOf('single-shot') >= 0) adv.push({ focusMode: 'single-shot' });
+      if (caps.pointsOfInterest) adv.push({ pointsOfInterest: { x: nx, y: ny } });
+      if (adv.length) track.applyConstraints({ advanced: adv }).catch(function() {});
+    }
+  } catch (er) {}
+}
+
+// 角点吸附：在角点附近小窗口内找灰度梯度最强点，让蓝点自动贴住纸边（对标扫描全能王顶点对齐）
+function _hwSnapCorner(cv, pt) {
+  try {
+    var R = Math.max(12, Math.round(Math.min(cv.width, cv.height) * 0.035));
+    var x0 = Math.max(0, Math.round(pt[0]) - R), y0 = Math.max(0, Math.round(pt[1]) - R);
+    var w = Math.min(cv.width - 1, Math.round(pt[0]) + R) - x0;
+    var h = Math.min(cv.height - 1, Math.round(pt[1]) + R) - y0;
+    if (w < 8 || h < 8) return pt;
+    var d = cv.getContext('2d', { willReadFrequently: true }).getImageData(x0, y0, w, h).data;
+    var best = -1, bx = pt[0], by = pt[1];
+    for (var y = 1; y < h - 1; y++) {
+      for (var x = 1; x < w - 1; x++) {
+        var i = (y * w + x) * 4;
+        var g = d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11;
+        var gx = (d[i + 4] * 0.3 + d[i + 5] * 0.59 + d[i + 6] * 0.11) - g;
+        var gy = (d[i + w * 4] * 0.3 + d[i + w * 4 + 1] * 0.59 + d[i + w * 4 + 2] * 0.11) - g;
+        var mag = gx * gx + gy * gy;
+        if (mag > best) { best = mag; bx = x0 + x; by = y0 + y; }
+      }
+    }
+    // 梯度不够强（纯色桌面/纸面空白处）就不吸附，避免蓝点乱跳
+    return best > 600 ? [bx, by] : pt;
+  } catch (e) { return pt; }
+}
+
+function _hwSnapAllCorners() {
+  var f = _hwCam.frameCv; if (!f) return;
+  _hwCam.corners = _hwCam.corners.map(function(c) { return _hwSnapCorner(f, c); });
+}
+
 function _hwCamCapture() {
   var v = _hwCam.video;
   if (!v || !v.videoWidth) { showToast('摄像头还没准备好，再按一次', 'error'); return; }
+  _hwPlayShutter();   // 咔嚓声：明确"拍了"
+  _hwShutterFlash();  // 绿色圆弧：明确"拍了"
   var cv = document.createElement('canvas');
   cv.width = v.videoWidth; cv.height = v.videoHeight;
   cv.getContext('2d', { willReadFrequently: true }).drawImage(v, 0, 0);
   _hwCam.frameCv = cv;
   var det = _hwDetectPaper(cv);
   _hwCam.corners = det || _hwDefaultCorners(cv);
-  _hwShowCrop(det ? '已自动框出纸张边缘，拖动 4 个蓝点微调（贴着纸边最准）'
-                  : '没认出纸张边缘，请把 4 个蓝点拖到纸的四个角');
+  if (det) _hwSnapAllCorners();  // 自动框出的角点再向真实纸边吸附一次
+  _hwShowCrop(det ? '已自动框出纸张边缘并贴齐纸角，可拖动 4 个蓝点微调'
+                  : '没认出纸张边缘，请把 4 个蓝点拖到纸的四个角（松手会自动贴住纸边）');
 }
 
 function _hwDefaultCorners(cv) {
@@ -9514,14 +9618,19 @@ function _hwShowCrop(tipText) {
   m.querySelector('.hw-cam-bar').innerHTML =
     '<button type="button" class="hw-cam-btn" id="hwCamRetake">↺ 重拍</button>' +
     '<button type="button" class="hw-cam-btn" id="hwCamRot">⟳ 转 90°</button>' +
+    '<button type="button" class="hw-cam-btn" id="hwCamRedetect">🎯 重新识别</button>' +
+    '<button type="button" class="hw-cam-btn" id="hwCamPreview">👁 看效果</button>' +
     '<button type="button" class="hw-cam-btn" id="hwCamOk" style="background:#4A90D9;">✓ 用这张</button>';
   m.querySelector('#hwCamRetake').onclick = _hwBackToCapture;
   m.querySelector('#hwCamRot').onclick = _hwCamRotate;
+  m.querySelector('#hwCamRedetect').onclick = _hwCamRedetect;
+  m.querySelector('#hwCamPreview').onclick = _hwCamPreviewFixed;
   m.querySelector('#hwCamOk').onclick = _hwCamConfirm;
 }
 
 function _hwLayoutHandles() {
   var m = _hwCam.modal, f = _hwCam.frameCv; if (!m || !f) return;
+  var pv = document.getElementById('hwPvCanvas'); if (pv) pv.remove();  // 调整角点即撤下矫正预览
   var handles = m.querySelectorAll('.hw-crop-handle');
   for (var i = 0; i < handles.length; i++) {
     var c = _hwCam.corners[i];
@@ -9559,11 +9668,67 @@ function _hwBindHandleDrag(imgCv) {
         _hwCam.corners[_hwCam.dragIdx] = [nx * _hwCam.frameCv.width, ny * _hwCam.frameCv.height];
         _hwLayoutHandles();
       });
-      var end = function() { _hwCam.dragIdx = -1; };
+      var end = function() {
+        if (_hwCam.dragIdx >= 0 && _hwCam.frameCv) {
+          // 松手自动贴纸边：在落点附近找最强边缘吸附（扫描全能王顶点对齐同款体验）
+          _hwCam.corners[_hwCam.dragIdx] = _hwSnapCorner(_hwCam.frameCv, _hwCam.corners[_hwCam.dragIdx]);
+          _hwLayoutHandles();
+        }
+        _hwCam.dragIdx = -1;
+      };
       h.addEventListener('pointerup', end);
       h.addEventListener('pointercancel', end);
     })(handles[i]);
   }
+}
+
+// 🎯 重新识别：自动框纸没认准时可再跑一次检测 + 角点吸附
+function _hwCamRedetect() {
+  var f = _hwCam.frameCv; if (!f) return;
+  var det = _hwDetectPaper(f);
+  if (det) {
+    _hwCam.corners = det;
+    _hwSnapAllCorners();
+    _hwLayoutHandles();
+    var tip = _hwCam.modal && _hwCam.modal.querySelector('.hw-cam-tip');
+    if (tip) tip.textContent = '已重新识别并贴齐纸角，可拖动 4 个蓝点微调';
+  } else {
+    showToast('还是没认出来，请手动把 4 个蓝点拖到纸的四个角', 'error');
+  }
+}
+
+// 👁 矫正预览：先看"拉平+增亮"后的成品效果，满意再点用这张（点绿框图可撤下继续调）
+function _hwCamPreviewFixed() {
+  var m = _hwCam.modal; if (!m) return;
+  var btn = document.getElementById('hwCamPreview');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 处理中'; }
+  setTimeout(function() {
+    try {
+      var out = _hwWarpCrop();
+      _hwAutoContrastCanvas(out);
+      var box = m.querySelector('#hwCropBox'); if (!box) return;
+      var old = document.getElementById('hwPvCanvas'); if (old) old.remove();
+      var maxW = Math.min(window.innerWidth * 0.94, 900);
+      var maxH = window.innerHeight - 260;
+      var sc = Math.min(maxW / out.width, maxH / out.height, 1);
+      var pv = document.createElement('canvas');
+      pv.width = Math.max(1, Math.round(out.width * sc));
+      pv.height = Math.max(1, Math.round(out.height * sc));
+      pv.getContext('2d').drawImage(out, 0, 0, pv.width, pv.height);
+      pv.id = 'hwPvCanvas';
+      pv.style.cssText = 'position:absolute;left:0;top:0;border:3px solid #4CD964;border-radius:6px;background:#fff;cursor:pointer;z-index:8;';
+      pv.title = '点一下返回继续调整';
+      pv.addEventListener('click', function() { pv.remove(); });
+      box.appendChild(pv);
+      if (btn) { btn.disabled = false; btn.textContent = '👁 看效果'; }
+      var tip = m.querySelector('.hw-cam-tip');
+      if (tip) tip.textContent = '绿框内是矫正+增亮后的成品效果 · 点图返回继续调整';
+    } catch (err) {
+      console.warn('[智能拍照] 预览失败', err);
+      if (btn) { btn.disabled = false; btn.textContent = '👁 看效果'; }
+      showToast('预览失败：' + (err.message || err), 'error');
+    }
+  }, 30);
 }
 
 function _hwBackToCapture() {
