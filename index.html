@@ -875,18 +875,18 @@ body::before {
 .hw-crop-edge:active { background:#4CD964; border-color:#fff; }
 /* 2026-09-20 年哥需求（对标扫描全能王）：快门绿色圆弧反馈 + 点按对焦框动画 */
 .hw-cam-bar { flex-wrap:wrap; row-gap:8px; }
-.hw-cam-shutter.shot { animation: hwShotRing .75s ease-out; }
+.hw-cam-shutter:active, .hw-cam-shutter.pressed { transform:scale(.9); filter:brightness(.8); }  /* 按下按压态 */
+.hw-cam-shutter.shot { border-color:#4CD964; box-shadow:0 0 0 3px rgba(76,217,100,.5), 0 0 0 10px rgba(76,217,100,.18); animation:hwShotRing .9s ease-out; }  /* 拍后绿圈常驻 */
 @keyframes hwShotRing {
-  0% { box-shadow:0 0 0 0 rgba(76,217,100,.9); border-color:#4CD964; }
-  60% { border-color:#4CD964; }
-  100% { box-shadow:0 0 0 36px rgba(76,217,100,0); border-color:rgba(255,255,255,.35); }
+  0% { box-shadow:0 0 0 0 rgba(76,217,100,.9); }
+  100% { box-shadow:0 0 0 30px rgba(76,217,100,0), 0 0 0 3px rgba(76,217,100,.5), 0 0 0 10px rgba(76,217,100,.18); }
 }
-.hw-focus-box { position:absolute; width:76px; height:76px; margin:-38px 0 0 -38px; border:2.5px solid #4CD964; border-radius:8px; pointer-events:none; z-index:7; animation:hwFocusIn .95s ease-out forwards; }
+.hw-focus-box { position:absolute; width:76px; height:76px; margin:-38px 0 0 -38px; border:2.5px solid #4CD964; border-radius:8px; pointer-events:none; z-index:7; animation:hwFocusIn 2.4s ease-out forwards; }
 @keyframes hwFocusIn {
   0% { transform:scale(1.6); opacity:0; }
-  22% { transform:scale(1); opacity:1; }
-  70% { opacity:1; }
-  100% { opacity:0; }
+  8% { transform:scale(1); opacity:1; }
+  82% { transform:scale(1); opacity:1; }
+  100% { transform:scale(1); opacity:0; }
 }
 </style>
 </head>
@@ -9441,6 +9441,12 @@ function openHwCamera() {
   _hwCam.video = video;
   m.querySelector('#hwCamCancel').onclick = closeHwCamera;
   m.querySelector('#hwCamShutter').onclick = _hwCamCapture;
+  (function(sb) {
+    sb.addEventListener('pointerdown', function() { sb.classList.add('pressed'); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function(ev) {
+      sb.addEventListener(ev, function() { sb.classList.remove('pressed'); });
+    });
+  })(m.querySelector('#hwCamShutter'));
   video.addEventListener('click', _hwCamFocusAt);  // 点按对焦（扫描全能王同款绿框反馈）
   // 2026-09-20 修复：ideal 只是建议，多摄手机上浏览器可能挑到广角/前摄（看起来像"视频摄像机"）。
   // 先 exact 强制后置主摄 → 失败降回 ideal → 再降任意摄像头 → 全失败走系统相机。
@@ -9523,7 +9529,7 @@ function _hwCamFocusAt(e) {
   fb.style.left = (e.clientX - r.left) + 'px';
   fb.style.top = (e.clientY - r.top) + 'px';
   v.parentElement.appendChild(fb);
-  setTimeout(function() { fb.remove(); }, 980);
+  setTimeout(function() { fb.remove(); }, 2500);
   try {
     var track = _hwCam.stream && _hwCam.stream.getVideoTracks()[0];
     if (track) {
@@ -10022,6 +10028,12 @@ function _hwBackToCapture() {
     '<span style="width:84px;display:inline-block;"></span>';
   m.querySelector('#hwCamCancel').onclick = closeHwCamera;
   m.querySelector('#hwCamShutter').onclick = _hwCamCapture;
+  (function(sb) {
+    sb.addEventListener('pointerdown', function() { sb.classList.add('pressed'); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function(ev) {
+      sb.addEventListener(ev, function() { sb.classList.remove('pressed'); });
+    });
+  })(m.querySelector('#hwCamShutter'));
   _hwCamShowCap(true);
   if (_hwCam.video && _hwCam.stream) { _hwCam.video.play().catch(function(){}); }
 }
