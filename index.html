@@ -5601,16 +5601,31 @@ async function renderStudentEval() {
   // 后端在当周无老师评分时会回退到最近一周有评分的数据（如第2周），
   // 若标签取当前教学周就会出现「数据是第2周、标题显示第3周」的错位（2026-09-18 修复）
   var evalWeek = parseInt(evalData.week) || getTeachWeek();
-  html += '<h3 style="margin-bottom:16px;">📋 ' + (evalWeek === getTeachWeek() ? '本周表现小结' : '第 ' + evalWeek + ' 周表现小结') + '</h3>';
+  html += '<h3 style="margin-bottom:16px;">📋 ' + (evalWeek === getTeachWeek() ? '本周综合素养表现' : '第 ' + evalWeek + ' 周综合素养表现') + '</h3>';
   html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">2026秋季学期 · 第 ' + evalWeek + ' 周 · 403班</p>';
-  html += '<div style="font-size:14px;color:var(--text-secondary);line-height:2.2;">';
-  html += '<p>🎯 五维总分：<b style="color:var(--primary);font-size:18px;">' + parseFloat(evalData.total).toFixed(1) + '</b> 分</p>';
-  html += '<p>❤️ 学习兴趣：' + evalData.interest + ' 分 <span style="color:var(--text-muted);font-size:12px;">（学完：同步课堂或培优微课）</span></p>';
-  html += '<p>✅ 学习效果：' + evalData.effect + ' 分 <span style="color:var(--text-muted);font-size:12px;">（8分x正确率+订正2分）</span></p>';
-  html += '<p>🧠 思维品质：' + evalData.think + ' 分 <span style="color:var(--text-muted);font-size:12px;">（回答/质疑/补充+素养题得分）</span></p>';
-  html += '<p>🤝 行为表现：' + evalData.coop + ' 分 <span style="color:var(--text-muted);font-size:12px;">（合作+互助+纪律）</span></p>';
-  html += '<p>📖 学习习惯：' + evalData.habit + ' 分 <span style="color:var(--text-muted);font-size:12px;">（笔记+书写+作业+草稿）</span></p>';
-  html += '</div></div></div>';
+  html += '<p style="margin-bottom:16px;">🎯 五维总分：<b style="color:var(--primary);font-size:18px;">' + parseFloat(evalData.total).toFixed(1) + '</b> 分</p>';
+  // 五维条形图（2026-09-20：文字列表改为条形图呈现，备注为各维计分口径）
+  var _dims = [
+    {icon:'❤️', name:'学习兴趣', key:'interest', color:'#EF4444', note:'视频学习：同步课堂|培优微课'},
+    {icon:'✅', name:'学习效果', key:'effect',   color:'#52C41A', note:'周末作业：8分x正确率+订正2分'},
+    {icon:'🧠', name:'思维品质', key:'think',    color:'#F472B6', note:'回答|质疑|补充+素养题得分'},
+    {icon:'🤝', name:'行为表现', key:'coop',     color:'#F59E0B', note:'小组合作+互帮互助+课堂纪律'},
+    {icon:'📖', name:'学习习惯', key:'habit',    color:'#4A90D9', note:'笔记+书写分+校内作业+草稿'}
+  ];
+  _dims.forEach(function(d) {
+    var v = Math.max(0, Math.min(10, Number(evalData[d.key]) || 0));
+    var pct = (v / 10 * 100).toFixed(1);
+    html += '<div style="margin-bottom:14px;">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px;">';
+    html += '<span style="font-size:14px;color:var(--text-secondary);">' + d.icon + ' ' + d.name +
+            ' <span style="color:var(--text-muted);font-size:12px;">（' + d.note + '）</span></span>';
+    html += '<b style="font-size:14px;color:' + d.color + ';white-space:nowrap;">' + v + ' 分</b>';
+    html += '</div>';
+    html += '<div style="height:10px;background:#EEF2F7;border-radius:5px;overflow:hidden;">';
+    html += '<div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,' + d.color + '99,' + d.color + ');border-radius:5px;"></div>';
+    html += '</div></div>';
+  });
+  html += '</div></div>';
 
   // 本周学习任务（按分层推送的视频）
   html += '<div style="margin-top:24px;"><h3 style="margin-bottom:16px;">📚 本周学习任务</h3>';
