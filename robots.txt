@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /videos/
+Disallow: /homework/
+
+Sitemap: https://qhwk2016.com/sitemap.xml
