@@ -1200,6 +1200,12 @@ body::before {
   </div>
 </div>
 
+<!-- 个人评价（底部 - 需登录） -->
+<div class="container section" id="personalEvalSection">
+  <h2 class="section-title" id="personalEvalTitle"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f464" xlink:href="#tw-1f464"/></svg> <span id="personalEvalTitleText">个人综合素养五维评价</span></h2>
+  <div id="personalEvalContent"></div>
+</div>
+
 <!-- 积分商城（2026-09-16 新增）：学生用五维积分兑换奖品，教师上架/审核 -->
 <div class="container section" id="mallSection">
   <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
@@ -1249,12 +1255,6 @@ body::before {
     <!-- 换图标弹层容器（2026-09-16） -->
     <div id="mallIconPicker" style="display:none;"></div>
   </div>
-</div>
-
-<!-- 个人评价（底部 - 需登录） -->
-<div class="container section" id="personalEvalSection">
-  <h2 class="section-title" id="personalEvalTitle"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f464" xlink:href="#tw-1f464"/></svg> <span id="personalEvalTitleText">个人综合素养五维评价</span></h2>
-  <div id="personalEvalContent"></div>
 </div>
 </section>
 
@@ -9445,7 +9445,7 @@ function openHwCamera() {
   m.innerHTML =
     '<div class="hw-cam-view">' +
       '<div id="hwCamCap" style="position:absolute;inset:0;display:none;">' +
-        '<div class="hw-cam-tip">对准作业纸填满虚线框 · 点一下画面可对焦 · 光线不足也能自动增亮 <span style="opacity:.55;">v0921k</span></div>' +
+        '<div class="hw-cam-tip">对准作业纸填满虚线框 · 点一下画面可对焦 · 光线不足也能自动增亮 <span style="opacity:.55;">v0921l</span></div>' +
         '<div class="hw-cam-chip" id="hwCamChip">稳定中…</div>' +
         '<button type="button" class="hw-cam-torch" id="hwCamTorch" title="补光灯" style="display:none;">💡</button>' +
         '<div class="hw-cam-guide"></div>' +
@@ -9570,7 +9570,7 @@ function _hwSysShowIdle() {
   var pv = document.getElementById('hwPvCanvas'); if (pv) pv.remove();
   var cap = m.querySelector('#hwCamCap');
   cap.innerHTML =
-    '<div class="hw-cam-tip">点拍照调起系统相机 · 拍完自动裁边增亮 <span style="opacity:.6;">v0921k</span></div>' +
+    '<div class="hw-cam-tip">点拍照调起系统相机 · 拍完自动裁边增亮 <span style="opacity:.6;">v0921l</span></div>' +
     '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;">' +
       '<button type="button" id="hwSysShootBig" title="拍照" style="width:110px;height:110px;border-radius:50%;border:4px solid rgba(255,255,255,.9);background:rgba(255,255,255,.16);color:#fff;font-size:44px;line-height:1;cursor:pointer;flex:none;">📷</button>' +
       '<div style="color:rgba(255,255,255,.85);font-size:14px;">点一下拍照</div>' +
