@@ -862,17 +862,23 @@ body::before {
 #hwCamModal { position:fixed; inset:0; z-index:9999; background:#0d0f12; display:flex; flex-direction:column; }
 .hw-cam-view { flex:1; position:relative; overflow:hidden; }
 .hw-cam-view video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; }
-.hw-cam-guide { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:88%; max-width:520px; aspect-ratio:3/4; border:2px dashed rgba(255,255,255,.8); border-radius:14px; pointer-events:none; box-shadow:0 0 0 200vmax rgba(0,0,0,.38); }
+.hw-cam-guide { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:88%; max-width:520px; aspect-ratio:1/1.414; border:2px dashed rgba(255,255,255,.8); border-radius:14px; pointer-events:none; box-shadow:0 0 0 200vmax rgba(0,0,0,.38); }
 .hw-cam-tip { color:#fff; font-size:12px; line-height:1.5; text-align:center; padding:7px 14px; background:rgba(0,0,0,.6); border-radius:18px; position:absolute; top:calc(10px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%); max-width:92%; z-index:5; }
 .hw-cam-bar { display:flex; gap:14px; align-items:center; justify-content:center; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); background:#000; }
 .hw-cam-shutter { width:64px; height:64px; border-radius:50%; background:#fff; border:5px solid rgba(255,255,255,.35); cursor:pointer; transition:transform .08s; }
 .hw-cam-shutter:active { transform:scale(.9); }
 .hw-cam-btn { background:rgba(255,255,255,.15); color:#fff; border:none; border-radius:22px; padding:11px 18px; font-size:14px; cursor:pointer; }
 .hw-cam-btn:disabled { opacity:.5; cursor:default; }
-.hw-crop-handle { position:absolute; width:32px; height:32px; margin:-16px 0 0 -16px; border-radius:50%; background:rgba(74,144,217,.9); border:3px solid #fff; box-shadow:0 1px 8px rgba(0,0,0,.55); touch-action:none; cursor:grab; z-index:6; }
-.hw-crop-handle:active { cursor:grabbing; }
-.hw-crop-edge { position:absolute; width:38px; height:18px; margin:-9px 0 0 -19px; border-radius:9px; background:rgba(74,144,217,.85); border:2.5px solid #fff; box-shadow:0 1px 6px rgba(0,0,0,.5); touch-action:none; cursor:move; z-index:6; }
-.hw-crop-edge:active { background:#4CD964; border-color:#fff; }
+/* 2026-09-21j：手指友好化——命中区 44px（Apple 建议值），视觉圆点用 ::after 画，小于命中区 */
+.hw-crop-handle { position:absolute; width:44px; height:44px; margin:-22px 0 0 -22px; border-radius:50%; background:transparent; border:0; touch-action:none; -webkit-user-select:none; -webkit-touch-callout:none; cursor:grab; z-index:7; display:flex; align-items:center; justify-content:center; }
+.hw-crop-handle::after { content:''; display:block; width:18px; height:18px; border-radius:50%; background:rgba(74,144,217,.95); border:3px solid #fff; box-shadow:0 1px 8px rgba(0,0,0,.55); transition:transform .08s; }
+.hw-crop-handle.dragging::after { background:#4CD964; transform:scale(1.25); }
+.hw-crop-edge { position:absolute; width:64px; height:34px; margin:-17px 0 0 -32px; border-radius:17px; background:transparent; border:0; touch-action:none; cursor:move; z-index:6; display:flex; align-items:center; justify-content:center; }
+.hw-crop-edge::after { content:''; display:block; width:36px; height:13px; border-radius:7px; background:rgba(74,144,217,.85); border:2.5px solid #fff; box-shadow:0 1px 6px rgba(0,0,0,.5); }
+.hw-crop-edge:active::after, .hw-crop-edge.dragging::after { background:#4CD964; }
+/* 拖动放大镜（扫描全能王同款）：手指挡住角点时也能看清对到哪，解决"拖不准" */
+.hw-crop-loupe { position:absolute; width:118px; height:118px; border-radius:50%; border:3px solid #4A90D9; box-shadow:0 4px 18px rgba(0,0,0,.5); background:#fff; z-index:12; pointer-events:none; display:none; overflow:hidden; }
+.hw-crop-loupe canvas { display:block; width:100%; height:100%; }
 /* 2026-09-20 年哥需求（对标扫描全能王）：快门绿色圆弧反馈 + 点按对焦框动画 */
 .hw-cam-bar { flex-wrap:wrap; row-gap:8px; }
 .hw-cam-shutter:active, .hw-cam-shutter.pressed { transform:scale(.9); filter:brightness(.8); }  /* 按下按压态 */
@@ -5681,11 +5687,11 @@ async function renderStudentEval() {
   html += '<p style="margin-bottom:16px;">🎯 五维总分：<b style="color:var(--primary);font-size:18px;">' + parseFloat(evalData.total).toFixed(1) + '</b> 分</p>';
   // 五维条形图（2026-09-20：文字列表改为条形图呈现，备注为各维计分口径）
   var _dims = [
-    {icon:'❤️', name:'学习兴趣', key:'interest', color:'#EF4444', note:'视频学习：同步课堂|培优微课'},
-    {icon:'✅', name:'学习效果', key:'effect',   color:'#52C41A', note:'周末作业：8分x正确率+订正2分'},
-    {icon:'🧠', name:'思维品质', key:'think',    color:'#F472B6', note:'回答|质疑|补充+素养题得分'},
+    {icon:'❤️', name:'学习兴趣', key:'interest', color:'#A855F7', note:'视频学习：同步课堂|培优微课'},
+    {icon:'✅', name:'学习效果', key:'effect',   color:'#06B6D4', note:'周末作业：8分x正确率+订正2分'},
+    {icon:'🧠', name:'思维品质', key:'think',    color:'#2563EB', note:'回答|质疑|补充+素养题得分'},
     {icon:'🤝', name:'行为表现', key:'coop',     color:'#F59E0B', note:'小组合作+互帮互助+课堂纪律'},
-    {icon:'📖', name:'学习习惯', key:'habit',    color:'#4A90D9', note:'笔记+书写分+校内作业+草稿'}
+    {icon:'📖', name:'学习习惯', key:'habit',    color:'#10B981', note:'笔记+书写分+校内作业+草稿'}
   ];
   _dims.forEach(function(d) {
     var v = Math.max(0, Math.min(10, Number(evalData[d.key]) || 0));
@@ -5696,8 +5702,8 @@ async function renderStudentEval() {
             ' <span style="color:var(--text-muted);font-size:12px;">（' + d.note + '）</span></span>';
     html += '<b style="font-size:14px;color:' + d.color + ';white-space:nowrap;">' + v + ' 分</b>';
     html += '</div>';
-    html += '<div style="height:10px;background:#EEF2F7;border-radius:5px;overflow:hidden;">';
-    html += '<div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,' + d.color + '99,' + d.color + ');border-radius:5px;"></div>';
+    html += '<div style="height:14px;background:#EEF2F7;border-radius:7px;overflow:hidden;">';
+    html += '<div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,' + d.color + '99,' + d.color + ');border-radius:7px;"></div>';
     html += '</div></div>';
   });
   html += '</div></div>';
@@ -9413,7 +9419,7 @@ function _hwRotateFileUpright(file, deg) {
 // ===== 智能拍作业（2026-09-19）：自动取纸裁边 + 方向转正 + 对比度拉伸 =====
 // 年哥需求：拍照只取作业纸张（纸外桌面裁掉）、横拍/倒拍不再歪读、偏暗偏灰铅笔字先增亮。
 // 拍完走既有 addHwFiles 流程（预览/同面检测/复核提交全不变）。检测/校正全在前端 canvas 完成。
-var _hwCam = { stream:null, video:null, modal:null, frameCv:null, corners:[], dragIdx:-1, dragEdge:null, grad:null, added:0, watchTimer:null, busy:false, torchOn:false };
+var _hwCam = { stream:null, video:null, modal:null, frameCv:null, corners:[], dragIdx:-1, dragEdge:null, grad:null, added:0, watchTimer:null, busy:false, torchOn:false, sysMode:false };
 
 function _hwCamFallback() {
   // 无摄像头权限/不支持的浏览器（部分桌面、旧机型）：降级调系统相机拍摄
@@ -9428,12 +9434,18 @@ function openHwCamera() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.isSecureContext) {
     _hwCamFallback(); return;
   }
+  // 2026-09-21b 关键修复：不只看 ImageCapture 是否存在——iOS 17 的 Safari 也有 ImageCapture，
+  // 但它的 takePhoto 实测拿到的仍是视频流级别帧（糊）。iPhone/iPad 一律强制走系统相机全分辨率，
+  // 只有安卓等非 iOS 设备才走实时取景 + takePhoto 连拍。
+  var _isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) ||
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);  // iPadOS 桌面 UA
+  if (_isIOS || !window.ImageCapture) { _hwOpenSystemCam(); return; }
   _hwCam.added = 0;
   var m = document.createElement('div'); m.id = 'hwCamModal';
   m.innerHTML =
     '<div class="hw-cam-view">' +
       '<div id="hwCamCap" style="position:absolute;inset:0;display:none;">' +
-        '<div class="hw-cam-tip">对准作业纸填满虚线框 · 点一下画面可对焦 · 光线不足也能自动增亮</div>' +
+        '<div class="hw-cam-tip">对准作业纸填满虚线框 · 点一下画面可对焦 · 光线不足也能自动增亮 <span style="opacity:.55;">v0921j</span></div>' +
         '<div class="hw-cam-chip" id="hwCamChip">稳定中…</div>' +
         '<button type="button" class="hw-cam-torch" id="hwCamTorch" title="补光灯" style="display:none;">💡</button>' +
         '<div class="hw-cam-guide"></div>' +
@@ -9468,12 +9480,14 @@ function openHwCamera() {
     });
   })(m.querySelector('#hwCamShutter'));
   video.addEventListener('click', _hwCamFocusAt);  // 点按对焦（扫描全能王同款绿框反馈）
-  // 2026-09-20 修复：ideal 只是建议，多摄手机上浏览器可能挑到广角/前摄（看起来像"视频摄像机"）。
+  // 2026-09-21 修复：ideal 只是建议，多摄手机上浏览器可能挑到广角/前摄（看起来像"视频摄像机"）。
   // 先 exact 强制后置主摄 → 失败降回 ideal → 再降任意摄像头 → 全失败走系统相机。
+  // 2026-09-21 分辨率提到 4096×3072：ideal 会被浏览器自动钳到支持的上限，
+  // 之前 2560×1920 在部分安卓上只拿到 1080p 档，takePhoto 拍不到主摄全分辨率。
   var _gmTry = function(c) { return navigator.mediaDevices.getUserMedia({ video: c, audio: false }); };
-  _gmTry({ facingMode: { exact: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 }, advanced: [{ focusMode: 'continuous' }] })
+  _gmTry({ facingMode: { exact: 'environment' }, width: { ideal: 4096 }, height: { ideal: 3072 }, advanced: [{ focusMode: 'continuous' }] })
     .catch(function() {
-      return _gmTry({ facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 } });
+      return _gmTry({ facingMode: { ideal: 'environment' }, width: { ideal: 4096 }, height: { ideal: 3072 } });
     })
     .catch(function() {
       return _gmTry(true);
@@ -9514,11 +9528,114 @@ function _hwCamShowCap(show) {
   m.querySelector('#hwCamCrop').style.display = show ? 'none' : '';
 }
 
+// ===== 系统相机模式（iPhone Safari 等无 ImageCapture 的浏览器）=====
+// 调起系统相机拍全分辨率照片（12MP，多帧合成），拍完进同一套裁边+增亮管线
+function _hwOpenSystemCam() {
+  _hwCam.added = 0;
+  _hwCam.sysMode = true;
+  var m = document.createElement('div'); m.id = 'hwCamModal';
+  m.innerHTML =
+    '<div class="hw-cam-view">' +
+      '<div id="hwCamCap" style="position:absolute;inset:0;display:none;">' +
+        '<div class="hw-cam-tip"></div>' +
+      '</div>' +
+      '<div id="hwCamCrop" style="position:absolute;inset:0;display:none;"></div>' +
+    '</div>' +
+    '<div class="hw-cam-bar">' +
+      '<button type="button" class="hw-cam-btn" id="hwCamCancel">取消</button>' +
+      '<button type="button" class="hw-cam-shutter" id="hwCamShutter" title="拍摄"></button>' +
+      '<span style="width:84px;display:inline-block;"></span>' +
+    '</div>';
+  document.body.appendChild(m);
+  _hwCam.modal = m;
+  m.querySelector('#hwCamCancel').onclick = closeHwCamera;
+  m.querySelector('#hwCamShutter').onclick = _hwSysShoot;
+  (function(sb) {
+    sb.addEventListener('pointerdown', function() { sb.classList.add('pressed'); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function(ev) {
+      sb.addEventListener(ev, function() { sb.classList.remove('pressed'); });
+    });
+  })(m.querySelector('#hwCamShutter'));
+  _hwSysShowIdle();
+  _hwSysShoot();  // 2026-09-21d：点「智能拍照」时用户手势链还在，直接调起系统相机，不先露黑屏
+}
+
+// 系统相机模式待拍状态：大拍照按钮 + 说明（取消系统相机后回到这里，可再拍）
+function _hwSysShowIdle() {
+  var m = _hwCam.modal; if (!m) return;
+  _hwCam.frameCv = null; _hwCam.dragIdx = -1;
+  _hwCamShowCap(true);
+  var crop = m.querySelector('#hwCamCrop');
+  if (crop) { crop.style.display = 'none'; crop.innerHTML = ''; }
+  var pv = document.getElementById('hwPvCanvas'); if (pv) pv.remove();
+  var cap = m.querySelector('#hwCamCap');
+  cap.innerHTML =
+    '<div class="hw-cam-tip">把作业纸对准下面虚线框，摆正再拍 <span style="opacity:.6;">v0921j</span></div>' +
+    '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:0 12px;">' +
+      '<button type="button" id="hwSysFrame" title="拍照" style="width:100%;max-width:440px;aspect-ratio:1/1.414;border:3px dashed rgba(255,255,255,.85);border-radius:14px;background:rgba(255,255,255,.06);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer;padding:10px;">' +
+        '<span style="font-size:38px;line-height:1;">📄</span>' +
+        '<span style="font-size:13px;line-height:1.7;text-align:left;color:rgba(255,255,255,.92);">' +
+          '1️⃣ 作业纸摆进虚线框，四边都露出一点<br>' +
+          '2️⃣ 手机端正对纸，别斜着拍<br>' +
+          '3️⃣ 纸放平、光线足，注意别挡阴影' +
+        '</span>' +
+      '</button>' +
+      '<button type="button" id="hwSysShootBig" title="拍照" style="width:80px;height:80px;border-radius:50%;border:4px solid rgba(255,255,255,.9);background:rgba(255,255,255,.16);color:#fff;font-size:30px;line-height:1;cursor:pointer;flex:none;">📷</button>' +
+      '<div style="color:rgba(255,255,255,.85);font-size:13px;">对准后点这里拍照</div>' +
+    '</div>';
+  var big = document.getElementById('hwSysShootBig');
+  if (big) big.onclick = _hwSysShoot;
+  var frm = document.getElementById('hwSysFrame');
+  if (frm) frm.onclick = _hwSysShoot;
+  m.querySelector('.hw-cam-bar').innerHTML =
+    '<button type="button" class="hw-cam-btn" id="hwCamCancel">取消</button>' +
+    '<button type="button" class="hw-cam-shutter" id="hwCamShutter" title="拍摄"></button>' +
+    '<span style="width:84px;display:inline-block;"></span>';
+  m.querySelector('#hwCamCancel').onclick = closeHwCamera;
+  m.querySelector('#hwCamShutter').onclick = _hwSysShoot;
+  (function(sb) {
+    sb.addEventListener('pointerdown', function() { sb.classList.add('pressed'); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function(ev) {
+      sb.addEventListener(ev, function() { sb.classList.remove('pressed'); });
+    });
+  })(m.querySelector('#hwCamShutter'));
+}
+
+function _hwSysShoot() {
+  var inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*'; inp.setAttribute('capture', 'environment');
+  inp.onchange = function() {
+    var f = inp.files && inp.files[0];
+    if (!f) return;  // 用户取消拍摄，停留在待拍界面
+    var chip = _hwCam.modal && _hwCam.modal.querySelector('.hw-cam-tip');
+    if (chip) chip.textContent = '⏳ 照片处理中…';
+    var img = new Image();
+    img.onload = function() {
+      var MAXP = 4096, w = img.width, h = img.height;
+      if (Math.max(w, h) > MAXP) { var s = MAXP / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+      var cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d', { willReadFrequently: true }).drawImage(img, 0, 0, w, h);
+      try { URL.revokeObjectURL(img.src); } catch (e) {}
+      _hwCamAfterShot(cv);  // 与连拍路径同一套：自动框纸 → 裁边 → 增亮
+    };
+    img.onerror = function() {
+      try { URL.revokeObjectURL(img.src); } catch (e) {}
+      showToast('照片读取失败，请重试', 'error');
+      _hwSysShowIdle();
+    };
+    img.src = URL.createObjectURL(f);
+  };
+  inp.click();
+}
+
+
 function closeHwCamera() {
   if (_hwCam.watchTimer) { clearInterval(_hwCam.watchTimer); _hwCam.watchTimer = null; }
   _hwCam.busy = false; _hwCam.torchOn = false;
   try { if (_hwCam.stream) _hwCam.stream.getTracks().forEach(function(t) { t.stop(); }); } catch (e) {}
   _hwCam.stream = null; _hwCam.video = null; _hwCam.frameCv = null; _hwCam.dragIdx = -1; _hwCam.dragEdge = null; _hwCam.grad = null;
+  _hwCam.sysMode = false;
   if (_hwCam.modal) { _hwCam.modal.remove(); _hwCam.modal = null; }
   if (_hwCam.added) showToast('📷 已拍 ' + _hwCam.added + ' 张并加入列表，可继续追加或提交', 'success');
   _hwCam.added = 0;
@@ -9582,7 +9699,9 @@ function _hwCamFocusAt(e) {
 // 角点吸附：在角点附近小窗口内找灰度梯度最强点，让蓝点自动贴住纸边（对标扫描全能王顶点对齐）
 function _hwSnapCorner(cv, pt) {
   try {
-    var R = Math.max(12, Math.round(Math.min(cv.width, cv.height) * 0.035));
+    // 2026-09-21j：吸附半径由 3.5% 收到 1.5%（上限 64px）。全分辨率照片上原半径达 140px，
+    // 松手会被"拽"到很远的强边缘上（手感=拖不准）；现在只在落点附近做微调。
+    var R = Math.max(8, Math.min(64, Math.round(Math.min(cv.width, cv.height) * 0.015)));
     var x0 = Math.max(0, Math.round(pt[0]) - R), y0 = Math.max(0, Math.round(pt[1]) - R);
     var w = Math.min(cv.width - 1, Math.round(pt[0]) + R) - x0;
     var h = Math.min(cv.height - 1, Math.round(pt[1]) + R) - y0;
@@ -9596,7 +9715,10 @@ function _hwSnapCorner(cv, pt) {
         var gx = (d[i + 4] * 0.3 + d[i + 5] * 0.59 + d[i + 6] * 0.11) - g;
         var gy = (d[i + w * 4] * 0.3 + d[i + w * 4 + 1] * 0.59 + d[i + w * 4 + 2] * 0.11) - g;
         var mag = gx * gx + gy * gy;
-        if (mag > best) { best = mag; bx = x0 + x; by = y0 + y; }
+        var ddx = x0 + x - pt[0], ddy = y0 + y - pt[1];
+        // 距离加权：同强度时优先离落点近的边缘，避免松手被远处的强边"抢走"
+        var score = mag / (1 + (ddx * ddx + ddy * ddy) / (R * R * 0.35));
+        if (score > best) { best = score; bx = x0 + x; by = y0 + y; }
       }
     }
     // 梯度不够强（纯色桌面/纸面空白处）就不吸附，避免蓝点乱跳
@@ -9767,8 +9889,16 @@ function _hwCamCapture() {
   _hwPlayShutter();   // 咔嚓声：明确"拍了"
   _hwShutterFlash();  // 绿色圆弧：明确"拍了"
   var chip = _hwCam.modal && _hwCam.modal.querySelector('#hwCamChip');
-  if (chip) { chip.className = 'hw-cam-chip'; chip.textContent = '📷 连拍 3 张择优中…'; }
-  // 防糊核心：连拍 3 张取最清晰一张（第一张后稍候，正好给自动对焦收敛时间）
+  if (chip) { chip.className = 'hw-cam-chip'; chip.textContent = '📷 连拍择优中…'; }
+  // 拍前触发单次对焦（支持的机型），给 400ms 收敛时间再连拍
+  try {
+    var trkF = _hwCam.stream && _hwCam.stream.getVideoTracks()[0];
+    var cpF = trkF && trkF.getCapabilities ? trkF.getCapabilities() : {};
+    if (cpF.focusMode && cpF.focusMode.indexOf('single-shot') >= 0) {
+      trkF.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] }).catch(function() {});
+    }
+  } catch (eF) {}
+  // 防糊核心：连拍多张取最清晰一张（第一张后稍候，正好给自动对焦收敛时间）
   _hwGrabBest(v, function(best) {
     _hwCam.busy = false;
     if (!best) { showToast('拍失败了，再试一次', 'error'); return; }
@@ -9788,7 +9918,7 @@ function _hwCamAfterShot(cv) {
   if (det && !_hwValidateQuad(cv, det)) det = null;  // 垃圾框（如把整张画面当纸）直接弃用
   _hwCam.corners = det || _hwDefaultCorners(cv);
   if (det) _hwSnapAllCorners();  // 自动框出的角点再向真实纸边吸附一次
-  _hwShowCrop(det ? '已自动框出纸张边缘并贴齐纸角 · 可拖 4 个圆点对准纸角，或拖 4 个长条对齐纸边'
+  _hwShowCrop(det ? '已自动框出纸边 · 拖 4 个圆点对准纸角（按住会放大显示对准点），或拖长条对齐纸边'
                   : '未自动识别纸边 · 请把 4 个圆点拖到纸的四个角（松手自动贴角）');
 }
 
@@ -9816,7 +9946,7 @@ function _hwGrabBest(v, cb) {
   var results = [];
   var track = _hwCam.stream && _hwCam.stream.getVideoTracks()[0];
   var canIC = !!(track && typeof window.ImageCapture !== 'undefined');
-  var N = 3;
+  var N = canIC ? 3 : 5;  // 视频流抓帧（无 takePhoto）多拍 2 张，提高命中清晰帧概率
   var grabOne;
   if (canIC) {
     grabOne = function(done) {
@@ -9851,7 +9981,7 @@ function _hwGrabBest(v, cb) {
   (function next(k) {
     grabOne(function(cv) {
       if (cv) results.push({ cv: cv, score: _hwSharpness(cv) });
-      if (k + 1 < N) setTimeout(function() { next(k + 1); }, canIC ? 450 : 350);
+      if (k + 1 < N) setTimeout(function() { next(k + 1); }, canIC ? 450 : 400);
       else {
         results.sort(function(a, b) { return b.score - a.score; });
         cb(results.length ? results[0] : null);
@@ -9865,8 +9995,9 @@ function _hwDefaultCorners(cv) {
   return [[mx, my], [w - mx, my], [w - mx, h - my], [mx, h - my]];
 }
 
-// 纸张自动检测：缩略图灰度 → 中心(纸)与四边(背景)亮度差预判 → Otsu 阈值 →
-// 亮色最大连通域（纸）→ 四角极值点(min/max x±y)。失败返回 null 走手动框。
+// 纸张自动检测：缩略图灰度 → 中心(纸)与四边(背景)亮度差预判 → Otsu 阈值 → 亮色最大连通域（纸）
+// → 凸包/最小外接矩形定四条边初值 → 每条边沿法线扫梯度峰取真实边界点 → 每边稳健拟合直线
+// → 相邻两条直线相交 = 四个精确顶点。失败返回 null 走手动框。
 function _hwDetectPaper(srcCv) {
   try {
     var SW = 480, sc = SW / srcCv.width, SH = Math.max(1, Math.round(srcCv.height * sc));
@@ -9874,82 +10005,246 @@ function _hwDetectPaper(srcCv) {
     var ctx = cv.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(srcCv, 0, 0, SW, SH);
     var d = ctx.getImageData(0, 0, SW, SH).data;
-    var N = SW * SH, gray = new Uint8Array(N), i, x, y, p;
-    for (i = 0; i < N; i++) gray[i] = (d[i*4] * 77 + d[i*4+1] * 150 + d[i*4+2] * 29) >> 8;
-    var cSum = 0, cN = 0, eSum = 0, eN = 0;
-    for (y = 0; y < SH; y++) for (x = 0; x < SW; x++) {
-      var g0 = gray[y * SW + x];
-      if (x > SW*0.35 && x < SW*0.65 && y > SH*0.35 && y < SH*0.65) { cSum += g0; cN++; }
-      else if (x < SW*0.06 || x >= SW*0.94 || y < SH*0.06 || y >= SH*0.94) { eSum += g0; eN++; }
+    // ===== 2026-09-21j v4 算法（年哥要求：先定四条边 → 边相交定四个顶点）=====
+    // ① pn = 灰度 − 0.75×色度：彩色桌面（木纹/地垫）被压暗，白纸几乎不动 → 以 pn 做纸面判别
+    // ② seed = 中心盒 pn 中位数（纸面亮度锚），掩码 = pn > seed−30，取中心连通域 → 凸包+最小外接矩形
+    // ③ 每条边：从矩形中心沿 ±u/±v 向外走，收集「掉下亮台且后续16px全暗」候选点 → RANSAC 拟合直线
+    //    （先遇到亮才算出发、后续必须持续暗——纸内文字/表格行后面必有亮缝，不会误停）
+    // ④ 候选不足的边退用 minrect 对应边；相邻两条直线相交 = 精确顶点（直线是全局拟合，脏点带不动）
+    var N = SW * SH, gray = new Uint8Array(N), pn = new Uint8Array(N), i, x, y, p;
+    for (i = 0; i < N; i++) {
+      var r0 = d[i * 4], g0 = d[i * 4 + 1], b0 = d[i * 4 + 2];
+      var mx0 = Math.max(r0, g0, b0), mn0 = Math.min(r0, g0, b0);
+      var gy0 = (r0 * 77 + g0 * 150 + b0 * 29) >> 8;
+      gray[i] = gy0;
+      var v0 = gy0 - (((mx0 - mn0) * 3) >> 2);
+      pn[i] = v0 < 0 ? 0 : v0;
     }
-    if (!cN || !eN || (cSum / cN) - (eSum / eN) < 12) return null;  // 纸和背景亮度接近，认不准
-    var hist = new Uint32Array(256);
-    for (i = 0; i < N; i++) hist[gray[i]]++;
-    var total = N, sumAll = 0;
-    for (i = 0; i < 256; i++) sumAll += i * hist[i];
-    var sumB = 0, wB = 0, best = 0, thr = -1;
-    for (i = 0; i < 256; i++) {
-      wB += hist[i]; if (!wB) continue;
-      var wF = total - wB; if (!wF) break;
-      sumB += i * hist[i];
-      var mB = sumB / wB, mF = (sumAll - sumB) / wF, between = wB * wF * (mB - mF) * (mB - mF);
-      if (between > best) { best = between; thr = i; }
-    }
-    if (thr < 0) return null;
-    // 闭运算（先膨胀后收缩，半径2）桥接书本中缝阴影/折痕，避免亮区被切成两块
-    var R = 2, mB = new Uint8Array(N), mC = new Uint8Array(N);
-    for (i = 0; i < N; i++) mB[i] = gray[i] > thr ? 1 : 0;
-    var yy, xx, dy2, dx2, on;
-    for (y = 0; y < SH; y++) for (x = 0; x < SW; x++) {
-      on = 0;
-      for (dy2 = -R; dy2 <= R && !on; dy2++) {
-        yy = y + dy2; if (yy < 0 || yy >= SH) continue;
-        for (dx2 = -R; dx2 <= R; dx2++) {
-          xx = x + dx2; if (xx < 0 || xx >= SW) continue;
-          if (mB[yy * SW + xx]) { on = 1; break; }
-        }
-      }
-      mC[y * SW + x] = on;  // 膨胀结果暂存 mC
-    }
-    for (y = 0; y < SH; y++) for (x = 0; x < SW; x++) {
-      on = 1;
-      for (dy2 = -R; dy2 <= R && on; dy2++) {
-        yy = y + dy2; if (yy < 0 || yy >= SH) { on = 0; break; }
-        for (dx2 = -R; dx2 <= R; dx2++) {
-          xx = x + dx2; if (xx < 0 || xx >= SW) { on = 0; break; }
-          if (!mC[yy * SW + xx]) { on = 0; break; }
-        }
-      }
-      mB[y * SW + x] = on;  // mB 复用为闭运算最终掩码
-    }
-    var lab = new Int32Array(N), stack = new Int32Array(N), bestId = 0, bestCnt = 0, id = 0;
+    // 纸面亮度锚：中心 30%×30% 盒的 pn 中位数
+    var seedVals = [];
+    for (y = (SH * 0.35) | 0; y < SH * 0.65; y += 2)
+      for (x = (SW * 0.35) | 0; x < SW * 0.65; x += 2) seedVals.push(pn[y * SW + x]);
+    if (seedVals.length < 50) return null;
+    seedVals.sort(function(a, b) { return a - b; });
+    var seed = seedVals[seedVals.length >> 1];
+    if (seed < 90) return null;   // 中心不亮，多半没拍到纸
+
+    // 掩码连通域（纸心优先）
+    var mB = new Uint8Array(N), lab = new Int32Array(N), stk = new Int32Array(N);
+    for (i = 0; i < N; i++) mB[i] = pn[i] > seed - 30 ? 1 : 0;
+    var bestId = 0, bestCnt = 0, idc = 0, compCnt = [0];
     for (var s0 = 0; s0 < N; s0++) {
       if (lab[s0] || !mB[s0]) continue;
-      id++; var sp = 0, cnt = 0; stack[sp++] = s0; lab[s0] = id;
+      idc++; var sp = 0, cnt = 0; stk[sp++] = s0; lab[s0] = idc;
       while (sp > 0) {
-        p = stack[--sp]; cnt++;
+        p = stk[--sp]; cnt++;
         var px = p % SW, py = (p / SW) | 0;
-        if (px > 0 && !lab[p-1] && mB[p-1]) { lab[p-1] = id; stack[sp++] = p-1; }
-        if (px < SW-1 && !lab[p+1] && mB[p+1]) { lab[p+1] = id; stack[sp++] = p+1; }
-        if (py > 0 && !lab[p-SW] && mB[p-SW]) { lab[p-SW] = id; stack[sp++] = p-SW; }
-        if (py < SH-1 && !lab[p+SW] && mB[p+SW]) { lab[p+SW] = id; stack[sp++] = p+SW; }
+        if (px > 0 && !lab[p - 1] && mB[p - 1]) { lab[p - 1] = idc; stk[sp++] = p - 1; }
+        if (px < SW - 1 && !lab[p + 1] && mB[p + 1]) { lab[p + 1] = idc; stk[sp++] = p + 1; }
+        if (py > 0 && !lab[p - SW] && mB[p - SW]) { lab[p - SW] = idc; stk[sp++] = p - SW; }
+        if (py < SH - 1 && !lab[p + SW] && mB[p + SW]) { lab[p + SW] = idc; stk[sp++] = p + SW; }
       }
-      if (cnt > bestCnt) { bestCnt = cnt; bestId = id; }
+      compCnt[idc] = cnt;
+      if (cnt > bestCnt) { bestCnt = cnt; bestId = idc; }
     }
-    var ratio = bestCnt / N;
-    if (ratio < 0.22 || ratio > 0.985) return null;
-    var tlV = 1e9, brV = -1e9, blV = 1e9, trV = -1e9, tl, br, bl, tr;
-    for (p = 0; p < N; p++) {
-      if (lab[p] !== bestId) continue;
-      var px2 = p % SW, py2 = (p / SW) | 0, a = px2 + py2, s3 = px2 - py2;
-      if (a < tlV) { tlV = a; tl = [px2, py2]; }
-      if (a > brV) { brV = a; br = [px2, py2]; }
-      if (s3 < blV) { blV = s3; bl = [px2, py2]; }
-      if (s3 > trV) { trV = s3; tr = [px2, py2]; }
+    var centerId = lab[(((SH / 2) | 0) * SW + ((SW / 2) | 0))];
+    if (centerId && compCnt[centerId] > N * 0.03 && compCnt[centerId] > bestCnt * 0.12) {
+      bestId = centerId; bestCnt = compCnt[centerId];
     }
+    if (!bestId || bestCnt < N * 0.04) return null;
     var inv = 1 / sc;
-    return [[tl[0]*inv, tl[1]*inv], [tr[0]*inv, tr[1]*inv], [br[0]*inv, br[1]*inv], [bl[0]*inv, bl[1]*inv]];
+
+    // 边界点 → 凸包（Andrew 单调链）
+    var bnd = [];
+    for (y = 1; y < SH - 1; y++) for (x = 1; x < SW - 1; x++) {
+      p = y * SW + x;
+      if (lab[p] === bestId && (!lab[p - 1] || !lab[p + 1] || !lab[p - SW] || !lab[p + SW])) bnd.push([x, y]);
+    }
+    if (bnd.length < 40) return null;
+    var hpts = bnd.slice().sort(function(A, B) { return A[0] - B[0] || A[1] - B[1]; });
+    function _hc(o, A, B) { return (A[0] - o[0]) * (B[1] - o[1]) - (A[1] - o[1]) * (B[0] - o[0]); }
+    var lo = [], up = [], q;
+    for (q = 0; q < hpts.length; q++) {
+      while (lo.length >= 2 && _hc(lo[lo.length - 2], lo[lo.length - 1], hpts[q]) <= 0) lo.pop();
+      lo.push(hpts[q]);
+    }
+    for (q = hpts.length - 1; q >= 0; q--) {
+      while (up.length >= 2 && _hc(up[up.length - 2], up[up.length - 1], hpts[q]) <= 0) up.pop();
+      up.push(hpts[q]);
+    }
+    var hull = lo.slice(0, -1).concat(up.slice(0, -1));
+    if (hull.length < 4) return null;
+
+    // 最小外接矩形（对每条凸包边对齐，取面积最小）
+    var hN = hull.length, rect = null, bestArea = 1e18;
+    for (q = 0; q < hN; q++) {
+      var pA = hull[q], pB = hull[(q + 1) % hN];
+      var ex = pB[0] - pA[0], ey = pB[1] - pA[1], L2 = ex * ex + ey * ey;
+      if (L2 < 4) continue;
+      var LL = Math.sqrt(L2), ux = ex / LL, uy = ey / LL, vx = -uy, vy = ux;
+      var mnU = 1e18, mxU = -1e18, mnV = 1e18, mxV = -1e18, r2;
+      for (r2 = 0; r2 < hN; r2++) {
+        var uu = hull[r2][0] * ux + hull[r2][1] * uy;
+        var vv = hull[r2][0] * vx + hull[r2][1] * vy;
+        if (uu < mnU) mnU = uu; if (uu > mxU) mxU = uu;
+        if (vv < mnV) mnV = vv; if (vv > mxV) mxV = vv;
+      }
+      var ar = (mxU - mnU) * (mxV - mnV);
+      if (ar < bestArea) {
+        bestArea = ar;
+        rect = { ux: ux, uy: uy, vx: vx, vy: vy, mnU: mnU, mxU: mxU, mnV: mnV, mxV: mxV };
+      }
+    }
+    if (!rect) return null;
+    var wU = rect.mxU - rect.mnU, wV = rect.mxV - rect.mnV;
+    if (wU < 12 || wV < 12) return null;
+    var cu = (rect.mnU + rect.mxU) / 2, cvv = (rect.mnV + rect.mxV) / 2;
+    var _pt = function(u, v) { return [rect.ux * u + rect.vx * v, rect.uy * u + rect.vy * v]; };
+    var _pnAt = function(fx, fy) {
+      var xi = Math.round(fx), yi = Math.round(fy);
+      if (xi < 0) xi = 0; else if (xi > SW - 1) xi = SW - 1;
+      if (yi < 0) yi = 0; else if (yi > SH - 1) yi = SH - 1;
+      return pn[yi * SW + xi];
+    };
+
+    // 每条边：从中心沿法线向外走，收集「掉台且持续暗」候选（si: 0=+v,1=+u,2=−v,3=−u）
+    function _walkSide(si) {
+      var nrm, dirv, half, maxD;
+      if (si === 0 || si === 2) {
+        nrm = si === 0 ? [rect.vx, rect.vy] : [-rect.vx, -rect.vy];
+        dirv = [rect.ux, rect.uy];
+        half = wU * 0.44; maxD = wV * 0.65;
+      } else {
+        nrm = si === 1 ? [rect.ux, rect.uy] : [-rect.ux, -rect.uy];
+        dirv = [rect.vx, rect.vy];
+        half = wV * 0.44; maxD = wU * 0.65;
+      }
+      var o = _pt(cu, cvv), pts = [], sj;
+      for (sj = 0; sj < 40; sj++) {
+        var t = ((sj + 0.5) / 20 - 1) * half;
+        var sx = o[0] + dirv[0] * t, sy = o[1] + dirv[1] * t;
+        var started = false, hit = -1, dd;
+        for (dd = 4; dd < maxD; dd++) {
+          var bx = sx + nrm[0] * dd, by = sy + nrm[1] * dd;
+          if (bx < 1 || by < 1 || bx > SW - 2 || by > SH - 2) break;   // 出画：纸被裁掉，此列无候选
+          var v1 = _pnAt(bx, by);
+          if (!started) {
+            if (v1 >= seed - 14) started = true;
+            continue;
+          }
+          if (v1 >= seed - 16) { started = true; continue; }
+          var allDark = true, de;
+          for (de = 1; de <= 16; de++) {
+            if (_pnAt(sx + nrm[0] * (dd + de), sy + nrm[1] * (dd + de)) >= seed - 8) { allDark = false; break; }
+          }
+          if (allDark) { hit = dd; break; }
+          started = false;   // 只是纸内文字/表格线，继续向外走
+        }
+        if (hit > 0) pts.push([sx + nrm[0] * hit, sy + nrm[1] * hit]);
+      }
+      return pts;
+    }
+
+    // RANSAC 拟合直线（容忍个别反光/阴影列带偏）
+    function _ransacLine(pts) {
+      if (pts.length < 12) return null;
+      var P = pts, n = P.length, bestN = 0, bA = null, bB = null, it, rs = 12345;
+      function rnd() { rs = (rs * 1103515245 + 12345) & 0x7fffffff; return rs / 0x7fffffff; }
+      for (it = 0; it < 300; it++) {
+        var i1 = (rnd() * n) | 0, i2 = (rnd() * n) | 0;
+        if (i1 === i2) continue;
+        var dx = P[i2][0] - P[i1][0], dy = P[i2][1] - P[i1][1];
+        var LL = Math.hypot(dx, dy);
+        if (LL < 15) continue;
+        dx /= LL; dy /= LL;
+        var cnt = 0, k3;
+        for (k3 = 0; k3 < n; k3++) {
+          var wx = P[k3][0] - P[i1][0], wy = P[k3][1] - P[i1][1];
+          if (Math.abs(-dy * wx + dx * wy) <= 2) cnt++;
+        }
+        if (cnt > bestN) { bestN = cnt; bA = P[i1]; bB = [dx, dy]; }
+      }
+      if (!bA || bestN < 12 || bestN < n * 0.35) return null;
+      // 对内点做 TLS 精修
+      var mx = 0, my = 0, inl = [], k4;
+      for (k4 = 0; k4 < n; k4++) {
+        var w2 = P[k4][0] - bA[0], w3 = P[k4][1] - bA[1];
+        if (Math.abs(-bB[1] * w2 + bB[0] * w3) <= 2) { inl.push(P[k4]); mx += P[k4][0]; my += P[k4][1]; }
+      }
+      mx /= inl.length; my /= inl.length;
+      var sxx = 0, syy = 0, sxy = 0;
+      for (k4 = 0; k4 < inl.length; k4++) {
+        var ddx = inl[k4][0] - mx, ddy = inl[k4][1] - my;
+        sxx += ddx * ddx; syy += ddy * ddy; sxy += ddx * ddy;
+      }
+      if (sxx + syy < 1e-6) return null;
+      var th = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+      return { x: mx, y: my, dx: Math.cos(th), dy: Math.sin(th) };
+    }
+    function _cross(l1, l2) {
+      if (!l1 || !l2) return null;
+      var den = l1.dx * l2.dy - l1.dy * l2.dx;
+      if (Math.abs(den) < 1e-3) return null;
+      var wx = l2.x - l1.x, wy = l2.y - l1.y;
+      var t1 = (wx * l2.dy - wy * l2.dx) / den;
+      return [l1.x + l1.dx * t1, l1.y + l1.dy * t1];
+    }
+    function _rectSideLine(si) {
+      var o, dv;
+      if (si === 0 || si === 2) { o = _pt(cu, si === 0 ? rect.mxV : rect.mnV); dv = [rect.ux, rect.uy]; }
+      else { o = _pt(si === 1 ? rect.mxU : rect.mnU, cvv); dv = [rect.vx, rect.vy]; }
+      return { x: o[0], y: o[1], dx: dv[0], dy: dv[1] };
+    }
+
+    var lines = [], si2;
+    for (si2 = 0; si2 < 4; si2++) {
+      var L = _ransacLine(_walkSide(si2));
+      lines.push(L || _rectSideLine(si2));
+    }
+
+    // 相邻两线相交 = 顶点（si 顺序 0=+v,1=+u,2=−v,3=−u 首尾相邻）
+    var quad = [], ci;
+    for (ci = 0; ci < 4; ci++) quad.push(_cross(lines[(ci + 3) % 4], lines[ci]));
+    if (quad.indexOf(null) >= 0) return null;
+    // 规范化成 [左上, 右上, 右下, 左下]（与手拖、透视校正的约定一致）
+    var start = 0, bestS = 1e18;
+    for (ci = 0; ci < 4; ci++) { var sv = quad[ci][0] + quad[ci][1]; if (sv < bestS) { bestS = sv; start = ci; } }
+    var ord = [quad[start], quad[(start + 1) % 4], quad[(start + 2) % 4], quad[(start + 3) % 4]];
+    var cr1 = (ord[1][0] - ord[0][0]) * (ord[2][1] - ord[1][1]) - (ord[1][1] - ord[0][1]) * (ord[2][0] - ord[1][0]);
+    if (cr1 < 0) ord = [ord[0], ord[3], ord[2], ord[1]];
+    // 自检：面积与纸面连通域同量级、四边形必须是凸的
+    var a2 = 0;
+    for (ci = 0; ci < 4; ci++) { var C1 = ord[ci], C2 = ord[(ci + 1) % 4]; a2 += C1[0] * C2[1] - C2[0] * C1[1]; }
+    if (Math.abs(a2) / 2 < bestCnt * 0.4 || Math.abs(a2) / 2 > bestCnt * 3.2) return null;
+    for (ci = 0; ci < 4; ci++) {
+      var A2 = ord[ci], B2 = ord[(ci + 1) % 4], C3 = ord[(ci + 2) % 4];
+      if ((B2[0] - A2[0]) * (C3[1] - B2[1]) - (B2[1] - A2[1]) * (C3[0] - B2[0]) < 0) return null;
+    }
+    var clampC = function(q2) {
+      var qx = q2[0] < 0 ? 0 : (q2[0] > SW - 1 ? SW - 1 : q2[0]);
+      var qy = q2[1] < 0 ? 0 : (q2[1] > SH - 1 ? SH - 1 : q2[1]);
+      return [qx * inv, qy * inv];
+    };
+    return [clampC(ord[0]), clampC(ord[1]), clampC(ord[2]), clampC(ord[3])];
   } catch (e) { console.warn('[智能拍照] 纸张检测异常，改用手动框', e); return null; }
+}
+
+
+// 高质量缩小绘制：逐级减半逼近目标尺寸，避免 12MP→小画布一步缩放产生的振铃/发虚
+function _hwDrawDownscaled(src, dst) {
+  var ctx = dst.getContext('2d');
+  try {
+    var sw = src.width, sh = src.height;
+    while (sw / 2 >= dst.width && sh / 2 >= dst.height && sw > 160 && sh > 160) {
+      var half = document.createElement('canvas');
+      half.width = Math.max(dst.width, sw >> 1);
+      half.height = Math.max(dst.height, sh >> 1);
+      half.getContext('2d').drawImage(src, 0, 0, half.width, half.height);
+      src = half; sw = half.width; sh = half.height;
+    }
+  } catch (e) {}
+  ctx.drawImage(src, 0, 0, dst.width, dst.height);
+  return dst;
 }
 
 function _hwShowCrop(tipText) {
@@ -9960,17 +10255,20 @@ function _hwShowCrop(tipText) {
   var maxW = Math.min(window.innerWidth * 0.94, 900);
   var maxH = window.innerHeight - 150;
   var sc = Math.min(maxW / f.width, maxH / f.height, 1);
-  var iw = Math.max(1, Math.round(f.width * sc)), ih = Math.max(1, Math.round(f.height * sc));
+  // 2026-09-21c：预览画布按 devicePixelRatio 放大 backing（3 倍屏此前只有 1 倍分辨率，看起来糊）
+  var dpr = Math.min(window.devicePixelRatio || 1, 3);
+  var iw0 = Math.max(1, Math.round(f.width * sc)), ih0 = Math.max(1, Math.round(f.height * sc));
+  var iw = iw0 * dpr, ih = ih0 * dpr;
   crop.innerHTML =
     '<div class="hw-cam-tip">' + tipText + '</div>' +
     '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">' +
       '<div id="hwCropBox" style="position:relative;">' +
-        '<canvas id="hwCropImg" width="' + iw + '" height="' + ih + '" style="display:block;"></canvas>' +
-        '<canvas id="hwCropPoly" width="' + iw + '" height="' + ih + '" style="position:absolute;left:0;top:0;pointer-events:none;"></canvas>' +
+        '<canvas id="hwCropImg" width="' + iw + '" height="' + ih + '" style="display:block;width:' + iw0 + 'px;height:' + ih0 + 'px;"></canvas>' +
+        '<canvas id="hwCropPoly" width="' + iw + '" height="' + ih + '" style="position:absolute;left:0;top:0;width:' + iw0 + 'px;height:' + ih0 + 'px;pointer-events:none;"></canvas>' +
       '</div>' +
     '</div>';
   var imgCv = crop.querySelector('#hwCropImg');
-  imgCv.getContext('2d').drawImage(f, 0, 0, iw, ih);
+  _hwDrawDownscaled(f, imgCv);
   var i;
   for (i = 0; i < 4; i++) {
     var hnd = document.createElement('div');
@@ -10031,34 +10329,96 @@ function _hwLayoutHandles() {
   pc.lineWidth = 2.5; pc.strokeStyle = '#7FB5E8'; pc.stroke();
 }
 
+// ===== 拖动放大镜（2026-09-21j）=====
+// 手指按住角点时点被手指挡住，看不到对到哪儿——放大镜把角点邻域放到"手指上方"，
+// 这是"拖得准"的关键（扫描全能王同款）。拖动时实时重绘。
+function _hwLoupeShow() {
+  var m = _hwCam.modal, box = m && m.querySelector('#hwCropBox'); if (!box) return;
+  var lp = document.getElementById('hwCropLoupe');
+  if (!lp) {
+    lp = document.createElement('div'); lp.id = 'hwCropLoupe'; lp.className = 'hw-crop-loupe';
+    lp.innerHTML = '<canvas width="236" height="236"></canvas>';
+    box.appendChild(lp);
+  }
+  lp.style.display = 'block';
+  _hwLoupeDraw();
+}
+function _hwLoupeHide() {
+  var lp = document.getElementById('hwCropLoupe'); if (lp) lp.style.display = 'none';
+}
+function _hwLoupeDraw() {
+  var m = _hwCam.modal, f = _hwCam.frameCv;
+  var lp = document.getElementById('hwCropLoupe'), imgCv = m && m.querySelector('#hwCropImg');
+  if (!lp || !imgCv || !f || lp.style.display === 'none') return;
+  var de = _hwCam.dragEdge, pt = null;
+  if (_hwCam.dragIdx >= 0) pt = _hwCam.corners[_hwCam.dragIdx];
+  else if (de) {
+    var a = _hwCam.corners[de.idx], b = _hwCam.corners[(de.idx + 1) % 4];
+    pt = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  }
+  if (!pt) return;
+  var cvs = lp.firstChild, ctx = cvs.getContext('2d'), W = cvs.width;
+  var R = Math.max(20, Math.round(Math.min(f.width, f.height) * 0.045));
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, W);
+  ctx.imageSmoothingEnabled = true;
+  try { ctx.drawImage(f, Math.round(pt[0] - R), Math.round(pt[1] - R), R * 2, R * 2, 0, 0, W, W); } catch (e) {}
+  ctx.beginPath();  // 十字准线：正中就是当前角点
+  ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.lineWidth = 5;
+  ctx.moveTo(W / 2, W * 0.08); ctx.lineTo(W / 2, W * 0.92);
+  ctx.moveTo(W * 0.08, W / 2); ctx.lineTo(W * 0.92, W / 2); ctx.stroke();
+  ctx.beginPath();
+  ctx.strokeStyle = '#4A90D9'; ctx.lineWidth = 2;
+  ctx.moveTo(W / 2, W * 0.12); ctx.lineTo(W / 2, W * 0.88);
+  ctx.moveTo(W * 0.12, W / 2); ctx.lineTo(W * 0.88, W / 2); ctx.stroke();
+  var iw0 = imgCv.clientWidth || imgCv.width, ih0 = imgCv.clientHeight || imgCv.height;
+  var bx = pt[0] / f.width * iw0, by = pt[1] / f.height * ih0, LW = 118;
+  var left = bx - LW / 2, top = by - LW - 26;   // 默认放在手指上方
+  if (top < 4) top = by + 30;                   // 靠顶就翻到下方
+  if (left < 4) left = 4;
+  if (left + LW > iw0 - 4) left = Math.max(4, iw0 - LW - 4);
+  if (top + LW > ih0 - 4) top = Math.max(4, ih0 - LW - 4);
+  lp.style.left = left + 'px'; lp.style.top = top + 'px';
+}
+
+// 角点拖动（2026-09-21j 重写）：pointermove/up 挂到 window，而不是小手柄自己。
+// 旧写法监听挂手柄 + setPointerCapture，iOS 上手指一滑出那个小圆点事件就断，表现就是「拖不动/不灵活」。
 function _hwBindHandleDrag(imgCv) {
   var m = _hwCam.modal; if (!m) return;
   var handles = m.querySelectorAll('.hw-crop-handle');
   for (var i = 0; i < handles.length; i++) {
     (function(h) {
       h.addEventListener('pointerdown', function(e) {
-        _hwCam.dragIdx = +h.dataset.idx;
-        try { h.setPointerCapture(e.pointerId); } catch (er) {}
         e.preventDefault();
-      });
-      h.addEventListener('pointermove', function(e) {
-        if (_hwCam.dragIdx < 0) return;
-        var r = imgCv.getBoundingClientRect();
-        var nx = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1);
-        var ny = Math.min(Math.max((e.clientY - r.top) / r.height, 0), 1);
-        _hwCam.corners[_hwCam.dragIdx] = [nx * _hwCam.frameCv.width, ny * _hwCam.frameCv.height];
-        _hwLayoutHandles();
-      });
-      var end = function() {
-        if (_hwCam.dragIdx >= 0 && _hwCam.frameCv) {
-          // 松手自动贴纸边：在落点附近找最强边缘吸附（扫描全能王顶点对齐同款体验）
-          _hwCam.corners[_hwCam.dragIdx] = _hwSnapCorner(_hwCam.frameCv, _hwCam.corners[_hwCam.dragIdx]);
+        _hwCam.dragIdx = +h.dataset.idx;
+        h.classList.add('dragging');
+        _hwLoupeShow();
+        var move = function(ev) {
+          if (_hwCam.dragIdx < 0) return;
+          ev.preventDefault();
+          var r = imgCv.getBoundingClientRect();
+          var nx = Math.min(Math.max((ev.clientX - r.left) / r.width, 0), 1);
+          var ny = Math.min(Math.max((ev.clientY - r.top) / r.height, 0), 1);
+          _hwCam.corners[_hwCam.dragIdx] = [nx * _hwCam.frameCv.width, ny * _hwCam.frameCv.height];
           _hwLayoutHandles();
-        }
-        _hwCam.dragIdx = -1;
-      };
-      h.addEventListener('pointerup', end);
-      h.addEventListener('pointercancel', end);
+          _hwLoupeDraw();
+        };
+        var end = function() {
+          window.removeEventListener('pointermove', move);
+          window.removeEventListener('pointerup', end);
+          window.removeEventListener('pointercancel', end);
+          h.classList.remove('dragging');
+          _hwLoupeHide();
+          if (_hwCam.dragIdx >= 0 && _hwCam.frameCv) {
+            // 松手吸附：小范围内找最强边缘（半径已收窄到画面 1.5%，只在落点附近微调，不会乱跳）
+            _hwCam.corners[_hwCam.dragIdx] = _hwSnapCorner(_hwCam.frameCv, _hwCam.corners[_hwCam.dragIdx]);
+            _hwLayoutHandles();
+          }
+          _hwCam.dragIdx = -1;
+        };
+        window.addEventListener('pointermove', move, { passive: false });
+        window.addEventListener('pointerup', end);
+        window.addEventListener('pointercancel', end);
+      });
     })(handles[i]);
   }
 }
@@ -10070,6 +10430,7 @@ function _hwBindEdgeDrag(imgCv) {
   for (var i = 0; i < edges.length; i++) {
     (function(h) {
       h.addEventListener('pointerdown', function(e) {
+        e.preventDefault();
         var idx = +h.dataset.idx;
         var a = _hwCam.corners[idx], b = _hwCam.corners[(idx + 1) % 4];
         var ex = b[0] - a[0], ey = b[1] - a[1], L = Math.hypot(ex, ey) || 1;
@@ -10079,29 +10440,37 @@ function _hwBindEdgeDrag(imgCv) {
           start: _hwCam.corners.map(function(c) { return c.slice(); }),
           mid0: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
         };
-        try { h.setPointerCapture(e.pointerId); } catch (er) {}
-        e.preventDefault();
-      });
-      h.addEventListener('pointermove', function(e) {
-        var de = _hwCam.dragEdge; if (!de) return;
-        var r = imgCv.getBoundingClientRect();
-        var s = _hwCam.frameCv.width / r.width;  // 显示坐标 → 原图坐标（等比）
-        var cx = (e.clientX - r.left) * s, cy = (e.clientY - r.top) * s;
-        var d = (cx - de.mid0[0]) * de.nx + (cy - de.mid0[1]) * de.ny;
-        var i2 = de.idx, j = (i2 + 1) % 4;
-        _hwCam.corners[i2] = [de.start[i2][0] + de.nx * d, de.start[i2][1] + de.ny * d];
-        _hwCam.corners[j] = [de.start[j][0] + de.nx * d, de.start[j][1] + de.ny * d];
-        _hwLayoutHandles();
-      });
-      var end2 = function() {
-        if (_hwCam.dragEdge) {
-          _hwSnapEdge(_hwCam.dragEdge.idx);  // 松手：整条边吸附到纸边
+        h.classList.add('dragging');
+        _hwLoupeShow();
+        var move = function(ev) {
+          var de = _hwCam.dragEdge; if (!de) return;
+          ev.preventDefault();
+          var r = imgCv.getBoundingClientRect();
+          var s = _hwCam.frameCv.width / r.width;  // 显示坐标 → 原图坐标（等比）
+          var cx = (ev.clientX - r.left) * s, cy = (ev.clientY - r.top) * s;
+          var d = (cx - de.mid0[0]) * de.nx + (cy - de.mid0[1]) * de.ny;
+          var i2 = de.idx, j = (i2 + 1) % 4;
+          _hwCam.corners[i2] = [de.start[i2][0] + de.nx * d, de.start[i2][1] + de.ny * d];
+          _hwCam.corners[j] = [de.start[j][0] + de.nx * d, de.start[j][1] + de.ny * d];
           _hwLayoutHandles();
-          _hwCam.dragEdge = null;
-        }
-      };
-      h.addEventListener('pointerup', end2);
-      h.addEventListener('pointercancel', end2);
+          _hwLoupeDraw();
+        };
+        var end2 = function() {
+          window.removeEventListener('pointermove', move);
+          window.removeEventListener('pointerup', end2);
+          window.removeEventListener('pointercancel', end2);
+          h.classList.remove('dragging');
+          _hwLoupeHide();
+          if (_hwCam.dragEdge) {
+            _hwSnapEdge(_hwCam.dragEdge.idx);  // 松手：整条边吸附到纸边
+            _hwLayoutHandles();
+            _hwCam.dragEdge = null;
+          }
+        };
+        window.addEventListener('pointermove', move, { passive: false });
+        window.addEventListener('pointerup', end2);
+        window.addEventListener('pointercancel', end2);
+      });
     })(edges[i]);
   }
 }
@@ -10145,12 +10514,14 @@ function _hwCamPreviewFixed() {
       var maxW = Math.min(window.innerWidth * 0.94, 900);
       var maxH = window.innerHeight - 260;
       var sc = Math.min(maxW / out.width, maxH / out.height, 1);
+      var dpr = Math.min(window.devicePixelRatio || 1, 3);  // 视网膜屏适配：backing 放大 dpr 倍
+      var pw0 = Math.max(1, Math.round(out.width * sc)), ph0 = Math.max(1, Math.round(out.height * sc));
       var pv = document.createElement('canvas');
-      pv.width = Math.max(1, Math.round(out.width * sc));
-      pv.height = Math.max(1, Math.round(out.height * sc));
+      pv.width = pw0 * dpr; pv.height = ph0 * dpr;
+      pv.style.width = pw0 + 'px'; pv.style.height = ph0 + 'px';
       pv.getContext('2d').drawImage(out, 0, 0, pv.width, pv.height);
       pv.id = 'hwPvCanvas';
-      pv.style.cssText = 'position:absolute;left:0;top:0;border:3px solid #4CD964;border-radius:6px;background:#fff;cursor:pointer;z-index:8;';
+      pv.style.cssText += 'position:absolute;left:0;top:0;border:3px solid #4CD964;border-radius:6px;background:#fff;cursor:pointer;z-index:8;';
       pv.title = '点一下返回继续调整';
       pv.addEventListener('click', function() { pv.remove(); });
       box.appendChild(pv);
@@ -10167,6 +10538,7 @@ function _hwCamPreviewFixed() {
 
 function _hwBackToCapture() {
   var m = _hwCam.modal; if (!m) return;
+  if (_hwCam.sysMode) { _hwSysShowIdle(); _hwSysShoot(); return; }  // 系统相机模式：重拍=直接再调起系统相机（点击手势链内合法）
   _hwCam.frameCv = null; _hwCam.dragIdx = -1;
   m.querySelector('.hw-cam-bar').innerHTML =
     '<button type="button" class="hw-cam-btn" id="hwCamCancel">取消</button>' +
@@ -10328,7 +10700,12 @@ function _hwCamConfirm() {
     try {
       var out = _hwWarpCrop();
       _hwAutoContrastCanvas(out);
-      _hwUnsharpMask(out, 0.7);  // 轻度锐化：抵消透视插值造成的文字发虚
+      // 自适应锐化：源图里纸面宽度不足 1500px（离得远/低分辨率源）时加强锐化补偿
+      var csS = _hwCam.corners;
+      var pwS = Math.max(
+        Math.hypot(csS[1][0] - csS[0][0], csS[1][1] - csS[0][1]),
+        Math.hypot(csS[2][0] - csS[3][0], csS[2][1] - csS[3][1]));
+      _hwUnsharpMask(out, pwS < 1500 ? 1.0 : 0.7);  // 轻度锐化：抵消透视插值造成的文字发虚
       out.toBlob(function(blob) {
         if (okBtn) { okBtn.disabled = false; okBtn.textContent = '✓ 用这张'; }
         if (!blob) { showToast('照片处理失败，请重拍', 'error'); return; }
@@ -10336,7 +10713,9 @@ function _hwCamConfirm() {
         var name = 'hw_cam_' + ts.getHours() + ('0'+ts.getMinutes()).slice(-2) + ('0'+ts.getSeconds()).slice(-2) + '.jpg';
         addHwFiles([new File([blob], name, { type: 'image/jpeg' })]);
         _hwCam.added++;
-        _hwBackToCapture();
+        // 2026-09-21g：系统相机模式点「用这张」= 这张已满意 → 关闭相机弹窗回交作业页（预览列表可见）；
+        // 要再拍点「智能拍照」即可。实时取景模式保留原「回拍摄界面连拍」逻辑。
+        if (_hwCam.sysMode) { closeHwCamera(); } else { _hwBackToCapture(); }
       }, 'image/jpeg', 0.92);
     } catch (err) {
       console.warn('[智能拍照] 处理失败', err);
