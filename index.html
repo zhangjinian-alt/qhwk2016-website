@@ -9445,7 +9445,7 @@ function openHwCamera() {
   m.innerHTML =
     '<div class="hw-cam-view">' +
       '<div id="hwCamCap" style="position:absolute;inset:0;display:none;">' +
-        '<div class="hw-cam-tip">对准作业纸填满虚线框 · 点一下画面可对焦 · 光线不足也能自动增亮 <span style="opacity:.55;">v0921j</span></div>' +
+        '<div class="hw-cam-tip">对准作业纸填满虚线框 · 点一下画面可对焦 · 光线不足也能自动增亮 <span style="opacity:.55;">v0921k</span></div>' +
         '<div class="hw-cam-chip" id="hwCamChip">稳定中…</div>' +
         '<button type="button" class="hw-cam-torch" id="hwCamTorch" title="补光灯" style="display:none;">💡</button>' +
         '<div class="hw-cam-guide"></div>' +
@@ -9570,23 +9570,13 @@ function _hwSysShowIdle() {
   var pv = document.getElementById('hwPvCanvas'); if (pv) pv.remove();
   var cap = m.querySelector('#hwCamCap');
   cap.innerHTML =
-    '<div class="hw-cam-tip">把作业纸对准下面虚线框，摆正再拍 <span style="opacity:.6;">v0921j</span></div>' +
-    '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:0 12px;">' +
-      '<button type="button" id="hwSysFrame" title="拍照" style="width:100%;max-width:440px;aspect-ratio:1/1.414;border:3px dashed rgba(255,255,255,.85);border-radius:14px;background:rgba(255,255,255,.06);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer;padding:10px;">' +
-        '<span style="font-size:38px;line-height:1;">📄</span>' +
-        '<span style="font-size:13px;line-height:1.7;text-align:left;color:rgba(255,255,255,.92);">' +
-          '1️⃣ 作业纸摆进虚线框，四边都露出一点<br>' +
-          '2️⃣ 手机端正对纸，别斜着拍<br>' +
-          '3️⃣ 纸放平、光线足，注意别挡阴影' +
-        '</span>' +
-      '</button>' +
-      '<button type="button" id="hwSysShootBig" title="拍照" style="width:80px;height:80px;border-radius:50%;border:4px solid rgba(255,255,255,.9);background:rgba(255,255,255,.16);color:#fff;font-size:30px;line-height:1;cursor:pointer;flex:none;">📷</button>' +
-      '<div style="color:rgba(255,255,255,.85);font-size:13px;">对准后点这里拍照</div>' +
+    '<div class="hw-cam-tip">点拍照调起系统相机 · 拍完自动裁边增亮 <span style="opacity:.6;">v0921k</span></div>' +
+    '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;">' +
+      '<button type="button" id="hwSysShootBig" title="拍照" style="width:110px;height:110px;border-radius:50%;border:4px solid rgba(255,255,255,.9);background:rgba(255,255,255,.16);color:#fff;font-size:44px;line-height:1;cursor:pointer;flex:none;">📷</button>' +
+      '<div style="color:rgba(255,255,255,.85);font-size:14px;">点一下拍照</div>' +
     '</div>';
   var big = document.getElementById('hwSysShootBig');
   if (big) big.onclick = _hwSysShoot;
-  var frm = document.getElementById('hwSysFrame');
-  if (frm) frm.onclick = _hwSysShoot;
   m.querySelector('.hw-cam-bar').innerHTML =
     '<button type="button" class="hw-cam-btn" id="hwCamCancel">取消</button>' +
     '<button type="button" class="hw-cam-shutter" id="hwCamShutter" title="拍摄"></button>' +
@@ -9606,7 +9596,7 @@ function _hwSysShoot() {
   inp.type = 'file'; inp.accept = 'image/*'; inp.setAttribute('capture', 'environment');
   inp.onchange = function() {
     var f = inp.files && inp.files[0];
-    if (!f) return;  // 用户取消拍摄，停留在待拍界面
+    if (!f) { closeHwCamera(); return; }  // 用户取消拍摄：直接关弹窗回交作业页（不露待拍界面）
     var chip = _hwCam.modal && _hwCam.modal.querySelector('.hw-cam-tip');
     if (chip) chip.textContent = '⏳ 照片处理中…';
     var img = new Image();
