@@ -12125,11 +12125,6 @@ async function viewHwDetail(hwId) {
           var sa = (p.student_answer != null && String(p.student_answer) !== '')
             ? fmtFrac(p.student_answer) : '（未识别）';
           var lbl = it.label ? '<b>' + it.label + '</b>' : '';
-          // 各空片段不同时，把本空题干片段括注在空标签后（题干完整性，2026-09-22 晚）
-          if (g.fragDiffers && it.label) {
-            var fg = (it.frag || '').replace(/[（）()\s　]/g, '');
-            if (fg) lbl += '<span style="color:var(--text-muted);font-size:12px;">（' + fmtFrac(escapeHtml(it.frag)) + '）</span>';
-          }
           if (lbl) lbl += '：';
           var line = '<div style="margin-top:4px;font-size:14px;">' + lbl + '学生答案：' + sa + ' ' + mark + '</div>';
           if (!p.is_correct) {
@@ -12244,11 +12239,6 @@ function renderReviewProblems() {
           ? 'background:#EAF3DE;border:1.5px solid #B7DF9B;'
           : 'background:#FFF1F0;border:1.5px solid #FFA39E;';
         var lbl = it.label ? '<b>' + it.label + '</b>' : '';
-        // 各空片段不同时，把本空题干片段括注在空标签后（题干完整性，2026-09-22 晚）
-        if (g.fragDiffers && it.label) {
-          var fg = (it.frag || '').replace(/[（）()\s　]/g, '');
-          if (fg) lbl += '<span style="color:var(--text-muted);font-size:12px;">（' + fmtFrac(escapeHtml(it.frag)) + '）</span>';
-        }
         if (lbl) lbl += '：';
         var sa = (p.student_answer != null && String(p.student_answer) !== '')
           ? fmtFrac(p.student_answer) : '（未识别）';
