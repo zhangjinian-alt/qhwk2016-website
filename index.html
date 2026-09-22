@@ -9570,10 +9570,10 @@ function _hwSysShowIdle() {
   var pv = document.getElementById('hwPvCanvas'); if (pv) pv.remove();
   var cap = m.querySelector('#hwCamCap');
   cap.innerHTML =
-    '<div class="hw-cam-tip">点拍照调起系统相机 · 拍完自动裁边增亮 <span style="opacity:.6;">v0921l</span></div>' +
+    '<div class="hw-cam-tip">正在调起系统相机…若没弹出，点一下重试 <span style="opacity:.6;">v0922a</span></div>' +
     '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;">' +
       '<button type="button" id="hwSysShootBig" title="拍照" style="width:110px;height:110px;border-radius:50%;border:4px solid rgba(255,255,255,.9);background:rgba(255,255,255,.16);color:#fff;font-size:44px;line-height:1;cursor:pointer;flex:none;">📷</button>' +
-      '<div style="color:rgba(255,255,255,.85);font-size:14px;">点一下拍照</div>' +
+      '<div style="color:rgba(255,255,255,.85);font-size:14px;">没弹出？点一下重试</div>' +
     '</div>';
   var big = document.getElementById('hwSysShootBig');
   if (big) big.onclick = _hwSysShoot;
@@ -10528,7 +10528,7 @@ function _hwCamPreviewFixed() {
 
 function _hwBackToCapture() {
   var m = _hwCam.modal; if (!m) return;
-  if (_hwCam.sysMode) { _hwSysShowIdle(); _hwSysShoot(); return; }  // 系统相机模式：重拍=直接再调起系统相机（点击手势链内合法）
+  if (_hwCam.sysMode) { _hwSysShoot(); return; }  // 2026-09-22：重拍=直接再调起系统相机，不再露黑屏待拍页（仅相机没弹出时才见兜底页，手势链内合法）
   _hwCam.frameCv = null; _hwCam.dragIdx = -1;
   m.querySelector('.hw-cam-bar').innerHTML =
     '<button type="button" class="hw-cam-btn" id="hwCamCancel">取消</button>' +
