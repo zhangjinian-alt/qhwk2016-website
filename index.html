@@ -9596,9 +9596,8 @@ function _hwSysShoot() {
   inp.type = 'file'; inp.accept = 'image/*'; inp.setAttribute('capture', 'environment');
   inp.onchange = function() {
     var f = inp.files && inp.files[0];
+    _hwSysBusy(f ? '⏳ 照片处理中…' : '⏳ 正在关闭…');  // 2026-09-22b：change 一到即切处理态，避免停留待拍页
     if (!f) { closeHwCamera(); return; }  // 用户取消拍摄：直接关弹窗回交作业页（不露待拍界面）
-    var chip = _hwCam.modal && _hwCam.modal.querySelector('.hw-cam-tip');
-    if (chip) chip.textContent = '⏳ 照片处理中…';
     var img = new Image();
     img.onload = function() {
       var MAXP = 4096, w = img.width, h = img.height;
@@ -9617,6 +9616,34 @@ function _hwSysShoot() {
     img.src = URL.createObjectURL(f);
   };
   inp.click();
+  // 2026-09-22b：相机盖住网页后把待拍页切成「获取中」——iOS 从系统相机返回网页的瞬间
+  // 会先渲染网页（此刻还是待拍页）、change 晚一步才到，照片处理慢时「点一下拍照」就露出来了。
+  // 切成等待态后：返回间隙看到的是明确提示；相机真没弹出时仍可点文字重试。
+  setTimeout(function() {
+    var m = _hwCam.modal; if (!m) return;
+    var cap = m.querySelector('#hwCamCap');
+    if (!cap || !cap.querySelector('#hwSysShootBig')) return;  // 已进入其他状态（处理中/编辑页）则不动
+    cap.innerHTML =
+      '<div class="hw-cam-tip">⏳ 正在获取照片… <span style="opacity:.6;">v0922b</span></div>' +
+      '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;">' +
+        '<div style="font-size:44px;">⏳</div>' +
+        '<div style="color:rgba(255,255,255,.85);font-size:14px;cursor:pointer;" id="hwSysRetry">没弹出相机？点这里重试</div>' +
+      '</div>';
+    var rt = document.getElementById('hwSysRetry');
+    if (rt) rt.onclick = _hwSysShoot;
+  }, 600);
+}
+
+// 2026-09-22b：系统相机交回照片后的过渡态（隐藏一切可点元素，防误触/防误解为故障）
+function _hwSysBusy(msg) {
+  var m = _hwCam.modal; if (!m) return;
+  var cap = m.querySelector('#hwCamCap'); if (!cap) return;
+  cap.innerHTML =
+    '<div class="hw-cam-tip">' + msg + ' <span style="opacity:.6;">v0922b</span></div>' +
+    '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;">' +
+      '<div style="font-size:44px;">⏳</div>' +
+      '<div style="color:rgba(255,255,255,.85);font-size:14px;">请稍候</div>' +
+    '</div>';
 }
 
 
