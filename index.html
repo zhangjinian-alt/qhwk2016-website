@@ -12176,7 +12176,13 @@ function renderReviewProblems() {
     box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:16px;">（未识别出题目，可只发布评语）</p>';
   } else {
     // 2026-09-22 年哥哥定版：题干 + 逐空呈现；每空保留 ✅/❌ 改判按钮与正确答案输入框（索引不变）
-    box.innerHTML = _groupProblemsByQno(st.problems).map(function(g) {
+    // 2026-09-22 晚：盲抄复核第二读法（copy_recheck_alt）入页——AI 两次独立读图读法不一致的空，
+    // 橙框并排展示 + 教师一键采纳；只替换 sa、不自动翻判定（教师对照原图定夺）。
+    var altCount = st.problems.filter(function(p) { return p && p.copy_recheck_alt != null && String(p.copy_recheck_alt) !== ''; }).length;
+    var altBanner = altCount > 0
+      ? '<div style="background:#FFF4E5;border:1px solid #F0C081;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#8A5300;line-height:1.6;">🔍 <b>AI 盲抄复核提示</b>：AI 对 ' + altCount + ' 个空的答案做了第二次独立读图，两次读法不一致（下方橙框标注）。请对照作业原图核对——若橙框里的第二读法才是学生的真实笔迹，点「✍ 采纳」替换学生答案，再翻转该空对错判定；若初次读法正确，忽略橙框即可。</div>'
+      : '';
+    box.innerHTML = altBanner + _groupProblemsByQno(st.problems).map(function(g) {
       var head = (g.items.length > 1 || g.key)
         ? '<div style="font-size:13px;font-weight:600;margin:4px 0 4px;color:var(--text-secondary);">' + fmtFrac(g.stem || '') + '</div>'
         : '';
@@ -12193,6 +12199,15 @@ function renderReviewProblems() {
         var mark = p.is_correct
           ? '<span style="color:#2E7D32;font-weight:700;">（√）</span>'
           : '<span style="color:#C62828;font-weight:700;">（×）</span>';
+        // 盲抄复核第二读法：AI 两次独立读图读法不一致时后端挂 copy_recheck_alt（只标记不改判），
+        // 这里并排亮给老师对照原图，一键采纳替换 sa；采纳后该字段删除、不再显示。
+        var alt = (p.copy_recheck_alt != null && String(p.copy_recheck_alt) !== '') ? String(p.copy_recheck_alt) : '';
+        var altHtml = alt
+          ? '<div style="background:#FFF4E5;border:1px dashed #E8B368;border-radius:8px;padding:6px 10px;margin-top:6px;font-size:12px;color:#8A5300;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+            '<span style="flex:1;min-width:0;">🔍 AI 盲抄复核另读作：<b>' + fmtFrac(alt) + '</b>（与初次读法不一致，请对照原图）</span>' +
+            '<button type="button" onclick="adoptRvAlt(' + i + ')" title="把学生答案替换为第二读法" style="flex:none;border:1px solid #E8B368;background:#fff;border-radius:6px;padding:3px 10px;font-size:12px;color:#8A5300;cursor:pointer;">✍ 采纳</button>' +
+            '</div>'
+          : '';
         return '<div class="hw-problem" style="display:flex;gap:8px;align-items:flex-start;' + (head ? 'margin-left:12px;' : '') + '">' +
           '<button type="button" onclick="toggleRvProblem(' + i + ')" title="点击翻转对错判定" style="' + btnStyle + 'border-radius:8px;min-width:44px;padding:6px 8px;font-size:16px;cursor:pointer;flex:none;">' + icon + '</button>' +
           '<div style="flex:1;min-width:0;">' +
@@ -12201,6 +12216,7 @@ function renderReviewProblems() {
           '<span style="font-size:11px;color:var(--text-muted);flex:none;">正确答案</span>' +
           '<input id="rvAns' + i + '" value="' + escapeHtml(String(p.correct_answer != null ? p.correct_answer : '')) + '" style="flex:1;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">' +
           '</div>' +
+          altHtml +
           '</div>' +
           '<button type="button" onclick="removeRvProblem(' + i + ')" title="AI 误识别此空，删除" style="flex:none;border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:14px;padding:4px;">✕</button>' +
           '</div>';
@@ -12221,6 +12237,20 @@ function toggleRvProblem(i) {
   if (!_hwReviewState || !_hwReviewState.problems[i]) return;
   _hwReviewState.problems[i].is_correct = !_hwReviewState.problems[i].is_correct;
   renderReviewProblems();
+}
+
+// 2026-09-22 晚：采纳盲抄复核第二读法——只替换学生答案（sa），不自动翻转对错判定，
+// 是否改判由老师对照原图后手动点 ✅/❌ 决定（与后端「盲抄只标记不改判」同一哲学）。
+function adoptRvAlt(i) {
+  if (!_hwReviewState || !_hwReviewState.problems[i]) return;
+  var p = _hwReviewState.problems[i];
+  var alt = p.copy_recheck_alt;
+  if (alt == null || String(alt) === '') return;
+  if (!confirm('把学生答案替换为第二读法「' + String(alt) + '」？\n替换后请对照原图，手动翻转该空的对错判定。')) return;
+  p.student_answer = String(alt);
+  delete p.copy_recheck_alt; // 已采纳，不再显示橙框
+  renderReviewProblems();
+  showToast('已替换为学生答案，请对照原图核对该空判定是否需要翻转（点题目前的 ✅/❌）');
 }
 
 function removeRvProblem(i) {
