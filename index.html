@@ -11433,14 +11433,28 @@ async function viewHwFeedback(hwId) {
     var finalResult = hw.teacher_reviewed ? JSON.parse(hw.teacher_reviewed) : grade;
     var problemsHtml = '';
     if (finalResult.problems && finalResult.problems.length > 0) {
-      problemsHtml = finalResult.problems.map(function(p) {
-        var cls = p.is_correct ? 'correct' : 'wrong';
-        var icon = p.is_correct ? '✅' : '❌';
-        return '<div class="hw-problem ' + cls + '">' +
-          '<div class="hw-problem-label">' + icon + ' ' + fmtFrac(p.question || '') + (p.student_answer != null ? ' = ' + fmtFrac(p.student_answer) : '') + '</div>' +
-          (p.is_correct ? '' : '<div class="hw-problem-detail">正确答案：<strong>' + fmtFrac(p.correct_answer || '') + '</strong>' + (p.error_type ? ' | ' + fmtFrac(escapeHtml(p.error_type)) : '') + (p.error_reason ? ': ' + fmtFrac(escapeHtml(p.error_reason)) : '') + '</div>') +
-          (p.hint ? '<div class="hw-problem-detail">💡 ' + p.hint + '</div>' : '') +
-          '</div>';
+      problemsHtml = _groupProblemsByQno(finalResult.problems).map(function(g) {
+        // 2026-09-22 晚（年哥哥定版）：学生端反馈与教师端查看详情同款格子——
+        // 完整题干 + 第N个空逐空呈现；错题带 分析 + 正确答案（学生订正需要）
+        var anyWrong = g.items.some(function(it) { return !it.p.is_correct; });
+        var lines = g.items.map(function(it) {
+          var p = it.p;
+          var mark = '<span style="color:#C62828;font-weight:700;">' + (p.is_correct ? '（√）' : '（×）') + '</span>';
+          var sa = (p.student_answer != null && String(p.student_answer) !== '')
+            ? '<b>' + fmtFrac(p.student_answer) + '</b>' : '（未识别）';
+          var lbl = it.label ? it.label + '：' : '';
+          var line = '<div style="margin-top:4px;font-size:14px;">' + lbl + '学生答案：' + sa + ' ' + mark + '</div>';
+          if (!p.is_correct) {
+            var why = (p.error_reason || p.error_type || '').trim();
+            if (why) line += '<div class="hw-problem-detail">分析：' + fmtFrac(escapeHtml(why)) + '</div>';
+            var ca = (p.correct_answer != null && String(p.correct_answer) !== '') ? fmtFrac(p.correct_answer) : '';
+            if (ca) line += '<div class="hw-problem-detail">所以：正确答案：<strong style="color:#389E0D;">' + ca + '</strong></div>';
+            if (p.hint) line += '<div class="hw-problem-detail">💡 ' + fmtFrac(escapeHtml(p.hint)) + '</div>';
+          }
+          return line;
+        }).join('');
+        return '<div class="hw-problem ' + (anyWrong ? 'wrong' : 'correct') + '">' +
+          '<div class="hw-problem-label">' + fmtFrac(g.fullStem || g.stem || '') + '</div>' + lines + '</div>';
       }).join('');
     }
 
