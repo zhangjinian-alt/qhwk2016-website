@@ -5152,6 +5152,47 @@ async function loadCloudMistakes(studentName) {
   }
 }
 
+// ===== 2026-09-22 年哥哥定版：题干 + 逐空呈现（查看详情/复核确认/错题本通用）=====
+// 一空一条的批改记录按「大题、小题」聚合成小题组；题号解析失败的记录保持独立，不强行合并
+function _parseQnoKey(question) {
+  if (!question) return null;
+  var q = String(question).trim();
+  var m = q.match(/^([一二三四五六七八九十]{1,3})\s*、\s*(\d{1,2})/);
+  if (m) return m[1] + '、' + m[2];
+  m = q.match(/^(\d{1,2})\s*[.、．]\s*(\d{1,2})(?!\d)/);
+  if (m) return '#' + m[1] + '.' + m[2];
+  return null;
+}
+function _blankMarkOf(question) {
+  var m = String(question || '').match(/[①②③④⑤⑥⑦⑧⑨⑩⑪⑫]/);
+  return m ? m[0] : '';
+}
+// problems/records（均须有 .question）→ [{key, stem, items:[{idx, p, label}]}]
+// stem 取组内最长题干片段；label 优先用 ①② 空标记，否则组内顺序编号（单条不加前缀）
+function _groupProblemsByQno(problems) {
+  var groups = [], keyOf = {};
+  (problems || []).forEach(function(p, idx) {
+    var key = _parseQnoKey(p.question);
+    if (!key) {
+      groups.push({ key: null, stem: p.question || '', items: [{ idx: idx, p: p, label: '' }] });
+      return;
+    }
+    var g = keyOf[key];
+    if (!g) { g = keyOf[key] = { key: key, stem: '', items: [] }; groups.push(g); }
+    g.items.push({ idx: idx, p: p, label: '' });
+    if ((p.question || '').length > g.stem.length) g.stem = p.question || '';
+  });
+  groups.forEach(function(g) {
+    g.items.forEach(function(it, i) {
+      var mk = _blankMarkOf(it.p.question);
+      if (mk) it.label = '第' + mk + '空';
+      else if (g.items.length > 1) it.label = '第' + (i + 1) + '空';
+      else it.label = '';
+    });
+  });
+  return groups;
+}
+
 // 按教学周分组渲染错题本（每周一个可折叠区块）
 function mistakeWeekOf(m) {
   var d = hwBeijingDate(m.created_at);
@@ -5177,34 +5218,46 @@ function buildMistakeWeekHtml(all) {
   var isSelfView = getCurrentRole() !== 'teacher';
   // 2026-09-15（年哥哥定）：一道题一条 —— 同一题的不同错法收在同一张卡片里，
   // 顺序与评讲 PPT 一致：题干 → ✅正确答案 → ⚠️不同错法（含人数/错因）→ ✍答错学生名单。
-  function mistakeHtml(m) {
-    var vs = m.variants || [];
-    var names = m.students || [];
-    var cnt = m.student_count || names.length || 0;
-    var who = (!isSelfView && cnt) ? ' <span style="font-size:12px;color:#E8590C;font-weight:600;white-space:nowrap;">🔥 ' + cnt + '人做错</span>' : '';
-    var sub = (!isSelfView && m.title) ? ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">— ' + escHtmlSafe(m.title) + '</span>' : '';
-    var ans = '<div class="solution">✅ 正确答案：' + fmtFrac(escapeHtml(m.correct_answer || '（未提供）')) + '</div>';
-    var vhtml = '';
-    if (vs.length) {
-      vhtml = '<div class="reason">⚠️ 不同错法（' + vs.length + ' 种）：</div><div class="variants">' +
-        vs.map(function(v, i) {
+  // 2026-09-15（年哥哥定）：一道题一条 —— 同一题的不同错法收在同一张卡片里；
+  // 2026-09-22 再定版：按小题聚合，题干 → 逐空「学生答案（×）+ 分析 + 所以正确答案」
+  // → 共有N人错 · 错误情况有M种 → 错误的名单（格式对齐年哥哥手绘样张）
+  function mistakeGroupHtml(g) {
+    var names = [], variantTotal = 0;
+    var blankBlocks = g.items.map(function(it) {
+      var m = it.p;
+      var vs = m.variants || [];
+      variantTotal += (m.variant_count || vs.length || 1);
+      (m.students || []).forEach(function(n) { if (names.indexOf(n) < 0) names.push(n); });
+      var top = vs[0] || {};
+      var sa = top.student_answer || m.student_answer || '';
+      var lbl = it.label ? '<b>' + it.label + '</b>：' : '';
+      var blk = '<div style="margin-top:6px;font-size:14px;">' + lbl + '学生答案：' +
+        (sa ? fmtFrac(escapeHtml(String(sa))) : '（答案未识别）') +
+        ' <span style="color:#C62828;font-weight:700;">（×）</span></div>';
+      var why = (top.error_reason || top.error_type || m.error_reason || m.error_type || '').trim();
+      if (why) blk += '<div class="reason" style="margin-top:2px;">分析：' + fmtFrac(escapeHtml(why)) + '</div>';
+      blk += '<div class="solution" style="margin-top:2px;">所以：正确答案：' + fmtFrac(escapeHtml(m.correct_answer || '（未提供）')) + '</div>';
+      if (vs.length > 1) {
+        blk += '<div class="variants" style="margin-top:2px;">' + vs.map(function(v, i) {
           var mark = '①②③④⑤⑥⑦⑧⑨⑩'[i] || ((i + 1) + '.');
-          var sa = v.student_answer ? fmtFrac(escapeHtml(v.student_answer)) : '（答案未识别）';
-          var line = '<b>' + mark + '</b> ' + sa;
+          var line = '<b>' + mark + '</b> ' + (v.student_answer ? fmtFrac(escapeHtml(v.student_answer)) : '（答案未识别）');
           if (v.count) line += ' <span style="color:#E8590C;font-weight:600;">×' + v.count + '人</span>';
-          var why = (v.error_reason || v.error_type || '').trim();
-          if (why) line += '　<span style="color:var(--text-secondary);">' + fmtFrac(escapeHtml(why)) + '</span>';
-          var vn = v.students || [];
-          if (vn.length && vn.length <= 3) {
-            line += ' <span style="color:var(--text-muted);font-size:12px;">（' + escHtmlSafe(vn.join('、')) + '）</span>';
-          }
+          var vwhy = (v.error_reason || v.error_type || '').trim();
+          if (vwhy) line += '　<span style="color:var(--text-secondary);">' + fmtFrac(escapeHtml(vwhy)) + '</span>';
           return '<div class="variant-line">' + line + '</div>';
         }).join('') + '</div>';
-    }
-    var namesHtml = (!isSelfView && names.length)
-      ? '<div class="names">✍ 答错学生（' + names.length + ' 人）：' + escHtmlSafe(names.join('、')) + '</div>' : '';
-    return '<div class="mistake-item"><div class="question">❌ ' + fmtFrac(escapeHtml(m.question || '')) + who + sub + '</div>' +
-      ans + vhtml + namesHtml + '</div>';
+      }
+      return blk;
+    }).join('');
+    var cnt = names.length;
+    var who = (!isSelfView && cnt) ? ' <span style="font-size:12px;color:#E8590C;font-weight:600;white-space:nowrap;">🔥 ' + cnt + '人做错</span>' : '';
+    var sub = (!isSelfView && g.items[0].p.title) ? ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">— ' + escHtmlSafe(g.items[0].p.title) + '</span>' : '';
+    var namesHtml = (!isSelfView && cnt)
+      ? '<div class="names" style="margin-top:6px;">✍ 错误的名单（' + cnt + ' 人）：' + escHtmlSafe(names.join('、')) + '</div>' : '';
+    var statLine = (!isSelfView && cnt)
+      ? '<div style="margin-top:6px;font-size:13px;color:var(--text-secondary);">共有 <b>' + cnt + '</b> 人错 · 错误情况有 <b>' + variantTotal + '</b> 种</div>' : '';
+    return '<div class="mistake-item"><div class="question">❌ ' + fmtFrac(escapeHtml(g.stem || '')) + who + sub + '</div>' +
+      blankBlocks + statLine + namesHtml + '</div>';
   }
   var curWeek = getTeachWeek();
   var groups = {};
@@ -5219,7 +5272,7 @@ function buildMistakeWeekHtml(all) {
   if (!(curWeek in _mistakeWeekOpen) && isSelfView) _mistakeWeekOpen[curWeek] = true;
   var html = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;">' +
     '<h4 style="margin-bottom:8px;">📈 错题本（按题聚合 · 来自 AI 批改）</h4>' +
-    '<p style="font-size:14px;color:var(--text-secondary);">共 <strong>' + all.length + '</strong> 道错题 · ' + totalVariants + ' 种错法 · 覆盖 ' + weeks.length + ' 个教学周，点击周次可展开/收起</p>' +
+    '<p style="font-size:14px;color:var(--text-secondary);">共 <strong>' + all.length + '</strong> 条错题记录（按小题聚合展示）· ' + totalVariants + ' 种错法 · 覆盖 ' + weeks.length + ' 个教学周，点击周次可展开/收起</p>' +
     '<div style="margin-top:10px;">' +
     '<button class="btn btn-outline" style="padding:4px 14px;font-size:12px;margin-right:8px;" onclick="setAllMistakeWeeks(true)">全部展开</button>' +
     '<button class="btn btn-outline" style="padding:4px 14px;font-size:12px;" onclick="setAllMistakeWeeks(false)">全部收起</button>' +
@@ -5232,15 +5285,16 @@ function buildMistakeWeekHtml(all) {
     var wVariants = 0;
     ms.forEach(function(m) { wVariants += (m.variant_count || (m.variants || []).length || 1); });
     var show = ms.slice(0, 40);
-    var restNote = ms.length > 40 ? '<div style="padding:8px 14px;font-size:12px;color:var(--text-muted);">该周共 ' + ms.length + ' 道错题，仅显示前 40 道，避免刷屏</div>' : '';
+    var showGroups = _groupProblemsByQno(show);
+    var restNote = ms.length > 40 ? '<div style="padding:8px 14px;font-size:12px;color:var(--text-muted);">该周共 ' + ms.length + ' 条错题记录，仅显示前 40 条，避免刷屏</div>' : '';
     var body = '<div id="mistakeWeekBody_' + w + '" style="' + (open ? '' : 'display:none;') + '">' +
       (stat ? '<div style="padding:10px 14px 0;font-size:13px;color:var(--text-secondary);">' + (isCur ? '本周' : '该周') + '高频错误：</div><div style="padding:0 14px;">' + stat + '</div>' : '') +
-      '<div style="padding:2px 14px 0;">' + show.map(mistakeHtml).join('') + '</div>' + restNote +
+      '<div style="padding:2px 14px 0;">' + showGroups.map(mistakeGroupHtml).join('') + '</div>' + restNote +
       '</div>';
     return '<div style="margin-bottom:14px;">' +
       '<div style="display:flex;gap:8px;align-items:stretch;">' +
       '<button class="btn btn-outline" style="flex:1;min-width:0;padding:11px 14px;font-size:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleMistakeWeek(' + w + ')">' +
-      '<span>📅 第' + w + '周' + (isCur ? '（本周）' : '') + ' · ' + ms.length + ' 道错题 · ' + wVariants + ' 种错法</span>' +
+      '<span>📅 第' + w + '周' + (isCur ? '（本周）' : '') + ' · ' + showGroups.length + ' 道错题 · ' + wVariants + ' 种错法</span>' +
       '<span>' + (open ? '▾ 收起' : '▸ 展开') + '</span>' +
       '</button>' +
       '<button class="btn btn-primary" style="padding:11px 16px;font-size:14px;white-space:nowrap;" onclick="downloadMistakePpt(' + w + ')" title="生成该周错题评讲PPT：每题一面，正确答案+不同错法+答错学生名单同页；模板背景与原版一致">📥 评讲PPT</button>' +
@@ -12014,17 +12068,29 @@ async function viewHwDetail(hwId) {
       } catch(e) {}
     }
 
+    // 2026-09-22 年哥哥定版：题干 + 逐空「学生答案（√/×）」；错题不出示正确答案（防学生照抄）
     var problemsHtml = '';
     if (grade.problems && grade.problems.length > 0) {
-      problemsHtml = grade.problems.map(function(p) {
-        var cls = p.is_correct ? 'correct' : 'wrong';
-        var icon = p.is_correct ? '✅' : '❌';
-        return '<div class="hw-problem ' + cls + '">' +
-          '<div class="hw-problem-label">' + icon + ' ' + fmtFrac(p.question || '') + (p.student_answer != null ? ' = ' + fmtFrac(p.student_answer) : '') +
-          (p.is_correct ? '' : ' (正确: ' + fmtFrac(p.correct_answer || '') + ')') + '</div>' +
-          (p.is_correct ? '' : '<div class="hw-problem-detail">' + fmtFrac(escapeHtml(p.error_type || '')) + (p.error_reason ? ': ' + fmtFrac(escapeHtml(p.error_reason)) : '') + '</div>') +
-          (p.hint ? '<div class="hw-problem-detail">💡 ' + p.hint + '</div>' : '') +
-          '</div>';
+      problemsHtml = _groupProblemsByQno(grade.problems).map(function(g) {
+        var anyWrong = g.items.some(function(it) { return !it.p.is_correct; });
+        var lines = g.items.map(function(it) {
+          var p = it.p;
+          var mark = p.is_correct
+            ? '<span style="color:#2E7D32;font-weight:700;">（√）</span>'
+            : '<span style="color:#C62828;font-weight:700;">（×）</span>';
+          var sa = (p.student_answer != null && String(p.student_answer) !== '')
+            ? fmtFrac(p.student_answer) : '（未识别）';
+          var lbl = it.label ? '<b>' + it.label + '</b>：' : '';
+          var line = '<div style="margin-top:4px;font-size:14px;">' + lbl + '学生答案：' + sa + ' ' + mark + '</div>';
+          if (!p.is_correct) {
+            var why = (p.error_reason || p.error_type || '').trim();
+            if (why) line += '<div class="hw-problem-detail">分析：' + fmtFrac(escapeHtml(why)) + '</div>';
+            if (p.hint) line += '<div class="hw-problem-detail">💡 ' + fmtFrac(escapeHtml(p.hint)) + '</div>';
+          }
+          return line;
+        }).join('');
+        return '<div class="hw-problem ' + (anyWrong ? 'wrong' : 'correct') + '">' +
+          '<div class="hw-problem-label">' + fmtFrac(g.stem || '') + '</div>' + lines + '</div>';
       }).join('');
     }
 
@@ -12109,22 +12175,37 @@ function renderReviewProblems() {
   if (!st.problems.length) {
     box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:16px;">（未识别出题目，可只发布评语）</p>';
   } else {
-    box.innerHTML = st.problems.map(function(p, i) {
-      var icon = p.is_correct ? '✅' : '❌';
-      var btnStyle = p.is_correct
-        ? 'background:#EAF3DE;border:1.5px solid #B7DF9B;'
-        : 'background:#FFF1F0;border:1.5px solid #FFA39E;';
-      return '<div class="hw-problem" style="display:flex;gap:8px;align-items:flex-start;">' +
-        '<button type="button" onclick="toggleRvProblem(' + i + ')" title="点击翻转对错判定" style="' + btnStyle + 'border-radius:8px;min-width:44px;padding:6px 8px;font-size:16px;cursor:pointer;flex:none;">' + icon + '</button>' +
-        '<div style="flex:1;min-width:0;">' +
-        '<div class="hw-problem-label" style="font-size:13px;">' + fmtFrac(p.question || '') + (p.student_answer != null ? ' = ' + fmtFrac(p.student_answer) : '') + '</div>' +
-        '<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">' +
-        '<span style="font-size:11px;color:var(--text-muted);flex:none;">正确答案</span>' +
-        '<input id="rvAns' + i + '" value="' + escapeHtml(String(p.correct_answer != null ? p.correct_answer : '')) + '" style="flex:1;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">' +
-        '</div>' +
-        '</div>' +
-        '<button type="button" onclick="removeRvProblem(' + i + ')" title="AI 误识别此题，删除" style="flex:none;border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:14px;padding:4px;">✕</button>' +
-        '</div>';
+    // 2026-09-22 年哥哥定版：题干 + 逐空呈现；每空保留 ✅/❌ 改判按钮与正确答案输入框（索引不变）
+    box.innerHTML = _groupProblemsByQno(st.problems).map(function(g) {
+      var head = (g.items.length > 1 || g.key)
+        ? '<div style="font-size:13px;font-weight:600;margin:4px 0 4px;color:var(--text-secondary);">' + fmtFrac(g.stem || '') + '</div>'
+        : '';
+      var rows = g.items.map(function(it) {
+        var i = it.idx;
+        var p = it.p;
+        var icon = p.is_correct ? '✅' : '❌';
+        var btnStyle = p.is_correct
+          ? 'background:#EAF3DE;border:1.5px solid #B7DF9B;'
+          : 'background:#FFF1F0;border:1.5px solid #FFA39E;';
+        var lbl = it.label ? '<b>' + it.label + '</b>：' : '';
+        var sa = (p.student_answer != null && String(p.student_answer) !== '')
+          ? fmtFrac(p.student_answer) : '（未识别）';
+        var mark = p.is_correct
+          ? '<span style="color:#2E7D32;font-weight:700;">（√）</span>'
+          : '<span style="color:#C62828;font-weight:700;">（×）</span>';
+        return '<div class="hw-problem" style="display:flex;gap:8px;align-items:flex-start;' + (head ? 'margin-left:12px;' : '') + '">' +
+          '<button type="button" onclick="toggleRvProblem(' + i + ')" title="点击翻转对错判定" style="' + btnStyle + 'border-radius:8px;min-width:44px;padding:6px 8px;font-size:16px;cursor:pointer;flex:none;">' + icon + '</button>' +
+          '<div style="flex:1;min-width:0;">' +
+          '<div class="hw-problem-label" style="font-size:13px;">' + lbl + '学生答案：' + sa + ' ' + mark + '</div>' +
+          '<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">' +
+          '<span style="font-size:11px;color:var(--text-muted);flex:none;">正确答案</span>' +
+          '<input id="rvAns' + i + '" value="' + escapeHtml(String(p.correct_answer != null ? p.correct_answer : '')) + '" style="flex:1;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">' +
+          '</div>' +
+          '</div>' +
+          '<button type="button" onclick="removeRvProblem(' + i + ')" title="AI 误识别此空，删除" style="flex:none;border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:14px;padding:4px;">✕</button>' +
+          '</div>';
+      }).join('');
+      return '<div style="margin-bottom:10px;">' + head + rows + '</div>';
     }).join('');
   }
   var n = st.problems.length;
