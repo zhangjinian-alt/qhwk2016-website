@@ -5167,27 +5167,64 @@ function _blankMarkOf(question) {
   var m = String(question || '').match(/[①②③④⑤⑥⑦⑧⑨⑩⑪⑫]/);
   return m ? m[0] : '';
 }
-// problems/records（均须有 .question）→ [{key, stem, items:[{idx, p, label}]}]
-// stem 取组内最长题干片段；label 优先用 ①② 空标记，否则组内顺序编号（单条不加前缀）
+// 2026-09-22 晚（年哥哥要求「题干要完整，下面再说第一个空/第二个空」）：
+// fullStem = 完整题干——各空题干片段不同时，用组内公共题号前缀 + 去重片段按卷面顺序
+// 拼接（如「一、1. 亿级的数位有（ ）；万级的计数单位有（ ）」），保证片段一字不丢；
+// 各空相同时与 stem 一致。label 一律「第一个空/第二个空…」（①② 空标记以括注保留），
+// 片段互不相同的组，每空行再把本空片段括注在标签后，方便对照。
+function _lcpStr(a, b) {
+  var i = 0, m = Math.min(a.length, b.length);
+  while (i < m && a[i] === b[i]) i++;
+  return a.slice(0, i);
+}
+function _cnOrd(n) {
+  var d = '零一二三四五六七八九';
+  if (n <= 0) return String(n);
+  if (n < 10) return d[n];
+  if (n === 10) return '十';
+  if (n < 20) return '十' + d[n % 10];
+  if (n < 100) return d[Math.floor(n / 10)] + '十' + (n % 10 ? d[n % 10] : '');
+  return String(n);
+}
+// problems/records（均须有 .question）→ [{key, stem, fullStem, fragDiffers, items:[{idx, p, label, frag}]}]
 function _groupProblemsByQno(problems) {
   var groups = [], keyOf = {};
   (problems || []).forEach(function(p, idx) {
     var key = _parseQnoKey(p.question);
     if (!key) {
-      groups.push({ key: null, stem: p.question || '', items: [{ idx: idx, p: p, label: '' }] });
+      groups.push({ key: null, stem: p.question || '', fullStem: p.question || '', fragDiffers: false,
+        items: [{ idx: idx, p: p, label: '', frag: '' }] });
       return;
     }
     var g = keyOf[key];
     if (!g) { g = keyOf[key] = { key: key, stem: '', items: [] }; groups.push(g); }
-    g.items.push({ idx: idx, p: p, label: '' });
+    g.items.push({ idx: idx, p: p, label: '', frag: '' });
     if ((p.question || '').length > g.stem.length) g.stem = p.question || '';
   });
   groups.forEach(function(g) {
+    var qs = g.items.map(function(it) { return String(it.p.question || '').trim(); });
+    var common = (qs.length > 1) ? qs.reduce(_lcpStr) : '';
+    g.items.forEach(function(it, i) { it.frag = qs[i].slice(common.length).trim(); });
+    var frags = g.items.map(function(it) { return (it.frag || '').replace(/\s+/g, ''); });
+    g.fragDiffers = qs.length > 1 && frags.some(function(f) { return f !== frags[0]; });
+    if (g.fragDiffers) {
+      var seenNF = [], parts = [];
+      g.items.forEach(function(it) {
+        var nf = (it.frag || '').replace(/\s+/g, '');
+        if (!nf || seenNF.indexOf(nf) >= 0) return;
+        seenNF.push(nf);
+        parts.push(it.frag);
+      });
+      var head = common.replace(/\s+$/, '');
+      g.fullStem = (head ? head + ' ' : '') + parts.join('；');
+    } else {
+      g.fullStem = g.stem;
+    }
     g.items.forEach(function(it, i) {
       var mk = _blankMarkOf(it.p.question);
-      if (mk) it.label = '第' + mk + '空';
-      else if (g.items.length > 1) it.label = '第' + (i + 1) + '空';
-      else it.label = '';
+      if (g.items.length > 1) {
+        it.label = '第' + _cnOrd(i + 1) + '个空' + (mk ? '（' + mk + '）' : '');
+      } else it.label = '';
     });
   });
   return groups;
@@ -12080,7 +12117,13 @@ async function viewHwDetail(hwId) {
             : '<span style="color:#C62828;font-weight:700;">（×）</span>';
           var sa = (p.student_answer != null && String(p.student_answer) !== '')
             ? fmtFrac(p.student_answer) : '（未识别）';
-          var lbl = it.label ? '<b>' + it.label + '</b>：' : '';
+          var lbl = it.label ? '<b>' + it.label + '</b>' : '';
+          // 各空片段不同时，把本空题干片段括注在空标签后（题干完整性，2026-09-22 晚）
+          if (g.fragDiffers && it.label) {
+            var fg = (it.frag || '').replace(/[（）()\s　]/g, '');
+            if (fg) lbl += '<span style="color:var(--text-muted);font-size:12px;">（' + fmtFrac(escapeHtml(it.frag)) + '）</span>';
+          }
+          if (lbl) lbl += '：';
           var line = '<div style="margin-top:4px;font-size:14px;">' + lbl + '学生答案：' + sa + ' ' + mark + '</div>';
           if (!p.is_correct) {
             var why = (p.error_reason || p.error_type || '').trim();
@@ -12090,7 +12133,7 @@ async function viewHwDetail(hwId) {
           return line;
         }).join('');
         return '<div class="hw-problem ' + (anyWrong ? 'wrong' : 'correct') + '">' +
-          '<div class="hw-problem-label">' + fmtFrac(g.stem || '') + '</div>' + lines + '</div>';
+          '<div class="hw-problem-label">' + fmtFrac(g.fullStem || g.stem || '') + '</div>' + lines + '</div>';
       }).join('');
     }
 
@@ -12184,7 +12227,7 @@ function renderReviewProblems() {
       : '';
     box.innerHTML = altBanner + _groupProblemsByQno(st.problems).map(function(g) {
       var head = (g.items.length > 1 || g.key)
-        ? '<div style="font-size:13px;font-weight:600;margin:4px 0 4px;color:var(--text-secondary);">' + fmtFrac(g.stem || '') + '</div>'
+        ? '<div style="font-size:13px;font-weight:600;margin:4px 0 4px;color:var(--text-secondary);">' + fmtFrac(g.fullStem || g.stem || '') + '</div>'
         : '';
       var rows = g.items.map(function(it) {
         var i = it.idx;
@@ -12193,7 +12236,13 @@ function renderReviewProblems() {
         var btnStyle = p.is_correct
           ? 'background:#EAF3DE;border:1.5px solid #B7DF9B;'
           : 'background:#FFF1F0;border:1.5px solid #FFA39E;';
-        var lbl = it.label ? '<b>' + it.label + '</b>：' : '';
+        var lbl = it.label ? '<b>' + it.label + '</b>' : '';
+        // 各空片段不同时，把本空题干片段括注在空标签后（题干完整性，2026-09-22 晚）
+        if (g.fragDiffers && it.label) {
+          var fg = (it.frag || '').replace(/[（）()\s　]/g, '');
+          if (fg) lbl += '<span style="color:var(--text-muted);font-size:12px;">（' + fmtFrac(escapeHtml(it.frag)) + '）</span>';
+        }
+        if (lbl) lbl += '：';
         var sa = (p.student_answer != null && String(p.student_answer) !== '')
           ? fmtFrac(p.student_answer) : '（未识别）';
         var mark = p.is_correct
