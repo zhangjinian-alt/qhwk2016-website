@@ -9615,6 +9615,14 @@ function _hwSysShoot() {
     };
     img.src = URL.createObjectURL(f);
   };
+  // 2026-09-22c：iOS 系统相机里按 ✕（取消拍摄）只派发 cancel、不派发 change——
+  // 之前没监听 cancel，相机关了弹窗却停在旧状态（重拍场景=退回旧照片预览页，像"上一步"）。
+  // 现在按 ✕ 一律视为放弃拍摄：直接关整个拍照弹窗、回交作业页。
+  inp.oncancel = function() {
+    if (!_hwCam.modal) return;
+    _hwSysBusy('⏳ 正在关闭…');
+    closeHwCamera();
+  };
   inp.click();
   // 2026-09-22b：相机盖住网页后把待拍页切成「获取中」——iOS 从系统相机返回网页的瞬间
   // 会先渲染网页（此刻还是待拍页）、change 晚一步才到，照片处理慢时「点一下拍照」就露出来了。
@@ -9624,7 +9632,7 @@ function _hwSysShoot() {
     var cap = m.querySelector('#hwCamCap');
     if (!cap || !cap.querySelector('#hwSysShootBig')) return;  // 已进入其他状态（处理中/编辑页）则不动
     cap.innerHTML =
-      '<div class="hw-cam-tip">⏳ 正在获取照片… <span style="opacity:.6;">v0922b</span></div>' +
+      '<div class="hw-cam-tip">⏳ 正在获取照片… <span style="opacity:.6;">v0922c</span></div>' +
       '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;">' +
         '<div style="font-size:44px;">⏳</div>' +
         '<div style="color:rgba(255,255,255,.85);font-size:14px;cursor:pointer;" id="hwSysRetry">没弹出相机？点这里重试</div>' +
