@@ -12119,12 +12119,10 @@ async function viewHwDetail(hwId) {
         var anyWrong = g.items.some(function(it) { return !it.p.is_correct; });
         var lines = g.items.map(function(it) {
           var p = it.p;
-          var mark = p.is_correct
-            ? '<span style="color:#2E7D32;font-weight:700;">（√）</span>'
-            : '<span style="color:#C62828;font-weight:700;">（×）</span>';
+          var mark = '<span style="color:#C62828;font-weight:700;">' + (p.is_correct ? '（√）' : '（×）') + '</span>';
           var sa = (p.student_answer != null && String(p.student_answer) !== '')
-            ? fmtFrac(p.student_answer) : '（未识别）';
-          var lbl = it.label ? '<b>' + it.label + '</b>' : '';
+            ? '<b>' + fmtFrac(p.student_answer) + '</b>' : '（未识别）';
+          var lbl = it.label ? it.label : '';
           if (lbl) lbl += '：';
           var line = '<div style="margin-top:4px;font-size:14px;">' + lbl + '学生答案：' + sa + ' ' + mark + '</div>';
           if (!p.is_correct) {
@@ -12238,13 +12236,12 @@ function renderReviewProblems() {
         var btnStyle = p.is_correct
           ? 'background:#EAF3DE;border:1.5px solid #B7DF9B;'
           : 'background:#FFF1F0;border:1.5px solid #FFA39E;';
-        var lbl = it.label ? '<b>' + it.label + '</b>' : '';
+        var lbl = it.label ? it.label : '';
         if (lbl) lbl += '：';
-        var sa = (p.student_answer != null && String(p.student_answer) !== '')
-          ? fmtFrac(p.student_answer) : '（未识别）';
-        var mark = p.is_correct
-          ? '<span style="color:#2E7D32;font-weight:700;">（√）</span>'
-          : '<span style="color:#C62828;font-weight:700;">（×）</span>';
+        var hasSa = p.student_answer != null && String(p.student_answer) !== '';
+        var sa = hasSa ? '<b>' + fmtFrac(p.student_answer) + '</b>' : '（未识别）';
+        // 2026-09-22 年哥哥定版：√/× 一律红笔色（教师批改红笔风）
+        var mark = '<span style="color:#C62828;font-weight:700;">' + (p.is_correct ? '（√）' : '（×）') + '</span>';
         // 盲抄复核第二读法：AI 两次独立读图读法不一致时后端挂 copy_recheck_alt（只标记不改判），
         // 这里并排亮给老师对照原图，一键采纳替换 sa；采纳后该字段删除、不再显示。
         var alt = (p.copy_recheck_alt != null && String(p.copy_recheck_alt) !== '') ? String(p.copy_recheck_alt) : '';
