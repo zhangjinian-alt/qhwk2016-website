@@ -5267,7 +5267,10 @@ function buildMistakeWeekHtml(all) {
       (m.students || []).forEach(function(n) { if (names.indexOf(n) < 0) names.push(n); });
       var top = vs[0] || {};
       var sa = top.student_answer || m.student_answer || '';
-      var lbl = it.label ? '<b>' + it.label + '</b>：' : '';
+      // 2026-09-22 晚（年哥样张）：空标签用真实位次（第X个空 = 该空在整道小题里的
+      // 位次，后端 _row_blank_ctx 聚合），不是「错空里的第几个」
+      var lbl = m.blank_pos ? '<b>第' + _cnOrd(m.blank_pos) + '个空</b>：'
+        : (it.label ? '<b>' + it.label + '</b>：' : '');
       var blk = '<div style="margin-top:6px;font-size:14px;">' + lbl + '学生答案：' +
         (sa ? fmtFrac(escapeHtml(String(sa))) : '（答案未识别）') +
         ' <span style="color:#C62828;font-weight:700;">（×）</span></div>';
@@ -5293,7 +5296,11 @@ function buildMistakeWeekHtml(all) {
       ? '<div class="names" style="margin-top:6px;">✍ 错误的名单（' + cnt + ' 人）：' + escHtmlSafe(names.join('、')) + '</div>' : '';
     var statLine = (!isSelfView && cnt)
       ? '<div style="margin-top:6px;font-size:13px;color:var(--text-secondary);">共有 <b>' + cnt + '</b> 人错 · 错误情况有 <b>' + variantTotal + '</b> 种</div>' : '';
-    return '<div class="mistake-item"><div class="question">❌ ' + fmtFrac(escapeHtml(g.stem || '')) + who + sub + '</div>' +
+    // 2026-09-22 晚（年哥样张）：头部用完整题干——优先后端 question_full（含判对空片段），
+    // 旧数据无该字段时回退前端 fullStem/stem
+    var stemFull = g.fullStem || g.stem || '';
+    g.items.forEach(function(it) { var qf = it.p.question_full; if (qf && qf.length > stemFull.length) stemFull = qf; });
+    return '<div class="mistake-item"><div class="question">❌ ' + fmtFrac(escapeHtml(stemFull)) + who + sub + '</div>' +
       blankBlocks + statLine + namesHtml + '</div>';
   }
   var curWeek = getTeachWeek();
