@@ -5210,8 +5210,19 @@ function _groupProblemsByQno(problems) {
   });
   groups.forEach(function(g) {
     var qs = g.items.map(function(it) { return String(it.p.question || '').trim(); });
-    var common = (qs.length > 1) ? qs.reduce(_lcpStr) : '';
-    g.items.forEach(function(it, i) { it.frag = qs[i].slice(common.length).trim(); });
+    // 题号剥离（与后端 _mistake_qtag 同正则）：先剥题号再算句前缀，防 LCP 把
+    // 「第十位」的「第」一起吞掉（2026-09-22 晚年哥反馈错题本题干乱）
+    var qnos = qs.map(function(q) { var m = q.match(/^\s*[一二三四五六七八九十]+、\s*\d*[.．、]?\s*/); return m ? m[0] : ''; });
+    var frags1 = qs.map(function(q, i) { return q.slice(qnos[i].length).trim(); });
+    // 句前缀去重：各空片段都带同一段开头（如「一个整数从右往左数起，」）时只保留一次，
+    // 避免完整题干里同一句重复出现；前缀须 ≥6 字且修剪到标点处才剥离，防误伤
+    var common2 = (frags1.length > 1) ? frags1.reduce(_lcpStr) : '';
+    var sharedPrefix = '';
+    if (common2.length >= 6) {
+      var cut = Math.max(common2.lastIndexOf('，'), common2.lastIndexOf('；'), common2.lastIndexOf(','));
+      if (cut >= 5) sharedPrefix = common2.slice(0, cut + 1);
+    }
+    g.items.forEach(function(it, i) { it.frag = frags1[i].slice(sharedPrefix.length).trim(); });
     var frags = g.items.map(function(it) { return (it.frag || '').replace(/\s+/g, ''); });
     g.fragDiffers = qs.length > 1 && frags.some(function(f) { return f !== frags[0]; });
     if (g.fragDiffers) {
@@ -5222,8 +5233,9 @@ function _groupProblemsByQno(problems) {
         seenNF.push(nf);
         parts.push(it.frag);
       });
-      var head = common.replace(/\s+$/, '');
-      g.fullStem = (head ? head + ' ' : '') + parts.join('；');
+      var head = (qs.length > 1 ? qnos.reduce(_lcpStr) : (qnos[0] || '')).replace(/\s+$/, '');
+      var headAll = head + (sharedPrefix ? ' ' + sharedPrefix : (head ? ' ' : ''));
+      g.fullStem = headAll ? headAll + parts.join('；') : parts.join('；');
     } else {
       g.fullStem = g.stem;
     }
@@ -5267,7 +5279,10 @@ function buildMistakeWeekHtml(all) {
   // → 共有N人错 · 错误情况有M种 → 错误的名单（格式对齐年哥哥手绘样张）
   function mistakeGroupHtml(g) {
     var names = [], variantTotal = 0;
-    var blankBlocks = g.items.map(function(it) {
+    // 2026-09-22 深夜（年哥反馈卡片乱）：错空条目按真实位次升序排列（第一个空在前）
+    var blankBlocks = g.items.slice().sort(function(a, b) {
+      return (a.p.blank_pos || 999) - (b.p.blank_pos || 999);
+    }).map(function(it) {
       var m = it.p;
       var vs = m.variants || [];
       variantTotal += (m.variant_count || vs.length || 1);
@@ -5284,14 +5299,13 @@ function buildMistakeWeekHtml(all) {
       var why = (top.error_reason || top.error_type || m.error_reason || m.error_type || '').trim();
       if (why) blk += '<div class="reason" style="margin-top:2px;">分析：' + fmtFrac(escapeHtml(why)) + '</div>';
       blk += '<div class="solution" style="margin-top:2px;">所以：正确答案：' + fmtFrac(escapeHtml(m.correct_answer || '（未提供）')) + '</div>';
+      // 错法汇总压成单行（与顶部「学生答案」重复的详细信息不再逐行铺开）；
+      // 「其他错误」这类空洞类型不显示（2026-09-22 深夜年哥反馈卡片乱）
       if (vs.length > 1) {
-        blk += '<div class="variants" style="margin-top:2px;">' + vs.map(function(v, i) {
-          var mark = '①②③④⑤⑥⑦⑧⑨⑩'[i] || ((i + 1) + '.');
-          var line = '<b>' + mark + '</b> ' + (v.student_answer ? fmtFrac(escapeHtml(v.student_answer)) : '（答案未识别）');
-          if (v.count) line += ' <span style="color:#E8590C;font-weight:600;">×' + v.count + '人</span>';
-          var vwhy = (v.error_reason || v.error_type || '').trim();
-          if (vwhy) line += '　<span style="color:var(--text-secondary);">' + fmtFrac(escapeHtml(vwhy)) + '</span>';
-          return '<div class="variant-line">' + line + '</div>';
+        blk += '<div style="margin-top:2px;font-size:12px;color:var(--text-secondary);line-height:1.9;">错法：' + vs.map(function(v) {
+          var t = v.student_answer ? fmtFrac(escapeHtml(String(v.student_answer))) : '（未识别）';
+          if (v.count) t += '<span style="color:#E8590C;font-weight:600;">×' + v.count + '人</span>';
+          return '<span style="display:inline-block;background:#FFF1E6;border-radius:6px;padding:1px 8px;margin:2px 4px 2px 0;color:#E8590C;">' + t + '</span>';
         }).join('') + '</div>';
       }
       return blk;
@@ -5301,14 +5315,13 @@ function buildMistakeWeekHtml(all) {
     var sub = (!isSelfView && g.items[0].p.title) ? ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">— ' + escHtmlSafe(g.items[0].p.title) + '</span>' : '';
     var namesHtml = (!isSelfView && cnt)
       ? '<div class="names" style="margin-top:6px;">✍ 错误的名单（' + cnt + ' 人）：' + escHtmlSafe(names.join('、')) + '</div>' : '';
-    var statLine = (!isSelfView && cnt)
-      ? '<div style="margin-top:6px;font-size:13px;color:var(--text-secondary);">共有 <b>' + cnt + '</b> 人错 · 错误情况有 <b>' + variantTotal + '</b> 种</div>' : '';
+    // 「共有N人错·错误情况有M种」与头部「🔥N人做错」及各块错法数重复，删去（2026-09-22 深夜）
     // 2026-09-22 晚（年哥样张）：头部用完整题干——优先后端 question_full（含判对空片段），
     // 旧数据无该字段时回退前端 fullStem/stem
     var stemFull = g.fullStem || g.stem || '';
     g.items.forEach(function(it) { var qf = it.p.question_full; if (qf && qf.length > stemFull.length) stemFull = qf; });
     return '<div class="mistake-item"><div class="question">❌ ' + fmtFrac(escapeHtml(stemFull)) + who + sub + '</div>' +
-      blankBlocks + statLine + namesHtml + '</div>';
+      blankBlocks + namesHtml + '</div>';
   }
   var curWeek = getTeachWeek();
   var groups = {};
