@@ -5381,9 +5381,12 @@ function buildMistakeWeekHtml(all) {
     var stat = mistakeWeekStatsHtml(ms);
     var wVariants = 0;
     ms.forEach(function(m) { wVariants += (m.variant_count || (m.variants || []).length || 1); });
-    var show = ms.slice(0, 40);
+    // 2026-09-23（年哥反馈第三周缺第六大题）：记录已按「一题一条」聚合，原上限 40 条
+    // 会把题号靠后的题整块截掉（第三周第 40 条起是五、6 和整道第六大题）——上限提到
+    // 200（与后端 /api/mistakes limit 默认值一致），周统计数字按全量记录数显示
+    var show = ms.slice(0, 200);
     var showGroups = _groupProblemsByQno(show);
-    var restNote = ms.length > 40 ? '<div style="padding:8px 14px;font-size:12px;color:var(--text-muted);">该周共 ' + ms.length + ' 条错题记录，仅显示前 40 条，避免刷屏</div>' : '';
+    var restNote = ms.length > 200 ? '<div style="padding:8px 14px;font-size:12px;color:var(--text-muted);">该周共 ' + ms.length + ' 条错题记录，仅显示前 200 条，避免刷屏</div>' : '';
     var body = '<div id="mistakeWeekBody_' + w + '" style="' + (open ? '' : 'display:none;') + '">' +
       (stat ? '<div style="padding:10px 14px 0;font-size:13px;color:var(--text-secondary);">' + (isCur ? '本周' : '该周') + '高频错误：</div><div style="padding:0 14px;">' + stat + '</div>' : '') +
       '<div style="padding:2px 14px 0;">' + showGroups.map(mistakeGroupHtml).join('') + '</div>' + restNote +
