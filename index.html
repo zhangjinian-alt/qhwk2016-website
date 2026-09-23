@@ -4329,9 +4329,7 @@ async function renderMistakesBoard() {
       html += '<span style="font-size:12px;color:#E8590C;white-space:nowrap;font-weight:600;">🔥 ' + m.error_students + '人做错</span></div>';
       // 2026-09-22 晚：像复核确认那样呈现——完整题干 + 真实空位次（第N个空）+ 本空片段 + 学生答案错法
       if (m.blank_pos) {
-        var _frag = String(m.question || '').replace(/^[一二三四五六七八九十]+、\s*\d*[.．、]?\s*/, '');
         var _posTxt = '第' + (typeof _cnOrd === 'function' ? _cnOrd(m.blank_pos) : m.blank_pos) + '个空';
-        if (m.question_full && _frag && m.question !== m.question_full) _posTxt += '（' + _frag + '）';
         html += '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;line-height:1.8;">' + fmtFrac(escHtmlSafe(_posTxt)) + '</div>';
       }
       var vs = m.variants || [];
