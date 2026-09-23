@@ -3153,8 +3153,11 @@ function renderHomeByRole(role) {
       })();
       (async function() {
         var el = document.getElementById('qkMistakeCount');
+        // 2026-09-22 深夜（年哥哥定）：学生端计数也只统计本人（带档案名防教师账号返回全班）
+        var _stu = (getStudentProfile() || {}).display_name || '';
+        if (!_stu) { if (el) el.textContent = '—'; return; }
         try {
-          var resp = await fetchWithAuth('/mistakes');
+          var resp = await fetchWithAuth('/mistakes?student_name=' + encodeURIComponent(_stu));
           if (resp.ok) {
             var data = await resp.json();
             var ms = data.mistakes || [];
@@ -5126,6 +5129,12 @@ function renderReviewRecommendations() {
   if (isCloudLoggedIn()) {
     var role = getCurrentRole();
     var stuName = role === 'student' ? ((getStudentProfile() || {}).display_name || '') : '';
+    // 2026-09-22 深夜（年哥哥定）：学生模式不带档案名时，教师云端账号会拿到全班
+    // 复习推荐——与错题本同款兜底闸，只显示本人
+    if (role !== 'teacher' && !stuName) {
+      list.innerHTML = qhEmptyHtml('请先选择学生档案', '选择后这里只显示你自己的复习推荐');
+      return;
+    }
     loadCloudReview(stuName);
   } else {
     list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">' +
@@ -5141,14 +5150,27 @@ var _mistakeWeekAll = null;  // 最近一次拉取的错题全量，供折叠时
 async function loadCloudMistakes(studentName) {
   var list = document.getElementById('mistakeList');
   if (!list) return;
+  // 2026-09-22 深夜（年哥哥定）：学生端错题本只显示【本周·本人】的错题，不显示全班。
+  // 学生模式必须带学生档案名：不带名字且云端登录的是教师账号时，
+  // 后端会按教师返回全班错题（前端角色与云端账号是两套体系，这里是兜底闸）
+  var isSelfView = getCurrentRole() !== 'teacher';
+  if (isSelfView && !studentName) {
+    list.innerHTML = qhEmptyHtml('请先选择学生档案', '选择后这里只显示你自己的本周错题');
+    return;
+  }
   try {
     var query = studentName ? '?student_name=' + encodeURIComponent(studentName) : '';
     var resp = await fetchWithAuth('/mistakes' + query);
     if (!resp.ok) throw new Error('请求失败');
     var data = await resp.json();
     var all = data.mistakes || [];
+    // 学生端只保留本周（历史周错题不在学生端展示；教师端不受限）
+    if (isSelfView) {
+      var _curW = getTeachWeek();
+      all = all.filter(function(m) { return mistakeWeekOf(m) === _curW; });
+    }
     if (all.length === 0) {
-      list.innerHTML = qhEmptyHtml('太棒了，还没有错题记录！', '继续保持认真做题的好习惯');
+      list.innerHTML = qhEmptyHtml('太棒了，本周没有错题记录！', '继续保持认真做题的好习惯');
       return;
     }
     window._mistakeWeekAll = all;
@@ -5275,7 +5297,7 @@ function buildMistakeWeekHtml(all) {
   // 2026-09-15（年哥哥定）：一道题一条 —— 同一题的不同错法收在同一张卡片里，
   // 顺序与评讲 PPT 一致：题干 → ✅正确答案 → ⚠️不同错法（含人数/错因）→ ✍答错学生名单。
   // 2026-09-15（年哥哥定）：一道题一条 —— 同一题的不同错法收在同一张卡片里；
-  // 2026-09-22 再定版：按小题聚合，题干 → 逐空「学生答案（×）+ 分析 + 所以正确答案」
+  // 2026-09-22 再定版：按小题聚合，题干 → 逐空「学生答案（×）+ 分析 + 正确答案」
   // → 共有N人错 · 错误情况有M种 → 错误的名单（格式对齐年哥哥手绘样张）
   function mistakeGroupHtml(g) {
     var names = [], variantTotal = 0;
@@ -5298,7 +5320,7 @@ function buildMistakeWeekHtml(all) {
         ' <span style="color:#C62828;font-weight:700;">（×）</span></div>';
       var why = (top.error_reason || top.error_type || m.error_reason || m.error_type || '').trim();
       if (why) blk += '<div class="reason" style="margin-top:2px;">分析：' + fmtFrac(escapeHtml(why)) + '</div>';
-      blk += '<div class="solution" style="margin-top:2px;">所以：正确答案：' + fmtFrac(escapeHtml(m.correct_answer || '（未提供）')) + '</div>';
+      blk += '<div class="solution" style="margin-top:2px;">正确答案：' + fmtFrac(escapeHtml(m.correct_answer || '（未提供）')) + '</div>';
       // 错法汇总压成单行（与顶部「学生答案」重复的详细信息不再逐行铺开）；
       // 「其他错误」这类空洞类型不显示（2026-09-22 深夜年哥反馈卡片乱）
       if (vs.length > 1) {
@@ -11448,7 +11470,7 @@ async function viewHwFeedback(hwId) {
             var why = (p.error_reason || p.error_type || '').trim();
             if (why) line += '<div class="hw-problem-detail">分析：' + fmtFrac(escapeHtml(why)) + '</div>';
             var ca = (p.correct_answer != null && String(p.correct_answer) !== '') ? fmtFrac(p.correct_answer) : '';
-            if (ca) line += '<div class="hw-problem-detail">所以：正确答案：<strong style="color:#389E0D;">' + ca + '</strong></div>';
+            if (ca) line += '<div class="hw-problem-detail">正确答案：<strong style="color:#389E0D;">' + ca + '</strong></div>';
             if (p.hint) line += '<div class="hw-problem-detail">💡 ' + fmtFrac(escapeHtml(p.hint)) + '</div>';
           }
           return line;
