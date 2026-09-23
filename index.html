@@ -12250,13 +12250,18 @@ async function reviewHw(hwId) {
       hwId: hwId,
       base: base,
       problems: (base.problems || []).map(function(p) { return Object.assign({}, p); }),
+      // 2026-09-23（年哥定）：学生答案可编辑——AI 抄错 sa 时老师直接改成真实笔迹。
+      // origSa/origQ 与 problems 平行（removeRvProblem 同步裁剪），提交时对比生成
+      // sa_overrides，后端按「题干+原答案」匹配回写 grade_result 原始列（双列同步）
+      origSa: (base.problems || []).map(function(p) { return String(p.student_answer != null ? p.student_answer : ''); }),
+      origQ: (base.problems || []).map(function(p) { return String(p.question || '').trim(); }),
       commentImages: (hw.comment_images || []).slice(), // 2026-09-13 评语配图（可粘贴追加）
       uploadingImgs: 0
     };
 
     var html = '<div class="hw-detail">' +
       '<h3 style="margin-bottom:8px;">📝 复核批改结果</h3>' +
-      '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">AI 判错了？点题目前的 ✅/❌ 即可翻转判定；正确答案可直接修改；AI 误识别的题可点 ✕ 删除。正确率自动重算，确认发布后学生端立即生效。</p>' +
+      '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">AI 判错了？点题目前的 ✅/❌ 即可翻转判定；正确答案、学生答案都可改（AI 抄错学生笔迹时，把学生答案改成真实答案再判对错）；AI 误识别的题可点 ✕ 删除。正确率自动重算，确认发布后学生端立即生效。</p>' +
       hwDetailImagesHtml(hw.images && hw.images.length ? hw.images : [hw.image_url]) +
       '<p style="font-size:14px;"><strong>' + escapeHtml(hw.student_name) + '</strong> — ' + escapeHtml(hw.title || '数学作业') + '</p>' +
       '<div id="rvAccuracy" style="background:var(--primary-bg);border-radius:8px;padding:12px;text-align:center;font-size:16px;font-weight:600;margin:8px 0;"></div>' +
@@ -12309,7 +12314,12 @@ function renderReviewProblems() {
         var lbl = it.label ? it.label : '';
         if (lbl) lbl += '：';
         var hasSa = p.student_answer != null && String(p.student_answer) !== '';
-        var sa = hasSa ? '<b>' + fmtFrac(p.student_answer) + '</b>' : '（未识别）';
+        // 2026-09-23（年哥定）：学生答案改成可编辑输入框——AI 抄错学生笔迹时老师
+        // 直接改成真实答案（提交后双列同步 grade_result + teacher_reviewed）。
+        // 未识别/抄空时留空提交即清空该空答案；对错判定仍由老师点 ✅/❌ 决定。
+        var saHtml = '<input id="rvSa' + i + '" value="' + escapeHtml(String(p.student_answer != null ? p.student_answer : '')) + '"' +
+          ' placeholder="（未识别）" title="AI 抄错学生答案？改成真实答案"' +
+          ' style="max-width:180px;padding:2px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:700;">';
         // 2026-09-22 年哥哥定版：√/× 一律红笔色（教师批改红笔风）
         var mark = '<span style="color:#C62828;font-weight:700;">' + (p.is_correct ? '（√）' : '（×）') + '</span>';
         // 盲抄复核第二读法：AI 两次独立读图读法不一致时后端挂 copy_recheck_alt（只标记不改判），
@@ -12324,7 +12334,7 @@ function renderReviewProblems() {
         return '<div class="hw-problem" style="display:flex;gap:8px;align-items:flex-start;' + (head ? 'margin-left:12px;' : '') + '">' +
           '<button type="button" onclick="toggleRvProblem(' + i + ')" title="点击翻转对错判定" style="' + btnStyle + 'border-radius:8px;min-width:44px;padding:6px 8px;font-size:16px;cursor:pointer;flex:none;">' + icon + '</button>' +
           '<div style="flex:1;min-width:0;">' +
-          '<div class="hw-problem-label" style="font-size:13px;">' + lbl + '学生答案：' + sa + ' ' + mark + '</div>' +
+          '<div class="hw-problem-label" style="font-size:13px;">' + lbl + '学生答案：' + saHtml + ' ' + mark + '</div>' +
           '<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">' +
           '<span style="font-size:11px;color:var(--text-muted);flex:none;">正确答案</span>' +
           '<input id="rvAns' + i + '" value="' + escapeHtml(String(p.correct_answer != null ? p.correct_answer : '')) + '" style="flex:1;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">' +
@@ -12370,6 +12380,9 @@ function removeRvProblem(i) {
   if (!_hwReviewState || !_hwReviewState.problems[i]) return;
   if (!confirm('确定删除这道题吗？（用于删除 AI 误识别出的题目）')) return;
   _hwReviewState.problems.splice(i, 1);
+  // 2026-09-23：平行数组同步裁剪，保证 sa_overrides 的「题干+原答案」对位正确
+  if (_hwReviewState.origSa) _hwReviewState.origSa.splice(i, 1);
+  if (_hwReviewState.origQ) _hwReviewState.origQ.splice(i, 1);
   renderReviewProblems();
 }
 
@@ -12479,12 +12492,31 @@ async function submitHwReview(e, hwId) {
     return;
   }
   var st = _hwReviewState;
-  // 收集教师修改后的正确答案
+  // 收集教师修改后的正确答案与学生答案
   var problems = st.problems.map(function(p, i) {
     var inp = document.getElementById('rvAns' + i);
     var q = Object.assign({}, p);
     if (inp) q.correct_answer = inp.value.trim();
+    // 2026-09-23（年哥定）：学生答案同样可编辑——AI 抄错学生笔迹时直接改成真实答案
+    var inpS = document.getElementById('rvSa' + i);
+    if (inpS) q.student_answer = inpS.value.trim();
     return q;
+  });
+  // 学生答案改动清单：对比页面加载时的原值，交给后端按「题干+原答案」匹配回写
+  // grade_result 原始列（teacher_reviewed 已全量带新 sa；双列同步防重批回潮）
+  var saOverrides = [];
+  st.problems.forEach(function(p, i) {
+    var inpS = document.getElementById('rvSa' + i);
+    if (!inpS) return;
+    var nv = inpS.value.trim();
+    var ov0 = (st.origSa && st.origSa[i] != null) ? String(st.origSa[i]) : '';
+    if (nv !== ov0) {
+      saOverrides.push({
+        question: (st.origQ && st.origQ[i]) || String(p.question || '').trim(),
+        old_sa: ov0,
+        student_answer: nv,
+      });
+    }
   });
   var n = problems.length;
   var c = problems.filter(function(p) { return p.is_correct; }).length;
@@ -12502,6 +12534,7 @@ async function submitHwReview(e, hwId) {
         teacher_comment: comment,
         teacher_reviewed: JSON.stringify(corrected),
         comment_images: (st.commentImages || []),
+        sa_overrides: saOverrides,
       }),
     });
     if (!resp.ok) {
