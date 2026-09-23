@@ -5229,6 +5229,10 @@ function _groupProblemsByQno(problems) {
     if ((p.question || '').length > g.stem.length) g.stem = p.question || '';
   });
   groups.forEach(function(g) {
+    // 2026-09-23 晚（年哥反馈第三周一、1 题干「万级在前」反了）：后端记录按题干
+    // 原文排序（万U+4E07 < 亿U+4EBF），与卷面空序无关——组内条目先按真实空位次
+    // blank_pos 升序排（无该字段的复核/详情页保持原顺序，sort 稳定），再拼题干/标签
+    g.items.sort(function(a, b) { return (a.p.blank_pos || 999) - (b.p.blank_pos || 999); });
     var qs = g.items.map(function(it) { return String(it.p.question || '').trim(); });
     // 题号剥离（与后端 _mistake_qtag 同正则）：先剥题号再算句前缀，防 LCP 把
     // 「第十位」的「第」一起吞掉（2026-09-22 晚年哥反馈错题本题干乱）
