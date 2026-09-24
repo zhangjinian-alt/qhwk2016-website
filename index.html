@@ -634,7 +634,7 @@ img { max-width:100%; display:block; }
 .review-rank.top2 { background:#EBF5FF; color:var(--primary); }
 .review-rank.top3 { background:#F0FFF4; color:var(--success); }
 .review-rank.other { background:var(--bg); color:var(--text-muted); }
-.review-content { flex:1; }
+.review-content { flex:1; min-width:0; }
 .review-content .review-topic { font-size:15px; font-weight:600; margin-bottom:2px; line-height:1.8; }
 .review-content .review-reason { font-size:13px; color:var(--text-muted); line-height:1.8; }
 .review-actions { display:flex; gap:8px; flex-shrink:0; }
@@ -677,6 +677,11 @@ img { max-width:100%; display:block; }
   .level-grid { grid-template-columns:1fr; }
   .medal-grid { grid-template-columns:repeat(3,1fr); }
   .store-grid { grid-template-columns:1fr 1fr; }
+  /* 2026-09-24 手机端复习推荐卡防挤压：内容占满整行，按钮换行到下方 */
+  .review-item { flex-wrap:wrap; gap:10px; padding:14px 16px; }
+  .review-rank { width:26px; height:26px; font-size:13px; }
+  .review-content { flex:1 1 calc(100% - 36px); }
+  .review-actions { flex-basis:100%; justify-content:flex-end; }
 }
 @media (max-width:480px) {
   .quick-grid { grid-template-columns:1fr 1fr; }
@@ -10973,6 +10978,27 @@ function openHwLightbox(urls, idx) {
     ov.className = 'hw-lightbox';
     ov.style.display = 'none';
     ov.addEventListener('click', function(e) { if (e.target === ov) closeHwLightbox(); });
+    // 2026-09-24（年哥要求）：放大后按住图片拖动平移（桌面鼠标；手机触摸滑动本就可滚）
+    ov.addEventListener('mousedown', function(e) {
+      var viewer = ov.querySelector('.hw-lightbox-viewer');
+      var img = document.getElementById('hwLbImg');
+      if (!viewer || e.target !== img) return;
+      if (viewer.scrollWidth <= viewer.clientWidth && viewer.scrollHeight <= viewer.clientHeight) return;
+      e.preventDefault();
+      var sx = e.clientX, sy = e.clientY, sl = viewer.scrollLeft, st = viewer.scrollTop;
+      viewer.style.cursor = 'grabbing';
+      function _hwLbMv(ev) {
+        viewer.scrollLeft = sl - (ev.clientX - sx);
+        viewer.scrollTop = st - (ev.clientY - sy);
+      }
+      function _hwLbUp() {
+        viewer.style.cursor = '';
+        window.removeEventListener('mousemove', _hwLbMv);
+        window.removeEventListener('mouseup', _hwLbUp);
+      }
+      window.addEventListener('mousemove', _hwLbMv);
+      window.addEventListener('mouseup', _hwLbUp);
+    });
     document.body.appendChild(ov);
   }
   renderHwLightbox();
@@ -11006,8 +11032,8 @@ function renderHwLightbox() {
     (multi ? '<button class="hw-lightbox-nav hw-lightbox-next" onclick="hwLightboxNav(1)" title="下一张">›</button>' : '') +
     _hwLbToolHtml() +
     (multi
-      ? '<div class="hw-lightbox-counter">第 ' + (s.idx + 1) + ' / ' + s.urls.length + ' 张 · ← → 键切换</div>'
-      : '<div class="hw-lightbox-hint">点击空白处关闭</div>');
+      ? '<div class="hw-lightbox-counter">第 ' + (s.idx + 1) + ' / ' + s.urls.length + ' 张 · ← → 键切换 · 放大后按住图片拖动浏览</div>'
+      : '<div class="hw-lightbox-hint">点击空白处关闭 · 放大后按住图片拖动浏览</div>');
   applyHwLbImgStyle();
 }
 
@@ -11842,7 +11868,9 @@ function _hwCardHtml(h) {
     '<div class="hw-thumb-wrap" title="点击放大查看" onclick="hwThumbLightbox(' + h.id + ')"><img class="hw-thumb" src="' + h.image_url + '" alt="作业">' + imgCount + '</div>' +
     '<div class="hw-info">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
-    '<span style="font-weight:500;font-size:14px;">' + h.student_name + ' — ' + (h.title || '数学作业') +
+    '<span style="font-weight:500;font-size:14px;">' +
+    (h.student_no ? '<span style="color:var(--text-muted);font-weight:600;font-size:13px;margin-right:4px;" title="学号">' + escHtmlSafe(h.student_no) + '</span>' : '') +
+    h.student_name + ' — ' + (h.title || '数学作业') +
     (h.title && hwHasAk(h.title) ? '<span class="ak-badge">🔑 有标准答案</span>' : '') +
     (h.suspect_review ? '<span class="ak-badge" style="background:#FFF4E5;color:#B25E00;cursor:help;" title="自动质检：' + h.suspect_review + '。AI 看手写形近数偶有误读，建议点复核确认">⚠️ 建议复核</span>' : '') +
     '</span>' +
@@ -11867,7 +11895,11 @@ function _renderHwTeacherList() {
   if (!list) return;
   var items = _hwTeacherItems || [];
   if (hwSearchKw) {
-    items = items.filter(function(h) { return String(h.student_name || '').indexOf(hwSearchKw) !== -1; });
+    // 2026-09-24：搜索同时匹配姓名与学号
+    items = items.filter(function(h) {
+      return String(h.student_name || '').indexOf(hwSearchKw) !== -1 ||
+             String(h.student_no || '').indexOf(hwSearchKw) !== -1;
+    });
   }
   if (items.length === 0) {
     list.innerHTML = '<div style="text-align:center;padding:48px;color:var(--text-muted);">' +
@@ -12321,8 +12353,11 @@ function renderReviewProblems() {
         // 2026-09-23（年哥定）：学生答案改成可编辑输入框——AI 抄错学生笔迹时老师
         // 直接改成真实答案（提交后双列同步 grade_result + teacher_reviewed）。
         // 未识别/抄空时留空提交即清空该空答案；对错判定仍由老师点 ✅/❌ 决定。
+        // 2026-09-24 修复：输入框必须 oninput 实时同步回 _hwReviewState——否则点任何
+        // ✅/❌ 改判按钮触发全量重渲染时，前面各空手改的答案会被旧状态打回原样。
         var saHtml = '<input id="rvSa' + i + '" value="' + escapeHtml(String(p.student_answer != null ? p.student_answer : '')) + '"' +
           ' placeholder="（未识别）" title="AI 抄错学生答案？改成真实答案"' +
+          ' oninput="rvSyncField(' + i + ',\'student_answer\',this.value)"' +
           ' style="max-width:180px;padding:2px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:700;">';
         // 2026-09-22 年哥哥定版：√/× 一律红笔色（教师批改红笔风）
         var mark = '<span style="color:#C62828;font-weight:700;">' + (p.is_correct ? '（√）' : '（×）') + '</span>';
@@ -12341,7 +12376,7 @@ function renderReviewProblems() {
           '<div class="hw-problem-label" style="font-size:13px;">' + lbl + '学生答案：' + saHtml + ' ' + mark + '</div>' +
           '<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">' +
           '<span style="font-size:11px;color:var(--text-muted);flex:none;">正确答案</span>' +
-          '<input id="rvAns' + i + '" value="' + escapeHtml(String(p.correct_answer != null ? p.correct_answer : '')) + '" style="flex:1;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">' +
+          '<input id="rvAns' + i + '" value="' + escapeHtml(String(p.correct_answer != null ? p.correct_answer : '')) + '" oninput="rvSyncField(' + i + ',\'correct_answer\',this.value)" style="flex:1;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">' +
           '</div>' +
           altHtml +
           '</div>' +
@@ -12358,6 +12393,14 @@ function renderReviewProblems() {
   // 2026-09-11 修复：scoreFrac 返回的是分数横线 HTML，必须用 innerHTML 渲染，
   // 用 textContent 会把标签当纯文本显示（复核窗口正确率出现 <span class="score-frac-...">）
   if (el) el.innerHTML = '正确率：' + acc + '% (' + scoreFrac(c, n) + ')';
+}
+
+// 2026-09-24 修复：复核页输入框（学生答案/正确答案）实时同步回状态。
+// 此前输入值只存在于 DOM，点 ✅/❌ 改判触发 renderReviewProblems() 全量重渲染时，
+// 前面各空手改的内容会被旧状态覆盖回去（年哥哥复核时「改好前三个空、改后面就弹回」）。
+function rvSyncField(i, field, val) {
+  if (!_hwReviewState || !_hwReviewState.problems[i]) return;
+  _hwReviewState.problems[i][field] = val;
 }
 
 function toggleRvProblem(i) {
