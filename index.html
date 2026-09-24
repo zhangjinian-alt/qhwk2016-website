@@ -11884,6 +11884,7 @@ function _hwCardHtml(h) {
     ((h.status === 'graded' || h.status === 'reviewed') ? '<button class="btn btn-primary" style="padding:6px 14px;font-size:13px;" onclick="reviewHw(' + h.id + ')">' + (h.status === 'reviewed' ? '📝 重新复核' : '📝 复核确认') + '</button>' : '') +
     (h.status === 'graded' || h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="viewHwDetail(' + h.id + ')">👁️ 查看详情</button>' : '') +
     ((h.status === 'graded' || h.status === 'reviewed') ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--primary);" onclick="regradeHw(' + h.id + ')" title="用当前标准答案重新批改（会清空已复核标记）">🔄 重新批改</button>' : '') +
+    ((h.regrade_backups > 0 && h.status !== 'grading') ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--warning);" onclick="restoreRegradeHw(' + h.id + ')" title="误触重批后，恢复到重批前的批改与复核结果">↩️ 恢复重批前</button>' : '') +
     (h.status === 'failed' ? '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--warning);" onclick="regradeHw(' + h.id + ')">🔄 重新批改</button>' : '') +
     '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;color:var(--danger);" onclick="deleteHw(' + h.id + ')">🗑️ 删除</button>' +
     '</div></div></div>';
@@ -12787,6 +12788,22 @@ async function batchRegradeHw(title) {
     setTimeout(function() { loadHwTeacherList(hwCurrentFilter); }, 2000);
   } catch (e) {
     showToast('批量重新批改失败：' + _regradeErrMsg(e));
+  }
+}
+
+// 2026-09-25 重批保险丝：误触重批后一键恢复到重批前的批改与复核结果
+async function restoreRegradeHw(hwId) {
+  if (!confirm('确定恢复到重批前的结果吗？\n· 将还原重批前的批改数据与复核标记\n· AI 正在批改时请等批完再恢复')) return;
+  try {
+    var resp = await fetchWithAuth('/homework/' + hwId + '/restore-regrade', { method: 'POST' });
+    if (!resp.ok) {
+      var err = await resp.json().catch(function() { return {detail:'请求失败'}; });
+      var e3 = new Error(err.detail || '请求失败'); e3.status = resp.status; throw e3;
+    }
+    showToast('已恢复到重批前的结果');
+    loadHwTeacherList(hwCurrentFilter);
+  } catch (e) {
+    showToast('恢复失败：' + _regradeErrMsg(e));
   }
 }
 
