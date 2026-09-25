@@ -9486,10 +9486,13 @@ function removeHwImage(idx) {
 }
 
 // ===== 同面重复检测（2026-09-19 叶兆熹案：两面作业拍成两张同一面）=====
-// 每张图缩成 32×32 灰度矩阵、减去自身均值（抗光照差异）后求平均绝对差，
-// 差值小 = 内容几乎一样 = 疑似同一面。仅作提示，最终由用户确认。
+// 2026-09-25 陈思航案重构：旧方案（32×32 直接比差，阈值16）对同版式不同页误报极高
+// （服务器 60 组真实不同页里 32 组中招——同一本作业册正反面版式雷同，粗分辨率下分不开）。
+// 新方案：64×64 灰度 + ±3 格平移对齐取最小差。同页重拍只是内容整体挪动，对齐后差异骤降；
+// 不同页版式再像，对齐后手写内容差异依旧。服务器实测（_calib_dupthresh3）：40 组不同页
+// min-shift 最低 7.0（无一低于 7），同页温和重拍全部 ≤5.8 → 阈值 6 误报 0/40。
 var hwDupSuspectPairs = [];   // [{a, b, diff}] 疑似同一面的图片索引对
-var HW_DUP_DIFF_THRESHOLD = 16;
+var HW_DUP_DIFF_THRESHOLD = 6;
 var hwSingleConfirmed = false;   // 单张提交已确认（选图变化后重置）
 var hwDupConfirmed = false;      // 同面重复已确认仍提交（选图变化后重置）
 
@@ -9499,7 +9502,7 @@ function _hwGrayMatrix(file) {
     var url = URL.createObjectURL(file);
     img.onload = function() {
       try {
-        var N = 32;
+        var N = 64;
         var cv = document.createElement('canvas');
         cv.width = N; cv.height = N;
         var ctx = cv.getContext('2d');
@@ -9519,12 +9522,33 @@ function _hwGrayMatrix(file) {
 }
 
 function _hwMatDiff(g1, g2) {
-  var m1 = 0, m2 = 0, i;
-  for (i = 0; i < g1.length; i++) { m1 += g1[i]; m2 += g2[i]; }
-  m1 /= g1.length; m2 /= g2.length;
-  var s = 0;
-  for (i = 0; i < g1.length; i++) s += Math.abs((g1[i] - m1) - (g2[i] - m2));
-  return s / g1.length;
+  // 平移对齐最小差：±3 格内搜索最优对齐，取重叠区平均绝对差的最小值
+  var N = 64, m1 = 0, m2 = 0, i;
+  for (i = 0; i < N * N; i++) { m1 += g1[i]; m2 += g2[i]; }
+  m1 /= N * N; m2 /= N * N;
+  var a = new Array(N * N), b = new Array(N * N);
+  for (i = 0; i < N * N; i++) { a[i] = g1[i] - m1; b[i] = g2[i] - m2; }
+  var best = Infinity;
+  for (var dy = -3; dy <= 3; dy++) {
+    for (var dx = -3; dx <= 3; dx++) {
+      var s = 0, cnt = 0;
+      for (var y = 0; y < N; y++) {
+        var y2 = y + dy;
+        if (y2 < 0 || y2 >= N) continue;
+        var r1 = y * N, r2 = y2 * N;
+        for (var x = 0; x < N; x++) {
+          var x2 = x + dx;
+          if (x2 < 0 || x2 >= N) continue;
+          s += Math.abs(a[r1 + x] - b[r2 + x2]); cnt++;
+        }
+      }
+      if (cnt > N * N * 0.5) {
+        var d = s / cnt;
+        if (d < best) best = d;
+      }
+    }
+  }
+  return best === Infinity ? 999 : best;
 }
 
 // 两两比对，返回疑似同一面的索引对；fileArr 缺省用当前已选图片
