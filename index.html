@@ -4190,11 +4190,13 @@ function buildLectureFlatHtml(lectures, role) {
     html += '</div>';
   }
 
-  // 失败提示
+  // 失败提示（教师可一键重新生成，2026-09-25）
   failed.forEach(function(l) {
     html += '<div style="border:1.5px solid #FFC9C9;border-radius:12px;padding:14px 16px;text-align:center;background:#FFF5F5;margin-top:12px;">' +
       '<p style="font-size:13px;color:#E03131;font-weight:600;">⚠️ 生成失败</p>' +
-      '<p style="font-size:11px;color:var(--text-muted);margin-top:4px;">' + escHtmlSafe(l.error || '未知错误') + '</p></div>';
+      '<p style="font-size:11px;color:var(--text-muted);margin-top:4px;">' + escHtmlSafe(l.error || '未知错误') + '</p>' +
+      (role === 'teacher' ? '<button onclick="retryAiLecture(' + l.id + ')" style="margin-top:10px;padding:7px 16px;background:#fff;color:var(--primary);border:1.5px solid var(--primary);border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">↻ 重新生成</button>' : '') +
+      '</div>';
   });
   return html;
 }
@@ -4258,7 +4260,9 @@ function buildLectureWeekHtml(lectures, role) {
     fail.forEach(function(l) {
       html += '<div style="border:1.5px solid #FFC9C9;border-radius:12px;padding:14px 16px;text-align:center;background:#FFF5F5;margin-top:12px;">' +
         '<p style="font-size:13px;color:#E03131;font-weight:600;">⚠️ 生成失败</p>' +
-        '<p style="font-size:11px;color:var(--text-muted);margin-top:4px;">' + escHtmlSafe(l.error || '未知错误') + '</p></div>';
+        '<p style="font-size:11px;color:var(--text-muted);margin-top:4px;">' + escHtmlSafe(l.error || '未知错误') + '</p>' +
+        '<button onclick="retryAiLecture(' + l.id + ')" style="margin-top:10px;padding:7px 16px;background:#fff;color:var(--primary);border:1.5px solid var(--primary);border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">↻ 重新生成</button>' +
+        '</div>';
     });
     html += '</div></div>';
   });
@@ -12772,6 +12776,21 @@ async function regradeHw(hwId) {
     loadHwTeacherList(hwCurrentFilter);
   } catch (e) {
     showToast('重新批改失败：' + _regradeErrMsg(e));
+  }
+}
+
+// 2026-09-25：重新生成失败的易错题精讲视频
+async function retryAiLecture(lectureId) {
+  try {
+    var resp = await fetchWithAuth('/ai-lecture/' + lectureId + '/retry', { method: 'POST' });
+    if (!resp.ok) {
+      var err = await resp.json().catch(function() { return {detail:'请求失败'}; });
+      throw new Error(err.detail || '请求失败');
+    }
+    showToast('已重新开始生成，约需 30~60 秒');
+    renderAiLectures(getCurrentRole());
+  } catch (e) {
+    showToast('重新生成失败：' + (e.message || '网络异常'));
   }
 }
 
