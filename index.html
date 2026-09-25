@@ -11521,6 +11521,16 @@ async function viewHwFeedback(hwId) {
     var resp = await fetchWithAuth('/homework/' + hwId);
     if (!resp.ok) throw new Error('获取详情失败');
     var hw = await resp.json();
+    // 2026-09-25（年哥定）：复核后才呈现——服务端对未复核作业不下发批改数据，这里兜底提示
+    if (hw.status !== 'reviewed' && getCurrentRole() !== 'teacher') {
+      document.getElementById('modalContent').innerHTML =
+        '<div class="hw-detail" style="text-align:center;padding:32px 16px;">' +
+        '<div style="font-size:40px;">🧑‍🏫</div>' +
+        '<h4 style="margin-top:10px;">老师复核中</h4>' +
+        '<p style="font-size:13px;color:var(--text-muted);margin-top:8px;">AI 已完成批改，等老师复核确认后，这里会开放正确率、逐题反馈和错题订正，请稍候～</p></div>';
+      document.getElementById('modal').classList.add('open');
+      return;
+    }
     var grade = {};
     try { grade = JSON.parse(hw.grade_result); } catch(e) {}
 
@@ -12211,19 +12221,20 @@ async function loadHwFeedbackList() {
       var hasErrors = (h.total_count > 0 && h.total_correct < h.total_count);
       var correctedBadge = (h.corrected && h.status !== 'pending' && h.status !== 'grading' && h.status !== 'failed')
         ? ' <span class="ak-badge" style="background:#F6FFED;color:#389E0D;border-color:#B7EB8F;">✅ 已订正</span>'
-        : (((h.status === 'graded' || h.status === 'reviewed') && hasErrors) ? ' <span class="ak-badge" style="background:#FFF7E6;color:#D46B08;border-color:#FFD591;">⏳ 待订正</span>' : '');
+        : ((h.status === 'reviewed' && hasErrors) ? ' <span class="ak-badge" style="background:#FFF7E6;color:#D46B08;border-color:#FFD591;">⏳ 待订正</span>' : '');
       return '<div class="hw-list-item">' +
         '<div class="hw-thumb-wrap" title="点击放大查看" onclick="hwThumbLightbox(' + h.id + ')"><img class="hw-thumb" src="' + h.image_url + '" alt="作业">' + imgCount + '</div>' +
         '<div class="hw-info">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
         '<span style="font-weight:500;font-size:14px;">' + (h.title || '数学作业') + correctedBadge + '</span>' +
         '<span class="hw-status ' + h.status + '">' + hwStatusIcon[h.status] + ' ' + hwStatusLabel[h.status] + '</span></div>' +
-        (h.status === 'graded' || h.status === 'reviewed'
+        // 2026-09-25（年哥定）：复核后才呈现——graded 只显示"老师复核中"，不出正确率/详情
+        (h.status === 'reviewed'
           ? '<p style="font-size:13px;color:var(--text-secondary);">正确率：<strong style="color:var(--success);">' + h.accuracy + '%</strong> (' + scoreFrac(h.total_correct, h.total_count) + ')</p>'
-          : '<p style="font-size:13px;color:var(--text-muted);">' + (h.status === 'failed' ? '批改失败，可撤回后重新拍清晰的再交' : '老师正在批改中，请稍候') + '</p>') +
+          : '<p style="font-size:13px;color:var(--text-muted);">' + (h.status === 'failed' ? '批改失败，可撤回后重新拍清晰的再交' : (h.status === 'graded' ? '🧑‍🏫 AI 已批改，老师复核后开放详细反馈' : '老师正在批改中，请稍候')) + '</p>') +
         '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0, 10) + '</p>' +
         '<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">' +
-        (h.status === 'graded' || h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;" onclick="viewHwFeedback(' + h.id + ')">查看详细反馈</button>' : '') +
+        (h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;" onclick="viewHwFeedback(' + h.id + ')">查看详细反馈</button>' : '') +
         '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;color:var(--danger);" onclick="withdrawHw(' + h.id + ',\'' + h.status + '\')">↩️ 撤回重交</button>' +
         '</div></div></div>';
     }).join('');
