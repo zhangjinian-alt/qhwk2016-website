@@ -12702,17 +12702,18 @@ function showAnswerKeyUpload() {
   var html = '<div class="hw-detail">' +
     '<h3 style="margin-bottom:16px;">🔑 上传标准答案</h3>' +
     '<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">标准答案通过<strong>标题</strong>与学生作业关联。答案标题与学生作业标题<strong>完全一致</strong>（如「第' + getTeachWeek() + '周周末作业」），已预填直接上传即可。同一标题重复上传会覆盖旧答案。</p>' +
+    '<p style="font-size:12px;color:#D46B08;background:#FFF7E6;border:1px solid #FFD591;border-radius:8px;padding:8px 12px;margin-bottom:16px;">💡 口诀：<strong>空的答案值进文字，图形的样子里附图，画图题留给红笔</strong>。文字答案 AI 逐字精确比对，最防抄错数；图片作补充参考，两者可同时上传。</p>' +
     '<form onsubmit="submitAnswerKeyUpload(event)">' +
     '<div class="form-group"><label>答案标题 <span style="color:var(--danger);">*</span></label>' +
     '<input type="text" id="akTitle" value="第' + getTeachWeek() + '周周末作业" placeholder="如：第2周周末作业" required style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;"></div>' +
-    '<div class="form-group"><label>标准答案图片或PDF（推荐，拍正确答案照片或上传PDF）</label>' +
+    '<div class="form-group"><label>标准答案图片或PDF（补充参考：图表、图形的原样拍这里）</label>' +
     '<div class="hw-upload-area" id="akDropZone" onclick="document.getElementById(\'akFileInput\').click()" style="padding:20px;">' +
     '<p id="akFileLabel" style="font-size:13px;color:var(--text-muted);margin:0;">点击选择答案图片（jpg/png）或PDF</p>' +
     '<img id="akPreview" style="display:none;max-width:200px;max-height:200px;border-radius:8px;margin-top:8px;">' +
     '</div>' +
     '<input type="file" id="akFileInput" accept="image/jpeg,image/png,image/webp,application/pdf,.pdf" style="display:none;" onchange="onAnswerKeyFileSelected(this)"></div>' +
-    '<div class="form-group"><label>文本答案（可选，图片和文本可只填一种）</label>' +
-    '<textarea id="akText" placeholder="如：&#10;1. 5/6&#10;2. 1/4&#10;3. 3/5" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;min-height:80px;resize:vertical;"></textarea></div>' +
+    '<div class="form-group"><label>文本答案（<strong style="color:var(--success);">推荐优先填写</strong>，AI 逐字精确比对）</label>' +
+    '<textarea id="akText" placeholder="每空一行，图形/表格题也把每格答案值用文字列出：&#10;一、1. 30400000&#10;一、7. 4004404 &lt; 40400404 &lt; 40400440 &lt; 44000044 &lt; 44400400&#10;三、1. (1) 3.5；(2) 7.2；(3) 10.08　←表格按格写&#10;四、2. 画图题，请老师人工复核　←画图题注明" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;min-height:110px;resize:vertical;"></textarea></div>' +
     '<div class="form-group"><label>本题总题数（选填，如 38）<span style="font-weight:400;color:var(--text-muted);font-size:12px;">　核定后，满分榜只统计题数做齐的学生——只传一面全对不算满分；可留空，系统会按全班已批改作业的题数众数自动推断并回填</span></label>' +
     '<input type="number" id="akTotalQuestions" min="0" max="200" placeholder="如：38（不确定可留空，系统自动推断）" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;"></div>' +
     '<div style="display:flex;gap:10px;margin-top:16px;">' +
