@@ -4399,8 +4399,9 @@ function openLectureEditor(idx) {
   html += '<p style="font-size:12px;color:var(--text-muted);margin-top:6px;">🔥 ' + m.error_students + ' 人做错' + (m.error_type ? ' · 常见错误：' + fmtFrac(escHtmlSafe(m.error_type)) : '') + '</p></div>';
   html += '<label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:500;">✏️ 你的分析思路（AI 会据此生成讲解视频）</label>';
   // 2026-09-27（年哥要求）：常用数学符号快插——点击插入到光标位置
-  var _mathSyms = ['√', '✗', '○', '□', '≈', '≠', '＞', '＜', '×', '÷'];
-  var _symNames = { '√': '对勾', '✗': '错叉', '○': '圆圈', '□': '方框', '≈': '约等号', '≠': '不等号', '＞': '大于', '＜': '小于', '×': '乘号', '÷': '除号' };
+  // 分数线用 ⁄（U+2044）：fmtFrac 识别五种分数线字符之一，渲染时自动转水平横线
+  var _mathSyms = ['√', '✗', '○', '□', '≈', '≠', '=', '＞', '＜', '×', '÷', '∠', '°', 'π', '⁄'];
+  var _symNames = { '√': '对勾', '✗': '错叉', '○': '圆圈', '□': '方框', '≈': '约等号', '≠': '不等号', '=': '等于号', '＞': '大于', '＜': '小于', '×': '乘号', '÷': '除号', '∠': '角（度数符号）', '°': '度', 'π': '圆周率', '⁄': '分数线（配合数字如2⁄3）' };
   html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center;">' +
     '<span style="font-size:12px;color:var(--text-muted);">常用符号：</span>' +
     _mathSyms.map(function(s) {
