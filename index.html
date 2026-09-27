@@ -11809,6 +11809,7 @@ function renderHwGrading() {
       '<div class="hw-filter-bar" style="align-items:center;">' +
       '<input id="hwSearchInput" type="text" placeholder="🔍 输入学生姓名定位作业" oninput="onHwSearchInput(this.value)" style="flex:1;min-width:180px;padding:8px 14px;border:1px solid var(--border);border-radius:16px;font-size:13px;outline:none;background:var(--bg-card);color:var(--text-primary);">' +
       '<button class="hw-filter-btn" id="hwWeekGroupBtn" onclick="toggleHwWeekGroup()">📅 按周收起</button>' +
+      '<button class="hw-filter-btn" id="hwAccSortBtn" onclick="toggleHwAccSort()" title="按正确率从低到高排序，快速定位后进生（批改/复核完的作业才参与排序）">📊 按正确率</button>' +
       '</div>' +
       '<div id="hwTeacherList"></div>';
     // 重进页面恢复搜索词与按周分组状态
@@ -11816,6 +11817,8 @@ function renderHwGrading() {
     if (si && hwSearchKw) si.value = hwSearchKw;
     var wb = document.getElementById('hwWeekGroupBtn');
     if (wb && hwWeekGrouped) { wb.classList.add('active'); wb.textContent = '📅 按周收起：开'; }
+    var ab = document.getElementById('hwAccSortBtn');
+    if (ab && hwSortByAcc) { ab.classList.add('active'); ab.textContent = '📊 正确率低→高'; }
     loadAnswerKeyList();
     loadHwTeacherList('all');
     loadHwPendingManage();
@@ -11838,6 +11841,9 @@ var _hwTeacherItems = [];        // 最近一次接口返回的全量列表
 var hwSearchKw = '';             // 姓名搜索关键字
 var hwWeekGrouped = false;       // 是否按教学周分组（组头可收起）
 var _hwCollapsedWeeks = {};      // 各周折叠状态 { week: true }
+// 2026-09-27（年哥要求）：按正确率排序——批完一周后找后进生，正确率低的排最前。
+// 纯前端排序，不改后端接口；待批改/批改中的作业没有正确率，统一沉底按时间倒序。
+var hwSortByAcc = false;
 
 // 批改中自动刷新（2026-09-11）：AI 批改一份要 3-10 分钟（Thinking 模式 + 并发上限 2），
 // 老师点完"重新批改"若页面不自动更新，会误以为失败。列表里只要还有 grading 就定时轮询。
@@ -11900,6 +11906,22 @@ function toggleHwWeek(w) {
   _renderHwTeacherList();
 }
 
+// ===== 按正确率排序（2026-09-27：找后进生，低→高；未批完的沉底） =====
+function toggleHwAccSort() {
+  hwSortByAcc = !hwSortByAcc;
+  var btn = document.getElementById('hwAccSortBtn');
+  if (btn) {
+    if (hwSortByAcc) { btn.classList.add('active'); btn.textContent = '📊 正确率低→高'; }
+    else { btn.classList.remove('active'); btn.textContent = '📊 按正确率'; }
+  }
+  _renderHwTeacherList();
+}
+
+function _hwAccVal(h) {
+  // 已批改/已复核的作业返回正确率数值，其余返回 null（排序时沉底）
+  return (h.status === 'graded' || h.status === 'reviewed') && h.accuracy != null ? parseFloat(h.accuracy) : null;
+}
+
 // 由提交日期反推教学周（用显示日期 slice(0,10)，与卡片上的日期一致）
 function _hwWeekInfo(item) {
   var dstr = (item.created_at || '').slice(0, 10);
@@ -11951,6 +11973,16 @@ function _renderHwTeacherList() {
     items = items.filter(function(h) {
       return String(h.student_name || '').indexOf(hwSearchKw) !== -1 ||
              String(h.student_no || '').indexOf(hwSearchKw) !== -1;
+    });
+  }
+  if (hwSortByAcc) {
+    // 正确率低→高（后进生前置）；没正确率的（待批改/批改中/失败）沉底，按提交时间倒序
+    items = items.slice().sort(function(a, b) {
+      var av = _hwAccVal(a), bv = _hwAccVal(b);
+      if (av === null && bv === null) return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+      if (av === null) return 1;
+      if (bv === null) return -1;
+      return av - bv;
     });
   }
   if (items.length === 0) {
