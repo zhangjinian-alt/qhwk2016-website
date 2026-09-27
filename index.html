@@ -4398,10 +4398,30 @@ function openLectureEditor(idx) {
   html += '<p style="font-size:13px;color:var(--text-secondary);line-height:1.8;"><strong>题目：</strong>' + fmtFrac(escHtmlSafe(m.question)) + '</p>';
   html += '<p style="font-size:12px;color:var(--text-muted);margin-top:6px;">🔥 ' + m.error_students + ' 人做错' + (m.error_type ? ' · 常见错误：' + fmtFrac(escHtmlSafe(m.error_type)) : '') + '</p></div>';
   html += '<label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:500;">✏️ 你的分析思路（AI 会据此生成讲解视频）</label>';
+  // 2026-09-27（年哥要求）：常用数学符号快插——点击插入到光标位置
+  var _mathSyms = ['√', '✗', '○', '□', '≈', '≠', '＞', '＜', '×', '÷'];
+  var _symNames = { '√': '对勾', '✗': '错叉', '○': '圆圈', '□': '方框', '≈': '约等号', '≠': '不等号', '＞': '大于', '＜': '小于', '×': '乘号', '÷': '除号' };
+  html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center;">' +
+    '<span style="font-size:12px;color:var(--text-muted);">常用符号：</span>' +
+    _mathSyms.map(function(s) {
+      return '<button type="button" data-s="' + s + '" title="插入' + (_symNames[s] || '') + '" onclick="insertMathSymbol(this.getAttribute(\'data-s\'))" style="min-width:32px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:14px;line-height:1.4;">' + s + '</button>';
+    }).join('') +
+    '</div>';
   html += '<textarea id="lectureAnalysis" rows="6" placeholder="例如：这道题很多同学把分子分母弄反了。正确做法是先看分母，通分后再比较大小…请用学生听得懂的话写清楚思路和步骤。" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;resize:vertical;outline:none;font-family:inherit;"></textarea>';
   html += '<button onclick="submitLectureGenerate(' + idx + ')" style="margin-top:12px;width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;">🎬 生成 AI 讲解视频（约30~60秒）</button>';
   document.getElementById('modalContent').innerHTML = html;
   document.getElementById('modal').classList.add('open');
+}
+
+// 2026-09-27：数学符号快插——插到光标位置，插完光标停在符号后（继续打字不中断）
+function insertMathSymbol(sym) {
+  var ta = document.getElementById('lectureAnalysis');
+  if (!ta) return;
+  var s = ta.selectionStart || 0, e = ta.selectionEnd || 0, v = ta.value;
+  ta.value = v.slice(0, s) + sym + v.slice(e);
+  var pos = s + String(sym).length;
+  ta.focus();
+  ta.setSelectionRange(pos, pos);
 }
 
 async function submitLectureGenerate(idx) {
