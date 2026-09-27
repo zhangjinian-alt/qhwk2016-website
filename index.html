@@ -4409,6 +4409,10 @@ function openLectureEditor(idx) {
     }).join('') +
     '</div>';
   html += '<textarea id="lectureAnalysis" rows="6" placeholder="例如：这道题很多同学把分子分母弄反了。正确做法是先看分母，通分后再比较大小…请用学生听得懂的话写清楚思路和步骤。" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;resize:vertical;outline:none;font-family:inherit;"></textarea>';
+  // 2026-09-27（年哥要求）：按原文讲解开关——勾上后 AI 不改写，老师写什么就讲什么
+  html += '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:var(--text-secondary);cursor:pointer;user-select:none;">' +
+    '<input type="checkbox" id="lectureVerbatim" style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">' +
+    '<span>🎙️ 按我的原文讲解（勾选后 AI 不改写，直接照上面写的念；不勾则 AI 润色成更口语的讲稿）</span></label>';
   html += '<button onclick="submitLectureGenerate(' + idx + ')" style="margin-top:12px;width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;">🎬 生成 AI 讲解视频（约30~60秒）</button>';
   document.getElementById('modalContent').innerHTML = html;
   document.getElementById('modal').classList.add('open');
@@ -4430,6 +4434,7 @@ async function submitLectureGenerate(idx) {
   var ta = document.getElementById('lectureAnalysis');
   var analysis = ta ? ta.value.trim() : '';
   if (!analysis) { showToast('请先写下你的分析思路'); return; }
+  var vb = document.getElementById('lectureVerbatim');
   var resp = await fetchWithAuth('/ai-lecture/generate', {
     method: 'POST',
     body: JSON.stringify({
@@ -4437,7 +4442,8 @@ async function submitLectureGenerate(idx) {
       question: m.question,
       analysis: analysis,
       error_type: m.error_type || '',
-      mistake_count: m.error_students || 0
+      mistake_count: m.error_students || 0,
+      verbatim: vb && vb.checked ? 1 : 0
     })
   });
   if (!resp.ok) { showToast('提交失败，请重试'); return; }
