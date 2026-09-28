@@ -4393,6 +4393,7 @@ function setAllMistakeBoardWeeks(open) {
 function openLectureEditor(idx) {
   var m = window._mistakesList[idx];
   if (!m) return;
+  window._lectureImgs = [];  // 2026-09-28：每次打开弹窗重置内嵌图片
   var html = '<h3 style="margin-bottom:12px;">✍️ 生成 AI 讲解视频</h3>';
   html += '<div style="background:var(--primary-bg);border-radius:10px;padding:12px;margin-bottom:12px;">';
   html += '<p style="font-size:13px;color:var(--text-secondary);line-height:1.8;"><strong>题目：</strong>' + fmtFrac(escHtmlSafe(m.question)) + '</p>';
@@ -4484,6 +4485,67 @@ function fmtLectureAnalysis(cmd, val) {
   try { document.execCommand(cmd, false, val || null); } catch (e) { showToast('当前浏览器不支持该格式'); }
 }
 
+// 2026-09-28（年哥要求）：讲解词插入图片——选本地图，自动压缩（最长边1000px JPEG85%），
+// 所见即所得插到光标位置；提交时序列化为 [[img|n]] 标记 + dataURL 数组
+function pickLectureImage() {
+  var ed = document.getElementById('lectureAnalysis');
+  if (!ed) return;
+  window._lectureImgs = window._lectureImgs || [];
+  if (window._lectureImgs.length >= 4) { showToast('图片最多 4 张'); return; }
+  var inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = function() {
+    var f = inp.files && inp.files[0];
+    if (!f) return;
+    if (!/^image\//.test(f.type || '')) { showToast('请选择图片文件'); return; }
+    var rd = new FileReader();
+    rd.onload = function(e) {
+      var im0 = new Image();
+      im0.onload = function() {
+        try {
+          var maxSide = 1000, scale = Math.min(1, maxSide / Math.max(im0.width, im0.height));
+          var cv = document.createElement('canvas');
+          cv.width = Math.max(1, Math.round(im0.width * scale));
+          cv.height = Math.max(1, Math.round(im0.height * scale));
+          cv.getContext('2d').drawImage(im0, 0, 0, cv.width, cv.height);
+          insertLectureImageNode(cv.toDataURL('image/jpeg', 0.85));
+        } catch (err) { showToast('图片处理失败，请换一张'); }
+      };
+      im0.onerror = function() { showToast('图片读取失败，请换一张'); };
+      im0.src = e.target.result;
+    };
+    rd.readAsDataURL(f);
+  };
+  inp.click();
+}
+
+function insertLectureImageNode(du) {
+  var ed = document.getElementById('lectureAnalysis');
+  if (!ed) return;
+  ed.focus();
+  var sel = window.getSelection();
+  if (!sel.rangeCount) {
+    var r0 = document.createRange(); r0.selectNodeContents(ed); r0.collapse(false);
+    sel.removeAllRanges(); sel.addRange(r0);
+  }
+  var range = sel.getRangeAt(0);
+  if (!ed.contains(range.commonAncestorContainer)) {
+    range = document.createRange(); range.selectNodeContents(ed); range.collapse(false);
+  }
+  var idx = window._lectureImgs.length;
+  window._lectureImgs.push(du);
+  var im = document.createElement('img');
+  im.className = 'lec-img'; im.contentEditable = 'false';
+  im.src = du; im.setAttribute('data-idx', idx); im.alt = '讲解配图' + (idx + 1);
+  im.style.cssText = 'display:block;max-width:70%;max-height:160px;margin:6px auto;border-radius:6px;border:1px solid var(--border);';
+  range.deleteContents();
+  range.insertNode(im);
+  var br = document.createElement('br');
+  if (im.after) im.after(br); else if (im.parentNode) im.parentNode.appendChild(br);
+  var r2 = document.createRange(); r2.setStartAfter(br); r2.collapse(true);
+  sel.removeAllRanges(); sel.addRange(r2);
+}
+
 // 2026-09-28（年哥要求）：插入「分子在上、分母在下」的分数块，点进格子直接填数字
 function insertLectureFraction() {
   var ed = document.getElementById('lectureAnalysis');
@@ -4532,6 +4594,12 @@ function serializeLectureAnalysis() {
         continue;
       }
       if (ch.nodeType !== 1) continue;
+      // 2026-09-28（年哥要求）：内嵌图片 → [[img|n]] 标记（后端卡片原位渲染，语音跳过）
+      if (ch.classList && ch.classList.contains('lec-img')) {
+        var imIdx = parseInt(ch.getAttribute('data-idx'), 10);
+        if (!isNaN(imIdx)) out += '[[img|' + imIdx + ']]';
+        continue;
+      }
       // ○□ 放大包装 span：还原为纯字符（后端画卡片时按字符自动放大）
       if (ch.classList && ch.classList.contains('lec-big')) { out += ch.textContent; continue; }
       if (ch.classList && ch.classList.contains('lec-frac')) {
@@ -4569,7 +4637,8 @@ async function submitLectureGenerate(idx) {
       analysis: analysis,
       error_type: m.error_type || '',
       mistake_count: m.error_students || 0,
-      verbatim: vb && vb.checked ? 1 : 0
+      verbatim: vb && vb.checked ? 1 : 0,
+      images: window._lectureImgs || []
     })
   });
   if (!resp.ok) { showToast('提交失败，请重试'); return; }
