@@ -4400,16 +4400,27 @@ function openLectureEditor(idx) {
   html += '<label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:500;">✏️ 你的分析思路（AI 会据此生成讲解视频）</label>';
   // 2026-09-27（年哥要求）：常用数学符号快插——点击插入到光标位置
   // 分数线用 ⁄（U+2044）：fmtFrac 识别五种分数线字符之一，渲染时自动转水平横线
-  var _mathSyms = ['√', '✗', '○', '□', '≈', '≠', '=', '＞', '＜', '×', '÷', '∠', '°', 'π', '┆'];
-  var _symNames = { '√': '对勾', '✗': '错叉', '○': '圆圈', '□': '方框', '≈': '约等号', '≠': '不等号', '=': '等于号', '＞': '大于', '＜': '小于', '×': '乘号', '÷': '除号', '∠': '角（度数符号）', '°': '度', 'π': '圆周率', '┆': '分级线（虚线，如8050┆0000）' };
-  html += '<style>#lectureAnalysis:empty::before{content:attr(data-placeholder);color:#9aa7b5;pointer-events:none;}.lec-frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 2px;line-height:1.1;}.lec-frac .lf-num,.lec-frac .lf-den{min-width:14px;padding:0 4px;text-align:center;font-size:0.82em;border-radius:3px;outline:none;}.lec-frac .lf-num{border-bottom:1.5px solid currentColor;}.lec-frac .lf-num:focus,.lec-frac .lf-den:focus{background:rgba(74,144,217,0.12);}</style>';
+  var _mathSyms = ['√', '✗', '○', '□', '≈', '≠', '=', '＞', '＜', '×', '÷', '∠', '°', 'π', '┆', '【】', '{}'];
+  var _symNames = { '√': '对勾', '✗': '错叉', '○': '圆圈', '□': '方框', '≈': '约等号', '≠': '不等号', '=': '等于号', '＞': '大于', '＜': '小于', '×': '乘号', '÷': '除号', '∠': '角（度数符号）', '°': '度', 'π': '圆周率', '┆': '分级线（虚线，如8050┆0000）', '【】': '方头括号（成对插入，光标居中）', '{}': '大括号（成对插入，光标居中）' };
+  html += '<style>#lectureAnalysis:empty::before{content:attr(data-placeholder);color:#9aa7b5;pointer-events:none;}.lec-frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 2px;line-height:1.1;}.lec-frac .lf-num,.lec-frac .lf-den{min-width:14px;padding:0 4px;text-align:center;font-size:0.82em;border-radius:3px;outline:none;}.lec-frac .lf-num{border-bottom:1.5px solid currentColor;}.lec-frac .lf-num:focus,.lec-frac .lf-den:focus{background:rgba(74,144,217,0.12);}.lec-fmt-btn{min-width:30px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);cursor:pointer;font-size:13px;line-height:1.4;color:var(--text-primary);}.lec-color-dot{display:inline-block;width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,0.15);vertical-align:middle;}</style>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center;">' +
     '<span style="font-size:12px;color:var(--text-muted);">常用符号：</span>' +
     _mathSyms.map(function(s) {
-      return '<button type="button" data-s="' + s + '" title="插入' + (_symNames[s] || '') + '" onclick="insertMathSymbol(this.getAttribute(\'data-s\'))" style="min-width:32px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:14px;line-height:1.4;">' + s + '</button>';
+      return '<button type="button" data-s="' + s + '" title="插入' + (_symNames[s] || '') + '" onmousedown="event.preventDefault()" onclick="insertMathSymbol(this.getAttribute(\'data-s\'))" style="min-width:32px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:14px;line-height:1.4;">' + s + '</button>';
     }).join('') +
     // 2026-09-28（年哥要求）：分数线按钮改为插入「分子在上、分母在下」的分数块，直接点进格子里填数字
-    '<button type="button" title="插入分数（分子在上、分母在下，点格子直接填数字）" onclick="insertLectureFraction()" style="padding:2px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-primary);cursor:pointer;line-height:1.2;"><span style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;"><span style="font-size:11px;border-bottom:1.5px solid currentColor;padding:0 3px;">2</span><span style="font-size:11px;padding:0 3px;">3</span></span></button>' +
+    '<button type="button" title="插入分数（分子在上、分母在下，点格子直接填数字）" onmousedown="event.preventDefault()" onclick="insertLectureFraction()" style="padding:2px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-primary);cursor:pointer;line-height:1.2;"><span style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;"><span style="font-size:11px;border-bottom:1.5px solid currentColor;padding:0 3px;">2</span><span style="font-size:11px;padding:0 3px;">3</span></span></button>' +
+    '</div>';
+  // 2026-09-28（年哥要求）：格式工具条——加粗 + 颜色，格式会真实画进讲解视频卡片
+  html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center;">' +
+    '<span style="font-size:12px;color:var(--text-muted);">格式：</span>' +
+    '<button type="button" class="lec-fmt-btn" style="font-weight:800;" title="加粗（先选中文字再点）" onmousedown="event.preventDefault()" onclick="fmtLectureAnalysis(\'bold\')">B</button>' +
+    '<button type="button" class="lec-fmt-btn" title="红色（先选中文字再点）" onmousedown="event.preventDefault()" onclick="fmtLectureAnalysis(\'foreColor\',\'red\')"><span class="lec-color-dot" style="background:#e03c32;"></span></button>' +
+    '<button type="button" class="lec-fmt-btn" title="蓝色（先选中文字再点）" onmousedown="event.preventDefault()" onclick="fmtLectureAnalysis(\'foreColor\',\'blue\')"><span class="lec-color-dot" style="background:#2864d2;"></span></button>' +
+    '<button type="button" class="lec-fmt-btn" title="橙色（先选中文字再点）" onmousedown="event.preventDefault()" onclick="fmtLectureAnalysis(\'foreColor\',\'orange\')"><span class="lec-color-dot" style="background:#e68c14;"></span></button>' +
+    '<button type="button" class="lec-fmt-btn" title="绿色（先选中文字再点）" onmousedown="event.preventDefault()" onclick="fmtLectureAnalysis(\'foreColor\',\'green\')"><span class="lec-color-dot" style="background:#289650;"></span></button>' +
+    '<button type="button" class="lec-fmt-btn" title="清除格式（先选中文字再点）" onmousedown="event.preventDefault()" onclick="fmtLectureAnalysis(\'removeFormat\')">✕</button>' +
+    '<span style="font-size:12px;color:var(--text-muted);">选中文字后点按钮生效</span>' +
     '</div>';
   // 2026-09-28：textarea → contenteditable 富文本框，支持分数块（分子在上、分母在下）所见即所得
   html += '<div id="lectureAnalysis" contenteditable="true" data-placeholder="例如：这道题很多同学把分子分母弄反了。正确做法是先看分母，通分后再比较大小…请用学生听得懂的话写清楚思路和步骤。点「分数」按钮可插入上下结构的分数。" style="width:100%;min-height:140px;max-height:320px;overflow-y:auto;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit;white-space:pre-wrap;line-height:1.9;"></div>';
@@ -4445,8 +4456,21 @@ function insertMathSymbol(sym) {
   var tn = document.createTextNode(sym);
   range.deleteContents();
   range.insertNode(tn);
-  range.setStartAfter(tn); range.collapse(true);
+  // 成对括号（【】、{}）：插入后光标移到中间
+  if (sym.length === 2 && (sym === '【】' || sym === '{}')) {
+    range.setStart(tn, 1); range.collapse(true);
+  } else {
+    range.setStartAfter(tn); range.collapse(true);
+  }
   sel.removeAllRanges(); sel.addRange(range);
+}
+
+// 2026-09-28（年哥要求）：讲解词格式——加粗/颜色（选中文字后点按钮，格式会画进视频卡片）
+function fmtLectureAnalysis(cmd, val) {
+  var ed = document.getElementById('lectureAnalysis');
+  if (!ed || !ed.isContentEditable) return;
+  ed.focus();
+  try { document.execCommand(cmd, false, val || null); } catch (e) { showToast('当前浏览器不支持该格式'); }
 }
 
 // 2026-09-28（年哥要求）：插入「分子在上、分母在下」的分数块，点进格子直接填数字
@@ -4475,29 +4499,43 @@ function insertLectureFraction() {
 }
 
 // 2026-09-28：把富文本框序列化成纯文本（分数块 → 分子_分母，与全站 fmtFrac 分数线规范兼容）
+// 2026-09-28 补：加粗 → **文字**、颜色 → [[红|文字]]（后端画卡片时还原，TTS 自动剥掉）
 function serializeLectureAnalysis() {
   var ed = document.getElementById('lectureAnalysis');
   if (!ed) return '';
   if (!ed.isContentEditable) return ed.value || '';
-  function ser(node) {
+  var _colorNameMap = { 'red': '红', 'rgb(255, 0, 0)': '红', 'blue': '蓝', 'rgb(0, 0, 255)': '蓝', 'orange': '橙', 'rgb(255, 165, 0)': '橙', 'green': '绿', 'rgb(0, 128, 0)': '绿' };
+  function ser(node, st) {
     var out = '';
     for (var i = 0; i < node.childNodes.length; i++) {
       var ch = node.childNodes[i];
-      if (ch.nodeType === 3) { out += ch.nodeValue; continue; }
+      if (ch.nodeType === 3) {
+        var t = ch.nodeValue;
+        if (!t) continue;
+        var bold = st.bold, cname = st.color || '';
+        if (bold) t = '**' + t + '**';
+        if (cname) t = '[[' + cname + '|' + t + ']]';
+        out += t;
+        continue;
+      }
       if (ch.nodeType !== 1) continue;
       if (ch.classList && ch.classList.contains('lec-frac')) {
         var n = ch.querySelector('.lf-num'), d = ch.querySelector('.lf-den');
         out += ((n ? n.textContent : '') || '').trim() + '_' + ((d ? d.textContent : '') || '').trim();
         continue;
       }
-      var tag = ch.tagName;
+      var tag = ch.tagName, inner = { bold: st.bold, color: st.color };
+      if (tag === 'B' || tag === 'STRONG') inner.bold = true;
+      var cc = (ch.style && ch.style.color) || ch.getAttribute && ch.getAttribute('color') || '';
+      if (cc && _colorNameMap[cc]) inner.color = _colorNameMap[cc];
+      else if (cc) { try { var rgb = getComputedStyle(ch).color; if (_colorNameMap[rgb]) inner.color = _colorNameMap[rgb]; } catch (e) {} }
       if (tag === 'BR') { out += '\n'; continue; }
-      if (tag === 'DIV' || tag === 'P') { out += '\n' + ser(ch); continue; }
-      out += ser(ch);
+      if (tag === 'DIV' || tag === 'P') { out += '\n' + ser(ch, inner); continue; }
+      out += ser(ch, inner);
     }
     return out;
   }
-  return ser(ed).replace(/\u00a0/g, ' ').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '');
+  return ser(ed, { bold: false, color: '' }).replace(/\u00a0/g, ' ').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '');
 }
 
 async function submitLectureGenerate(idx) {
