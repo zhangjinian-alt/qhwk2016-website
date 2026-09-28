@@ -4411,6 +4411,8 @@ function openLectureEditor(idx) {
     }).join('') +
     // 2026-09-28（年哥要求）：分数线按钮改为插入「分子在上、分母在下」的分数块，直接点进格子里填数字
     '<button type="button" title="插入分数（分子在上、分母在下，点格子直接填数字）" onmousedown="event.preventDefault()" onclick="insertLectureFraction()" style="padding:2px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-primary);cursor:pointer;line-height:1.2;"><span style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;"><span style="font-size:11px;border-bottom:1.5px solid currentColor;padding:0 3px;">2</span><span style="font-size:11px;padding:0 3px;">3</span></span></button>' +
+    // 2026-09-28（年哥要求）：插入图片——选本地图（自动压缩），显示在讲解视频卡片上
+    '<button type="button" title="插入图片（最多4张，自动压缩；会显示在讲解视频卡片上，语音不念图）" onmousedown="event.preventDefault()" onclick="pickLectureImage()" style="padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:13px;line-height:1.4;">&#128444;&#65039; 图片</button>' +
     '</div>';
   // 2026-09-28（年哥要求）：格式工具条——加粗 + 颜色，格式会真实画进讲解视频卡片
   html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center;">' +
