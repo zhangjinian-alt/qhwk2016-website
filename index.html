@@ -4434,7 +4434,8 @@ function openLectureEditor(idx) {
 }
 
 // 2026-09-27：数学符号快插——插到光标位置，插完光标停在符号后（继续打字不中断）
-// 2026-09-28：适配 contenteditable 富文本框
+// 2026-09-28：适配 contenteditable 富文本框；○□ 字形天生偏小，插入时包 1.22em 放大（所见即所得，后端卡片同步放大）
+var _BIG_SYMS = { '○': 1, '□': 1 };
 function insertMathSymbol(sym) {
   var ed = document.getElementById('lectureAnalysis');
   if (!ed) return;
@@ -4453,7 +4454,15 @@ function insertMathSymbol(sym) {
   if (!ed.contains(range.commonAncestorContainer)) {
     range = document.createRange(); range.selectNodeContents(ed); range.collapse(false);
   }
-  var tn = document.createTextNode(sym);
+  var tn;
+  if (_BIG_SYMS[sym]) {
+    tn = document.createElement('span');
+    tn.className = 'lec-big';
+    tn.style.fontSize = '1.22em';
+    tn.textContent = sym;
+  } else {
+    tn = document.createTextNode(sym);
+  }
   range.deleteContents();
   range.insertNode(tn);
   // 成对括号（【】、{}）：插入后光标移到中间
@@ -4519,6 +4528,8 @@ function serializeLectureAnalysis() {
         continue;
       }
       if (ch.nodeType !== 1) continue;
+      // ○□ 放大包装 span：还原为纯字符（后端画卡片时按字符自动放大）
+      if (ch.classList && ch.classList.contains('lec-big')) { out += ch.textContent; continue; }
       if (ch.classList && ch.classList.contains('lec-frac')) {
         var n = ch.querySelector('.lf-num'), d = ch.querySelector('.lf-den');
         out += ((n ? n.textContent : '') || '').trim() + '_' + ((d ? d.textContent : '') || '').trim();
