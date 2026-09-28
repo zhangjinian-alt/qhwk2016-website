@@ -3216,6 +3216,30 @@ function renderStudentHomeTasks(container, tasks) {
   document.querySelectorAll('#exerciseList .exercise-item').forEach(function(el, i) {
     if (appData.exercises[i]) el.classList.add('done');
   });
+  // 老师推荐的易错题精讲（推送给中等生，2026-09-28）
+  (async function() {
+    var lts = [];
+    try {
+      var r2 = await fetchWithAuth('/student/lecture-tasks');
+      if (r2.ok) lts = await r2.json() || [];
+    } catch(e) {}
+    if (!lts.length || !container.parentNode) return;
+    var h = '<div class="exercise-card" style="margin-top:14px;"><h3>🎧 老师推荐的易错题精讲</h3>' +
+      '<p style="font-size:13px;color:var(--text-secondary);padding:2px 0 10px;">针对本周易错题的视频讲解，完整观看（约80%以上）算完成。</p>';
+    lts.forEach(function(lt) {
+      var q2 = (lt.question || '').length > 42 ? lt.question.slice(0, 42) + '…' : (lt.question || '');
+      h += '<div onclick="openLectureVideo(\'' + (lt.video_url || '') + '\',\'' + ((lt.title || '易错题精讲') + '').replace(/'/g, "\\'") + '\',' + lt.id + ')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;background:#fff;">' +
+        '<div style="font-size:20px;flex-shrink:0;">' + (lt.completed ? '✅' : '▶') + '</div>' +
+        '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:13px;font-weight:600;color:var(--text);">' + escHtmlSafe(lt.title || '易错题精讲') + ' <span style="font-size:11px;color:var(--text-muted);font-weight:400;">第' + (lt.week || '') + '周</span></div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + fmtFrac(escHtmlSafe(q2)) + '</div></div>' +
+        '<div style="font-size:11px;font-weight:600;flex-shrink:0;color:' + (lt.completed ? 'var(--success)' : 'var(--primary)') + ';">' + (lt.completed ? '已完成' : '待观看') + '</div></div>';
+    });
+    h += '</div>';
+    var box = document.createElement('div');
+    box.innerHTML = h;
+    container.appendChild(box.firstChild);
+  })();
 }
 
 function openStudentTaskVideo(taskId) {
@@ -4205,17 +4229,41 @@ function buildLectureFlatHtml(lectures, role) {
 function buildLectureCard(l, role) {
   var qShort = (l.question || '').length > 55 ? l.question.slice(0, 55) + '…' : l.question;
   var html = '<div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;">';
-  html += '<div style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:10px 14px;font-size:14px;font-weight:600;">🎯 ' + escHtmlSafe(l.title || '易错题精讲') + '</div>';
+  var pushBadge = (l.pushed && role !== 'teacher')
+    ? ' <span style="background:#FFF3D6;color:#B57D05;font-size:10px;padding:1px 7px;border-radius:8px;vertical-align:2px;font-weight:600;">老师推荐</span>' : '';
+  html += '<div style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:10px 14px;font-size:14px;font-weight:600;">🎯 ' + escHtmlSafe(l.title || '易错题精讲') + pushBadge + '</div>';
   html += '<div style="padding:12px 14px;">';
   html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">第' + (l.display_week || l.week) + '周 · ' + l.mistake_count + '人做错' + (l.error_type ? ' · ' + fmtFrac(escHtmlSafe(l.error_type)) : '') + '</p>';
   html += '<p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.8;">' + fmtFrac(escHtmlSafe(qShort)) + '</p>';
   html += '<div style="display:flex;gap:8px;">';
-  html += '<button onclick="openLectureVideo(\'' + l.video_url + '\',\'' + (l.title || '易错题精讲').replace(/'/g, "\\'") + '\')" style="flex:1;padding:8px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">▶ 观看讲解</button>';
+  html += '<button onclick="openLectureVideo(\'' + l.video_url + '\',\'' + (l.title || '易错题精讲').replace(/'/g, "\\'") + '\',' + (l.id || 0) + ')" style="flex:1;padding:8px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">▶ 观看讲解</button>';
   if (role === 'teacher') {
     html += '<button onclick="deleteAiLecture(' + l.id + ')" style="padding:8px 12px;background:#fff;color:#E03131;border:1.5px solid #FFC9C9;border-radius:8px;font-size:13px;cursor:pointer;">删除</button>';
   }
-  html += '</div></div></div>';
+  html += '</div>';
+  // 2026-09-28：推送给中等生（教师专属按钮，学生端本周任务清单可见）
+  if (role === 'teacher' && l.video_url && l.status === 'ready') {
+    html += '<button onclick="toggleLecturePush(' + l.id + ',' + (l.pushed ? 1 : 0) + ')" style="width:100%;margin-top:8px;padding:7px;background:' + (l.pushed ? '#EAF3DE' : '#FFF3D6') + ';color:' + (l.pushed ? '#3B9E52' : '#B57D05') + ';border:1.5px solid ' + (l.pushed ? '#CDE8C4' : '#F5E3B3') + ';border-radius:8px;font-size:12px;cursor:pointer;font-weight:600;">' + (l.pushed ? '✅ 已推送给中等生 · 点击撤回' : '📮 推送给中等生') + '</button>';
+  }
+  html += '</div></div>';
   return html;
+}
+
+// 推送/撤回精讲视频给中等生（2026-09-28）
+async function toggleLecturePush(id, pushed) {
+  var btn = event && event.target;
+  if (btn) btn.disabled = true;
+  var resp = await fetchWithAuth('/ai-lecture/' + id + '/push', { method: pushed ? 'DELETE' : 'POST' });
+  if (resp.ok) {
+    var d = null; try { d = await resp.json(); } catch(e) {}
+    showToast((d && d.message) || (pushed ? '已撤回推送' : '已推送给中等生'), 'success');
+    window._studentTasks = null;
+    renderAiLectures(getCurrentRole());
+  } else {
+    var err = null; try { err = await resp.json(); } catch(e) {}
+    if (btn) btn.disabled = false;
+    showToast((err && err.detail) || '操作失败，请重试');
+  }
 }
 
 // 教师端：按教学周分组折叠展示全部讲解
@@ -4671,7 +4719,7 @@ function startLecturePolling() {
   })();
 }
 
-function openLectureVideo(url, title) {
+function openLectureVideo(url, title, lectureId) {
   if (!requireCloudLogin()) return;
   if (!url) return;
   var html = '<h3 style="margin-bottom:8px;">' + title + '</h3>';
@@ -4684,6 +4732,38 @@ function openLectureVideo(url, title) {
   document.getElementById('modal').classList.add('open');
   document.getElementById('modalContent').innerHTML = html;
   tryPlayModalVideo();
+  // 2026-09-28：学生观看推送的精讲视频时上报进度（≥80% 计完成）
+  if (lectureId) {
+    var lv = document.querySelector('#modalContent video');
+    if (lv) attachLectureWatchTracking(lv, lectureId);
+  }
+}
+
+// 精讲视频观看进度上报（学生，2026-09-28；与 attachWatchTrackingTo 同口径：≥80% 计完整观看）
+function attachLectureWatchTracking(videoEl, lectureId) {
+  if (!isStudentLoggedIn() || !lectureId || !videoEl || !videoEl.addEventListener) return;
+  if (videoEl.getAttribute('data-lec-watch-bound')) return;
+  videoEl.setAttribute('data-lec-watch-bound', '1');
+  var reported = false;
+  var lastPct = -1;
+  function report(pct, complete) {
+    if (!isStudentLoggedIn()) return;
+    fetch(API_BASE + '/lecture-watch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getCloudToken() },
+      body: JSON.stringify({ lecture_id: lectureId, percent: Math.min(100, pct), complete: complete ? 1 : 0 })
+    }).catch(function() {});
+    lastPct = pct;
+  }
+  videoEl.addEventListener('timeupdate', function() {
+    if (!videoEl.duration) return;
+    var pct = Math.min(100, Math.round(videoEl.currentTime / videoEl.duration * 100));
+    if (pct >= 80 && !reported) { reported = true; report(pct, true); }
+    else if (pct - lastPct >= 10) { report(pct, false); }
+  });
+  videoEl.addEventListener('ended', function() {
+    if (!reported) { reported = true; report(100, true); }
+  });
 }
 
 async function deleteAiLecture(id) {
