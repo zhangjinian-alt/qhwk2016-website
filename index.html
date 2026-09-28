@@ -4400,15 +4400,19 @@ function openLectureEditor(idx) {
   html += '<label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:500;">✏️ 你的分析思路（AI 会据此生成讲解视频）</label>';
   // 2026-09-27（年哥要求）：常用数学符号快插——点击插入到光标位置
   // 分数线用 ⁄（U+2044）：fmtFrac 识别五种分数线字符之一，渲染时自动转水平横线
-  var _mathSyms = ['√', '✗', '○', '□', '≈', '≠', '=', '＞', '＜', '×', '÷', '∠', '°', 'π', '┆', '_'];
-  var _symNames = { '√': '对勾', '✗': '错叉', '○': '圆圈', '□': '方框', '≈': '约等号', '≠': '不等号', '=': '等于号', '＞': '大于', '＜': '小于', '×': '乘号', '÷': '除号', '∠': '角（度数符号）', '°': '度', 'π': '圆周率', '┆': '分级线（虚线，如8050┆0000）', '_': '分数线：分子_分母，如2_3，错题卡自动显示为水平横线分数' };
+  var _mathSyms = ['√', '✗', '○', '□', '≈', '≠', '=', '＞', '＜', '×', '÷', '∠', '°', 'π', '┆'];
+  var _symNames = { '√': '对勾', '✗': '错叉', '○': '圆圈', '□': '方框', '≈': '约等号', '≠': '不等号', '=': '等于号', '＞': '大于', '＜': '小于', '×': '乘号', '÷': '除号', '∠': '角（度数符号）', '°': '度', 'π': '圆周率', '┆': '分级线（虚线，如8050┆0000）' };
+  html += '<style>#lectureAnalysis:empty::before{content:attr(data-placeholder);color:#9aa7b5;pointer-events:none;}.lec-frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 2px;line-height:1.1;}.lec-frac .lf-num,.lec-frac .lf-den{min-width:14px;padding:0 4px;text-align:center;font-size:0.82em;border-radius:3px;outline:none;}.lec-frac .lf-num{border-bottom:1.5px solid currentColor;}.lec-frac .lf-num:focus,.lec-frac .lf-den:focus{background:rgba(74,144,217,0.12);}</style>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center;">' +
     '<span style="font-size:12px;color:var(--text-muted);">常用符号：</span>' +
     _mathSyms.map(function(s) {
       return '<button type="button" data-s="' + s + '" title="插入' + (_symNames[s] || '') + '" onclick="insertMathSymbol(this.getAttribute(\'data-s\'))" style="min-width:32px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-primary);cursor:pointer;font-size:14px;line-height:1.4;">' + s + '</button>';
     }).join('') +
+    // 2026-09-28（年哥要求）：分数线按钮改为插入「分子在上、分母在下」的分数块，直接点进格子里填数字
+    '<button type="button" title="插入分数（分子在上、分母在下，点格子直接填数字）" onclick="insertLectureFraction()" style="padding:2px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-primary);cursor:pointer;line-height:1.2;"><span style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;"><span style="font-size:11px;border-bottom:1.5px solid currentColor;padding:0 3px;">2</span><span style="font-size:11px;padding:0 3px;">3</span></span></button>' +
     '</div>';
-  html += '<textarea id="lectureAnalysis" rows="6" placeholder="例如：这道题很多同学把分子分母弄反了。正确做法是先看分母，通分后再比较大小…请用学生听得懂的话写清楚思路和步骤。" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;resize:vertical;outline:none;font-family:inherit;"></textarea>';
+  // 2026-09-28：textarea → contenteditable 富文本框，支持分数块（分子在上、分母在下）所见即所得
+  html += '<div id="lectureAnalysis" contenteditable="true" data-placeholder="例如：这道题很多同学把分子分母弄反了。正确做法是先看分母，通分后再比较大小…请用学生听得懂的话写清楚思路和步骤。点「分数」按钮可插入上下结构的分数。" style="width:100%;min-height:140px;max-height:320px;overflow-y:auto;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit;white-space:pre-wrap;line-height:1.9;"></div>';
   // 2026-09-27（年哥要求）：按原文讲解开关——勾上后 AI 不改写，老师写什么就讲什么
   html += '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:var(--text-secondary);cursor:pointer;user-select:none;">' +
     '<input type="checkbox" id="lectureVerbatim" style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">' +
@@ -4419,20 +4423,86 @@ function openLectureEditor(idx) {
 }
 
 // 2026-09-27：数学符号快插——插到光标位置，插完光标停在符号后（继续打字不中断）
+// 2026-09-28：适配 contenteditable 富文本框
 function insertMathSymbol(sym) {
-  var ta = document.getElementById('lectureAnalysis');
-  if (!ta) return;
-  var s = ta.selectionStart || 0, e = ta.selectionEnd || 0, v = ta.value;
-  ta.value = v.slice(0, s) + sym + v.slice(e);
-  var pos = s + String(sym).length;
-  ta.focus();
-  ta.setSelectionRange(pos, pos);
+  var ed = document.getElementById('lectureAnalysis');
+  if (!ed) return;
+  if (!ed.isContentEditable) {
+    // 旧 textarea 兜底
+    var s = ed.selectionStart || 0, e = ed.selectionEnd || 0, v = ed.value;
+    ed.value = v.slice(0, s) + sym + v.slice(e);
+    ed.focus();
+    ed.setSelectionRange(s + sym.length, s + sym.length);
+    return;
+  }
+  ed.focus();
+  var sel = window.getSelection();
+  if (!sel.rangeCount) { sel.addRange(document.createRange().selectNodeContents(ed)); return; }
+  var range = sel.getRangeAt(0);
+  if (!ed.contains(range.commonAncestorContainer)) {
+    range = document.createRange(); range.selectNodeContents(ed); range.collapse(false);
+  }
+  var tn = document.createTextNode(sym);
+  range.deleteContents();
+  range.insertNode(tn);
+  range.setStartAfter(tn); range.collapse(true);
+  sel.removeAllRanges(); sel.addRange(range);
+}
+
+// 2026-09-28（年哥要求）：插入「分子在上、分母在下」的分数块，点进格子直接填数字
+function insertLectureFraction() {
+  var ed = document.getElementById('lectureAnalysis');
+  if (!ed) return;
+  ed.focus();
+  var sel = window.getSelection();
+  if (!sel.rangeCount) {
+    var r0 = document.createRange(); r0.selectNodeContents(ed); r0.collapse(false);
+    sel.removeAllRanges(); sel.addRange(r0);
+  }
+  var range = sel.getRangeAt(0);
+  if (!ed.contains(range.commonAncestorContainer)) {
+    range = document.createRange(); range.selectNodeContents(ed); range.collapse(false);
+  }
+  var w = document.createElement('span');
+  w.className = 'lec-frac'; w.contentEditable = 'false';
+  var n = document.createElement('span'); n.className = 'lf-num'; n.contentEditable = 'true'; n.textContent = '分子';
+  var d = document.createElement('span'); d.className = 'lf-den'; d.contentEditable = 'true'; d.textContent = '分母';
+  w.appendChild(n); w.appendChild(d);
+  range.deleteContents();
+  range.insertNode(w);
+  var r2 = document.createRange(); r2.selectNodeContents(n); r2.collapse(true);
+  sel.removeAllRanges(); sel.addRange(r2);
+}
+
+// 2026-09-28：把富文本框序列化成纯文本（分数块 → 分子_分母，与全站 fmtFrac 分数线规范兼容）
+function serializeLectureAnalysis() {
+  var ed = document.getElementById('lectureAnalysis');
+  if (!ed) return '';
+  if (!ed.isContentEditable) return ed.value || '';
+  function ser(node) {
+    var out = '';
+    for (var i = 0; i < node.childNodes.length; i++) {
+      var ch = node.childNodes[i];
+      if (ch.nodeType === 3) { out += ch.nodeValue; continue; }
+      if (ch.nodeType !== 1) continue;
+      if (ch.classList && ch.classList.contains('lec-frac')) {
+        var n = ch.querySelector('.lf-num'), d = ch.querySelector('.lf-den');
+        out += ((n ? n.textContent : '') || '').trim() + '_' + ((d ? d.textContent : '') || '').trim();
+        continue;
+      }
+      var tag = ch.tagName;
+      if (tag === 'BR') { out += '\n'; continue; }
+      if (tag === 'DIV' || tag === 'P') { out += '\n' + ser(ch); continue; }
+      out += ser(ch);
+    }
+    return out;
+  }
+  return ser(ed).replace(/\u00a0/g, ' ').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '');
 }
 
 async function submitLectureGenerate(idx) {
   var m = window._mistakesList[idx];
-  var ta = document.getElementById('lectureAnalysis');
-  var analysis = ta ? ta.value.trim() : '';
+  var analysis = serializeLectureAnalysis().trim();
   if (!analysis) { showToast('请先写下你的分析思路'); return; }
   var vb = document.getElementById('lectureVerbatim');
   var resp = await fetchWithAuth('/ai-lecture/generate', {
