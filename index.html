@@ -3222,10 +3222,10 @@ function renderStudentHomeTasks(container, tasks, prog) {
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   };
   if (tasks.length === 0) {
-    container.innerHTML = '<div class="video-card" style="cursor:pointer;" onclick="navigate(\'classroom\')">' +
+    container.innerHTML = '<div class="video-card" id="homeEmptyTaskCard" style="cursor:pointer;" onclick="navigate(\'classroom\')">' +
       '<div class="video-thumb" style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));"><div class="play-btn">📚</div></div>' +
-      '<h3>暂无本周任务</h3><p class="meta">老师暂未安排，去课堂看看吧</p></div>' +
-      '<div class="exercise-card"><h3>学习提示</h3><p style="padding:16px 0;color:var(--text-secondary);font-size:14px;">本周没有指定任务，你可以自由浏览同步课堂或培优微课。</p>' +
+      '<h3>本周暂无视频课任务</h3><p class="meta">老师本周还没推同步课堂，任务见下方</p></div>' +
+      '<div class="exercise-card"><h3>学习提示</h3><p style="padding:16px 0;color:var(--text-secondary);font-size:14px;">本周没有指定视频课任务，你可以自由浏览同步课堂或培优微课。</p>' +
       '<button class="btn btn-primary" style="width:100%;" onclick="navigate(\'classroom\')">📚 去同步课堂</button></div>';
     // 2026-09-30：无同步课任务时也要显示精讲任务（国庆假期中等生只有精讲）
     appendStudentLectureTasks(container);
@@ -3277,6 +3277,15 @@ async function appendStudentLectureTasks(container) {
     if (r2.ok) lts = await r2.json() || [];
   } catch(e) {}
   if (!lts.length || !container.parentNode) return;
+  // 2026-09-30：本周没有同步课任务但有精讲 → 把「暂无任务」卡片改成明确指向精讲，
+  // 免得中等生以为本周没作业（年哥本周只给中等生推了 6 个精讲）
+  var emptyCard = container.querySelector('#homeEmptyTaskCard');
+  if (emptyCard) {
+    var eh3 = emptyCard.querySelector('h3');
+    var emt = emptyCard.querySelector('.meta');
+    if (eh3) eh3.textContent = '本周任务：易错题精讲';
+    if (emt) emt.textContent = '老师安排了 ' + lts.length + ' 个精讲视频，全部看完「学习兴趣」加 10 分';
+  }
   // 本周精讲进度与兴趣分（精讲计入「学习兴趣」：完成比例 × 10 分，全看完满分）
   var prog = null;
   try {
