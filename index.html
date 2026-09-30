@@ -3250,7 +3250,7 @@ function renderStudentHomeTasks(container, tasks, prog) {
   });
   if (prog && prog.applicable) {
     html += '<div style="background:#EAF3FB;border:1.5px solid #CFE3F5;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:12.5px;color:#2C6CA8;line-height:1.6;">' +
-      '🎯 本周任务已完成 <b>' + prog.done + '/' + prog.pushed + '</b> 个 · 全部看完「学习兴趣」加 <b>10</b> 分' +
+      '🎯 第 ' + getTeachWeek() + ' 周任务已完成 <b>' + prog.done + '/' + prog.pushed + '</b> 个 · 全部看完「学习兴趣」加 <b>10</b> 分' +
       '（当前得分 <b>' + prog.score + '</b> 分）</div>';
   }
   html += '</div><div class="reward-row"><span>完成全部可得</span><span style="font-size:18px;">⭐⭐⭐</span></div></div>';
@@ -9078,8 +9078,9 @@ function renderVideoManagementModal(videos) {
     tip = '<div style="font-size:12px;color:#FAAD14;margin-top:6px;">💡 建议：培优微课 ' + enrN + '/5 个（优生看），同步课堂 ' + syncN + '/2 个（中等生看）</div>';
   }
   html += '<div style="background:#EBF5FF;border:1px solid #B3D7F5;border-radius:10px;padding:14px 16px;margin-bottom:16px;">';
-  html += '<div style="font-size:14px;font-weight:600;color:#1E5FA8;">📌 本周推送' + (pushList.length ? '（已指定 ' + pushList.length + ' 个：同步 ' + syncN + ' + 培优 ' + enrN + '）' : '（未指定）') + '</div>';
-  html += '<p style="font-size:12px;color:var(--text-secondary);margin:6px 0 0;line-height:1.6;">学生任务<b>完全由老师推送决定，没有自动推荐</b>：优生（每周建议 5 个）看推送里的培优微课，中等生（每周建议 2 个）看推送里的同步课堂，顺序与勾选一致。' + (cat ? '当前列表只显示<b>' + catLabel + '</b>的视频（含其他账号上传的，均可推送），另一栏目的视频请到对应页面推送。' : '列表显示<b>全站所有已发布视频</b>（含其他账号上传的），均可推送。') + '本周不推送，学生端就显示「老师暂未安排」。</p>';
+  var pushWeek = pushList.length ? pushList[0].push_week : getTeachWeek();
+  html += '<div style="font-size:14px;font-weight:600;color:#1E5FA8;">📌 第 ' + pushWeek + ' 周推送' + (pushList.length ? '（已指定 ' + pushList.length + ' 个：同步 ' + syncN + ' + 培优 ' + enrN + '）' : '（未指定）') + '</div>';
+  html += '<p style="font-size:12px;color:var(--text-secondary);margin:6px 0 0;line-height:1.6;">学生任务<b>完全由老师推送决定，没有自动推荐</b>：优生（每周推 5 个培优微课即可满分）看推送里的培优微课，中等生（每周推 2 个同步课堂即可满分）看推送里的同步课堂，顺序与勾选一致。' + (cat ? '当前列表只显示<b>' + catLabel + '</b>的视频（含其他账号上传的，均可推送），另一栏目的视频请到对应页面推送。' : '列表显示<b>全站所有已发布视频</b>（含其他账号上传的），均可推送。') + '<b>推送按教学周分批</b>：每次保存只写入本周批次，前几周推的自动退出（学生端不再显示，也不占用本周计分名额）。</p>';
   html += tip;
   html += '</div>';
 
