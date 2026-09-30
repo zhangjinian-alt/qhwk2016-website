@@ -1659,31 +1659,53 @@ function getIsoWeek(d) {
 // 教学周起点：第1周的起点日（2026-09-04 → 9/4-9/10 为2026秋季学期第1周，周五到周四为一周，2026-09-07 定版）
 // 五维评价/喜报/功勋墙统一用教学周；与后端 _teach_week() 一致，改这里需同步后端 TEACH_WEEK_START
 var TEACH_WEEK_START = '2026-09-04';
+// 教学周起点调休断点表（2026-09-30 年哥哥定，国庆调休）：第5周起点前移至 9/30
+// （9/30~10/7 整段假期全算第5周，第4周收窄为 9/25~9/29），第6周起点 10/8（节后第一天上课），
+// 之后恢复每 7 天一周。格式 {周次: 该周实际起始日}。
+// ⚠️ 必须与后端 _TEACH_WEEK_START_OVERRIDES 保持一致，改一处要同步另一处。
+var TEACH_WEEK_OVERRIDES = { 5: '2026-09-30', 6: '2026-10-08' };
+function _twDate(s) { return new Date(s + 'T00:00:00'); }
+// 第 n 教学周的起始日（Date 对象，本地零点）：取 <= n 的最大断点作锚再按 7 天递推
+function teachWeekStartOf(n) {
+  var ks = Object.keys(TEACH_WEEK_OVERRIDES).map(Number).filter(function(k) { return k <= n; }).sort(function(a, b) { return a - b; });
+  if (ks.length) {
+    var k = ks[ks.length - 1];
+    return new Date(_twDate(TEACH_WEEK_OVERRIDES[k]).getTime() + (n - k) * 7 * 86400000);
+  }
+  return new Date(_twDate(TEACH_WEEK_START).getTime() + (n - 1) * 7 * 86400000);
+}
+// 教学周 w 的起止日（YYYY-MM-DD）；调休周长度可能不是 7 天，终点取"下周起点-1天"
+function getTeachWeekRange(w) {
+  w = w || getTeachWeek();
+  function f(x) { var m = x.getMonth() + 1, dd = x.getDate(); return x.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (dd < 10 ? '0' + dd : dd); }
+  return { start: f(teachWeekStartOf(w)), end: f(new Date(teachWeekStartOf(w + 1).getTime() - 86400000)) };
+}
 function getTeachWeek(d) {
   d = d || new Date();
-  var start = new Date(TEACH_WEEK_START + 'T00:00:00');
   var cur = new Date(d.getTime()); cur.setHours(0,0,0,0);
-  var w = Math.floor((cur - start) / 86400000 / 7) + 1;
+  // 断点表从后往前找锚点：落在 [锚点起点, 下一断点起点) 内即属该周次；仅最后一个断点之后走 7 天递推
+  var keys = Object.keys(TEACH_WEEK_OVERRIDES).map(Number).sort(function(a, b) { return b - a; });
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i], ks = _twDate(TEACH_WEEK_OVERRIDES[k]);
+    if (cur < ks) continue;
+    var bigger = keys.filter(function(x) { return x > k; }).sort(function(a, b) { return a - b; });
+    if (bigger.length && cur < _twDate(TEACH_WEEK_OVERRIDES[bigger[0]])) return k;
+    return k + Math.floor((cur - ks) / 86400000 / 7);
+  }
+  var w = Math.floor((cur - _twDate(TEACH_WEEK_START)) / 86400000 / 7) + 1;
   return w < 1 ? 1 : w;
 }
 
-// 当前教学周的起始日（YYYY-MM-DD，周一起算），"当周"数据分组统一用它，与后端 _teach_week_start_date 一致
+// 当前教学周的起始日（YYYY-MM-DD），"当周"数据分组统一用它，与后端 _teach_week_start_date 一致
 function getTeachWeekStartDate() {
-  var now = new Date();
-  var start = new Date(TEACH_WEEK_START + 'T00:00:00');
-  var days = Math.floor((now - start) / 86400000);
-  if (days < 0) days = 0;
-  var ws = new Date(start.getTime() + (Math.floor(days / 7) * 7) * 86400000);
-  var m = (ws.getMonth() + 1), dd = ws.getDate();
-  return ws.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (dd < 10 ? '0' + dd : dd);
+  return getTeachWeekRange(getTeachWeek()).start;
 }
 
 // 电子荣誉证书下载解锁（2026-09-12 定版）：学习标兵/进步之星要到该教学周的周日 12:00
 // 之后评分累计才准（周末作业+视频在周日晚间收齐），此前禁止下载电子奖状。
-// 教学周周五开周 → 第 N 周的周日 = TEACH_WEEK_START + (N-1)*7 + 2 天的 12:00。
+// 教学周周五开周 → 第 N 周起点 + 2 天 = 周日；起点改走 teachWeekStartOf 以兼容国庆调休。
 function certUnlockTime(week) {
-  var start = new Date(TEACH_WEEK_START + 'T00:00:00');
-  var t = new Date(start.getTime() + ((week - 1) * 7 + 2) * 86400000);
+  var t = new Date(teachWeekStartOf(week || getTeachWeek()).getTime() + 2 * 86400000);
   t.setHours(12, 0, 0, 0);
   return t;
 }
@@ -12231,8 +12253,8 @@ function _hwWeekInfo(item) {
   var dstr = (item.created_at || '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dstr)) return null;
   var w = getTeachWeek(new Date(dstr + 'T00:00:00'));
-  var start = new Date(TEACH_WEEK_START + 'T00:00:00');
-  var ws = new Date(start.getTime() + (w - 1) * 7 * 86400000);
+  // 2026-09-30：周起点改走 teachWeekStartOf（兼容国庆调休断点表），标签范围仍为起点 ~ 起点+4 天
+  var ws = teachWeekStartOf(w);
   var we = new Date(ws.getTime() + 4 * 86400000);
   function f(x) { var m = x.getMonth() + 1, d = x.getDate(); return (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d; }
   return { week: w, label: '第 ' + w + ' 周（' + f(ws) + ' ~ ' + f(we) + '）' };

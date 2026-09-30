@@ -605,7 +605,7 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
         <div style="border:2px dashed var(--slate-300);border-radius:12px;padding:28px;text-align:center;background:var(--slate-50);cursor:pointer;transition:all .2s;" id="excelDropZone" ondragover="event.preventDefault();" ondrop="handleExcelDrop(event)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:40px;height:40px;color:var(--blue);margin:0 auto 10px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg>
           <div style="font-size:15px;font-weight:600;color:var(--slate-700);">点击或拖拽上传 Excel 文件</div>
-          <div style="font-size:12px;color:var(--slate-500);margin-top:6px;">支持 .xlsx / .xls，表头第 2 行：姓名、思维品质、合作交流、学习习惯</div>
+          <div style="font-size:12px;color:var(--slate-500);margin-top:6px;">支持 .xlsx / .xls，表头第 2 行：姓名、思维品质、行为表现、学习习惯</div>
           <input type="file" id="excelFileInput" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style="display:none;" onchange="handleExcelFile(this)">
         </div>
         <div id="excelFileName" style="font-size:13px;color:var(--slate-600);margin-top:10px;display:none;"></div>
@@ -615,7 +615,7 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
           格式说明
         </h4>
-        <code id="formatDesc">每行格式：姓名,周次,思维品质,合作交流,学习习惯</code>
+        <code id="formatDesc">每行格式：姓名,周次,思维品质,行为表现,学习习惯</code>
         <div class="fmt-example" id="formatExample">张小明,4,9,8,7
 李小红,4,10,9,8</div>
       </div>
@@ -653,7 +653,7 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
     </div>
     <div class="modal-body">
       <div id="cloudLoginSection">
-        <p style="font-size:12px;color:var(--slate-500);margin-bottom:16px;line-height:1.7;">将老师三维评分（思维品质/合作交流/学习习惯）上传到云端，可跨设备恢复、供学生端查询。<br>请使用教师账号登录（与主站"☁️ 云端同步"同一账号）。</p>
+        <p style="font-size:12px;color:var(--slate-500);margin-bottom:16px;line-height:1.7;">将老师三维评分（思维品质/行为表现/学习习惯）上传到云端，可跨设备恢复、供学生端查询。<br>请使用教师账号登录（与主站"☁️ 云端同步"同一账号）。</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <input id="cloudUsername" placeholder="教师账号" style="flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;">
           <input id="cloudPassword" type="password" placeholder="密码" style="flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;">
@@ -772,15 +772,15 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
 // ============================================================
 
 // ===== 五维评价维度配置 =====
-// 完整五维 = 学习兴趣(系统自动) + 学习效果(系统自动) + 思维品质(老师) + 合作交流(老师) + 学习习惯(老师)
+// 完整五维 = 学习兴趣(系统自动) + 学习效果(系统自动) + 思维品质(老师) + 行为表现(老师，原「合作交流」) + 学习习惯(老师)
 // 老师端编辑/导入的是 think/coop/habit；interest/effect 由主站学生端自动采集后云端下发
 const DEFAULT_DIMS = [
   { key:'think', name:'思维品质', short:'思维', color:'#2563eb', bg:'#dbeafe',
     icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>',
     desc:'回答/质疑/补充 + 素养题得分' },
-  { key:'coop', name:'合作交流', short:'表现', color:'#f59e0b', bg:'#fef3c7',
+  { key:'coop', name:'行为表现', short:'行为', color:'#f59e0b', bg:'#fef3c7',
     icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
-    desc:'小组交流 + 师徒互帮互助' },
+    desc:'小组合作 + 互帮互助 + 课堂纪律' },
   { key:'habit', name:'学习习惯', short:'习惯', color:'#10b981', bg:'#d1fae5',
     icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>',
     desc:'作业提交 + 作业书写 + 使用草稿' },
@@ -884,10 +884,25 @@ function getISOWeek(d){
 // 教学周起点：第1周的起点日（2026-09-04 → 9/4-9/10 为2026秋季学期第1周，周五到周四为一周，2026-09-07 定版）
 // 云端 eval_records 按教学周存取，与后端 _teach_week()、主站 getTeachWeek() 一致
 const TEACH_WEEK_START = '2026-09-04';
+// 教学周起点调休断点表（2026-09-30 年哥哥定，国庆调休）：第5周起点前移至 9/30
+// （9/30~10/7 整段假期全算第5周，第4周收窄为 9/25~9/29），第6周起点 10/8（节后第一天上课），
+// 之后恢复每 7 天一周。格式 {周次: 该周实际起始日}。
+// ⚠️ 必须与后端 _TEACH_WEEK_START_OVERRIDES、主站 index.html TEACH_WEEK_OVERRIDES 保持一致。
+const TEACH_WEEK_OVERRIDES = { 5: '2026-09-30', 6: '2026-10-08' };
+function _twDate(s){ return new Date(s + 'T00:00:00'); }
 function getTeachWeek(d){
-  const start = new Date(TEACH_WEEK_START + 'T00:00:00');
+  d = d || new Date();
   const cur = new Date(d.getTime()); cur.setHours(0, 0, 0, 0);
-  const w = Math.floor((cur - start) / 86400000 / 7) + 1;
+  // 断点表从后往前找锚点：落在 [锚点起点, 下一断点起点) 内即属该周次；仅最后一个断点之后走 7 天递推
+  const keys = Object.keys(TEACH_WEEK_OVERRIDES).map(Number).sort(function(a, b) { return b - a; });
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i], ks = _twDate(TEACH_WEEK_OVERRIDES[k]);
+    if (cur < ks) continue;
+    const bigger = keys.filter(function(x) { return x > k; }).sort(function(a, b) { return a - b; });
+    if (bigger.length && cur < _twDate(TEACH_WEEK_OVERRIDES[bigger[0]])) return k;
+    return k + Math.floor((cur - ks) / 86400000 / 7);
+  }
+  const w = Math.floor((cur - _twDate(TEACH_WEEK_START)) / 86400000 / 7) + 1;
   return w < 1 ? 1 : w;
 }
 
@@ -2682,13 +2697,16 @@ function parseExcelWorkbook(workbook){
   if(headerIdx === -1) throw new Error('未找到包含"姓名"的表头行');
   var headers = rows[headerIdx].map(function(v){ return (v || '').toString().trim(); });
   // 列映射：根据表头中文名匹配到系统维度 key
-  // 默认映射：思维->think 合作/交流/互助->coop 习惯->habit（兼容旧表头：态度/作业->合作 课堂/思维->think 书写/草稿->habit）
+  // 默认映射：思维->think 行为/合作/交流/互助->coop 习惯->habit（兼容旧表头：态度/作业->行为表现 课堂/思维->think 书写/草稿->habit）
+  // 2026-09-26：维度改名「合作交流→行为表现」后，Excel 表头「行为表现」因旧词表含'表现'
+  // 被误判为 think（思维品质），导致 d_coop 落 0、思维品质分被行为表现列覆盖。
+  // 修复：'行为'优先匹配 coop；think 词表移除'表现'（'课堂表现'仍由'课堂'命中）。
   var colMap = [];
   var nameCol = -1;
   var ignoreCols = [];
   var headerWords = {
-    'think': ['思维', '课堂', '专注', '举手', '回答', '表现'],
-    'coop': ['合作', '交流', '互助', '师徒', '态度', '作业'],
+    'think': ['思维', '课堂', '专注', '举手', '回答'],
+    'coop': ['行为', '合作', '交流', '互助', '师徒', '态度', '作业'],
     'habit': ['习惯', '书写', '草稿', '卷面']
   };
   headers.forEach(function(h, idx){
@@ -2699,10 +2717,12 @@ function parseExcelWorkbook(workbook){
     if(lower === 'think') key = 'think';
     else if(lower === 'coop') key = 'coop';
     else if(lower === 'habit') key = 'habit';
-    // 兼容旧英文键：homework/attitude->合作  focus->思维  writing->习惯
+    // 兼容旧英文键：homework/attitude->行为表现  focus->思维  writing->习惯
     else if(lower === 'homework' || lower === 'attitude') key = 'coop';
     else if(lower === 'focus') key = 'think';
     else if(lower === 'writing') key = 'habit';
+    // 「行为表现」必须先于 headerWords 判断（旧词表'表现'曾把它误判给思维品质）
+    else if(lower.indexOf('行为') !== -1) key = 'coop';
     else {
       Object.keys(headerWords).forEach(function(dimKey){
         if(key) return;
@@ -2724,7 +2744,7 @@ function parseExcelWorkbook(workbook){
   DIMS.forEach(function(d){
     if(matchedKeys.indexOf(d.key) === -1) missing.push(d.key);
   });
-  if(colMap.length === 0) throw new Error('未识别到任何维度列（思维品质/合作交流/学习习惯）');
+  if(colMap.length === 0) throw new Error('未识别到任何维度列（思维品质/行为表现/学习习惯）');
   var missingNames = [];
   DIMS.forEach(function(d){
     if(matchedKeys.indexOf(d.key) === -1) missingNames.push(d.name);
