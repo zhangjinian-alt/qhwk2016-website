@@ -3214,6 +3214,8 @@ function renderStudentHomeTasks(container, tasks) {
       '<h3>暂无本周任务</h3><p class="meta">老师暂未安排，去课堂看看吧</p></div>' +
       '<div class="exercise-card"><h3>学习提示</h3><p style="padding:16px 0;color:var(--text-secondary);font-size:14px;">本周没有指定任务，你可以自由浏览同步课堂或培优微课。</p>' +
       '<button class="btn btn-primary" style="width:100%;" onclick="navigate(\'classroom\')">📚 去同步课堂</button></div>';
+    // 2026-09-30：无同步课任务时也要显示精讲任务（国庆假期中等生只有精讲）
+    appendStudentLectureTasks(container);
     return;
   }
   var task = tasks[0];
@@ -3239,29 +3241,50 @@ function renderStudentHomeTasks(container, tasks) {
     if (appData.exercises[i]) el.classList.add('done');
   });
   // 老师推荐的易错题精讲（推送给中等生，2026-09-28）
-  (async function() {
-    var lts = [];
-    try {
-      var r2 = await fetchWithAuth('/student/lecture-tasks');
-      if (r2.ok) lts = await r2.json() || [];
-    } catch(e) {}
-    if (!lts.length || !container.parentNode) return;
-    var h = '<div class="exercise-card" style="margin-top:14px;"><h3>🎧 老师推荐的易错题精讲</h3>' +
-      '<p style="font-size:13px;color:var(--text-secondary);padding:2px 0 10px;">针对本周易错题的视频讲解，完整观看（约80%以上）算完成。</p>';
-    lts.forEach(function(lt) {
-      var q2 = (lt.question || '').length > 42 ? lt.question.slice(0, 42) + '…' : (lt.question || '');
-      h += '<div onclick="openLectureVideo(\'' + (lt.video_url || '') + '\',\'' + ((lt.title || '易错题精讲') + '').replace(/'/g, "\\'") + '\',' + lt.id + ')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;background:#fff;">' +
-        '<div style="font-size:20px;flex-shrink:0;">' + (lt.completed ? '✅' : '▶') + '</div>' +
-        '<div style="flex:1;min-width:0;">' +
-        '<div style="font-size:13px;font-weight:600;color:var(--text);">' + escHtmlSafe(lt.title || '易错题精讲') + ' <span style="font-size:11px;color:var(--text-muted);font-weight:400;">第' + (lt.week || '') + '周</span></div>' +
-        '<div style="font-size:12px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + fmtFrac(escHtmlSafe(q2)) + '</div></div>' +
-        '<div style="font-size:11px;font-weight:600;flex-shrink:0;color:' + (lt.completed ? 'var(--success)' : 'var(--primary)') + ';">' + (lt.completed ? '已完成' : '待观看') + '</div></div>';
-    });
-    h += '</div>';
-    var box = document.createElement('div');
-    box.innerHTML = h;
-    container.appendChild(box.firstChild);
-  })();
+  appendStudentLectureTasks(container);
+}
+
+// 老师推荐的易错题精讲列表（推送给中等生，2026-09-28；2026-09-30 增加本周进度与学习兴趣加分说明）
+// 说明：无同步课任务时也要显示（国庆假期中等生只有精讲任务），故从 renderStudentHomeTasks 抽出来单独调用
+async function appendStudentLectureTasks(container) {
+  if (!container) return;
+  var esc = function(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  };
+  var lts = [];
+  try {
+    var r2 = await fetchWithAuth('/student/lecture-tasks');
+    if (r2.ok) lts = await r2.json() || [];
+  } catch(e) {}
+  if (!lts.length || !container.parentNode) return;
+  // 本周精讲进度与兴趣分（精讲计入「学习兴趣」：完成比例 × 10 分，全看完满分）
+  var prog = null;
+  try {
+    var r3 = await fetchWithAuth('/student/lecture-interest');
+    if (r3.ok) prog = await r3.json();
+  } catch(e) {}
+  var h = '<div class="exercise-card" style="margin-top:14px;"><h3>🎧 老师推荐的易错题精讲</h3>' +
+    '<p style="font-size:13px;color:var(--text-secondary);padding:2px 0 10px;">针对本周易错题的视频讲解，完整观看（约80%以上）算完成，计入「学习兴趣」评价。</p>';
+  if (prog && prog.applicable) {
+    h += '<div style="background:#F6F1FF;border:1.5px solid #E3D8FF;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:#7C3AED;line-height:1.6;">' +
+      '🎯 本周精讲已完成 <b>' + prog.done + '/' + prog.pushed + '</b> 个 · 全部看完「学习兴趣」加 <b>10</b> 分' +
+      '（当前精讲得分 <b>' + prog.score + '</b> 分）</div>';
+  }
+  lts.forEach(function(lt) {
+    var q2 = (lt.question || '').length > 42 ? lt.question.slice(0, 42) + '…' : (lt.question || '');
+    h += '<div onclick="openLectureVideo(\'' + (lt.video_url || '') + '\',\'' + ((lt.title || '易错题精讲') + '').replace(/'/g, "\\'") + '\',' + lt.id + ')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;background:#fff;">' +
+      '<div style="font-size:20px;flex-shrink:0;">' + (lt.completed ? '✅' : '▶') + '</div>' +
+      '<div style="flex:1;min-width:0;">' +
+      '<div style="font-size:13px;font-weight:600;color:var(--text);">' + esc(lt.title || '易错题精讲') + ' <span style="font-size:11px;color:var(--text-muted);font-weight:400;">第' + (lt.week || '') + '周</span></div>' +
+      '<div style="font-size:12px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + fmtFrac(esc(q2)) + '</div></div>' +
+      '<div style="font-size:11px;font-weight:600;flex-shrink:0;color:' + (lt.completed ? 'var(--success)' : 'var(--primary)') + ';">' + (lt.completed ? '已完成' : '待观看') + '</div></div>';
+  });
+  h += '</div>';
+  var box = document.createElement('div');
+  box.innerHTML = h;
+  container.appendChild(box.firstChild);
 }
 
 function openStudentTaskVideo(taskId) {
@@ -6180,7 +6203,7 @@ async function renderStudentEval() {
   html += '<p style="margin-bottom:16px;">🎯 五维总分：<b style="color:var(--primary);font-size:18px;">' + parseFloat(evalData.total).toFixed(1) + '</b> 分</p>';
   // 五维条形图（2026-09-20：文字列表改为条形图呈现，备注为各维计分口径）
   var _dims = [
-    {icon:'❤️', name:'学习兴趣', key:'interest', color:'#A855F7', note:'视频学习：同步课堂|培优微课'},
+    {icon:'❤️', name:'学习兴趣', key:'interest', color:'#A855F7', note:'视频学习+易错题精讲（精讲全看完满分）'},
     {icon:'✅', name:'学习效果', key:'effect',   color:'#06B6D4', note:'周末作业：8分x正确率+订正2分'},
     {icon:'🧠', name:'思维品质', key:'think',    color:'#2563EB', note:'回答|质疑|补充+素养题得分'},
     {icon:'🤝', name:'行为表现', key:'coop',     color:'#F59E0B', note:'小组合作+互帮互助+课堂纪律'},
