@@ -3157,7 +3157,7 @@ function renderHomeByRole(role) {
           if (resp.ok) { tasks = await resp.json(); window._studentTasks = tasks || []; }
         } catch(e) { console.log('加载首页任务失败:', e.message); }
       }
-      renderStudentHomeTasks(taskGrid, tasks || []);
+      renderStudentHomeTasks(taskGrid, tasks || [], await loadTaskInterest());
     })();
     // 快捷入口改为「本周速览」（2026-09-15：不再与顶部导航重复，展示本周真实数据）
     if (quickTitle) quickTitle.textContent = '本周速览';
@@ -3201,7 +3201,20 @@ function renderHomeByRole(role) {
   }
 }
 
-function renderStudentHomeTasks(container, tasks) {
+// 本周推送任务进度（2026-09-30）：老师本周推的视频按完成比例计入「学习兴趣」
+// （推 2 个看完 2 个 = 10 分，推 6 个看 3 个 = 5 分），缓存避免重复请求
+async function loadTaskInterest() {
+  if (window._taskInterest !== undefined) return window._taskInterest;
+  var prog = null;
+  try {
+    var r = await fetchWithAuth('/student/task-interest');
+    if (r.ok) prog = await r.json();
+  } catch(e) {}
+  window._taskInterest = prog;
+  return prog;
+}
+
+function renderStudentHomeTasks(container, tasks, prog) {
   if (!container) return;
   var esc = function(s) {
     return String(s == null ? '' : s)
@@ -3235,6 +3248,11 @@ function renderStudentHomeTasks(container, tasks) {
   exercises.slice(0, 3).forEach(function(ex) {
     html += '<div class="exercise-item" onclick="toggleExercise(this)"><div class="checkbox">✓</div><span class="ex-text">' + esc(ex) + '</span></div>';
   });
+  if (prog && prog.applicable) {
+    html += '<div style="background:#EAF3FB;border:1.5px solid #CFE3F5;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:12.5px;color:#2C6CA8;line-height:1.6;">' +
+      '🎯 本周任务已完成 <b>' + prog.done + '/' + prog.pushed + '</b> 个 · 全部看完「学习兴趣」加 <b>10</b> 分' +
+      '（当前得分 <b>' + prog.score + '</b> 分）</div>';
+  }
   html += '</div><div class="reward-row"><span>完成全部可得</span><span style="font-size:18px;">⭐⭐⭐</span></div></div>';
   container.innerHTML = html;
   document.querySelectorAll('#exerciseList .exercise-item').forEach(function(el, i) {
@@ -6203,7 +6221,7 @@ async function renderStudentEval() {
   html += '<p style="margin-bottom:16px;">🎯 五维总分：<b style="color:var(--primary);font-size:18px;">' + parseFloat(evalData.total).toFixed(1) + '</b> 分</p>';
   // 五维条形图（2026-09-20：文字列表改为条形图呈现，备注为各维计分口径）
   var _dims = [
-    {icon:'❤️', name:'学习兴趣', key:'interest', color:'#A855F7', note:'视频学习+易错题精讲（精讲全看完满分）'},
+    {icon:'❤️', name:'学习兴趣', key:'interest', color:'#A855F7', note:'老师推送的视频|易错题精讲，全部看完即满分'},
     {icon:'✅', name:'学习效果', key:'effect',   color:'#06B6D4', note:'周末作业：8分x正确率+订正2分'},
     {icon:'🧠', name:'思维品质', key:'think',    color:'#2563EB', note:'回答|质疑|补充+素养题得分'},
     {icon:'🤝', name:'行为表现', key:'coop',     color:'#F59E0B', note:'小组合作+互帮互助+课堂纪律'},
@@ -8091,7 +8109,9 @@ function initFlvPlayer(videoId, url) {
 }
 
 // ===== 学生观看埋点（学习兴趣分数据源） =====
-// 视频播放时向 /api/watch 上报进度；完整观看（≥80%）计 1 次 → 学习兴趣 +2 分
+// 视频播放时向 /api/watch 上报进度；完整观看（≥80%）计 1 次。
+// 学习兴趣 = max(自由观看分[完整观看数×2封顶10], 老师本周推送完成分[完成数÷推送数×10],
+//   易错题精讲分[同比例])，2026-09-30 起「推送的看完就满分」——只推 2 个同步课也能拿 10 分。
 function attachWatchTrackingTo(videoEl, course, category) {
   if (!isStudentLoggedIn()) return;
   if (!videoEl || !videoEl.addEventListener) return;
