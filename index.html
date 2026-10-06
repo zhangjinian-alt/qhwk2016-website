@@ -2857,6 +2857,17 @@ function qhEmptyHtml(say, sub) {
     '<div><span class="qh-say">' + s + '</span></div>' +
     (sub ? '<div class="qh-sub">' + sub + '</div>' : '') + '</div>';
 }
+// 2026-10-06（年哥定）：未交本周作业 → 错题本/复习推荐/错题榜/精讲一律锁定，
+// 防止学生先看平台上的正确答案再补交作业（服务端已同款拦截，这里只做界面呈现）
+function hwLockHtml(reason) {
+  var msg = escapeHtml(reason || '本周作业还没提交，先完成本周作业才能查看哦');
+  return '<div style="text-align:center;padding:44px 24px;background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow);">' +
+    '<div style="font-size:46px;margin-bottom:10px;">📝</div>' +
+    '<h4 style="margin-bottom:10px;">先交作业，再看错题本</h4>' +
+    '<p style="color:var(--text-muted);font-size:14px;line-height:1.9;max-width:460px;margin:0 auto;">' + msg + '</p>' +
+    '<p style="color:var(--text-muted);font-size:12px;margin-top:8px;line-height:1.9;max-width:460px;margin:8px auto 0;">提交本周作业、老师复核后，错题本、智能复习推荐和易错题精讲会一起开放</p>' +
+    '<button class="btn btn-primary" style="margin-top:16px;" onclick="navigate(\'parent\')">📤 去提交作业</button></div>';
+}
 function qhCelebrate() {
   try {
     var colors = ['#4A90D9', '#E8890C', '#3B9E52', '#C25087', '#D99A06', '#52C41A'];
@@ -3187,6 +3198,8 @@ function renderHomeByRole(role) {
           var resp = await fetchWithAuth('/mistakes?student_name=' + encodeURIComponent(_stu));
           if (resp.ok) {
             var data = await resp.json();
+            // 2026-10-06（年哥定）：本周没交作业 → 首页也不暴露错题数（防抄答案）
+            if (data.locked) { if (el) el.textContent = '🔒 交作业后可见'; return; }
             var ms = data.mistakes || [];
             var wk = getTeachWeek();
             var n = data.total || ms.length;
@@ -4231,15 +4244,19 @@ async function renderAiLectures(role) {
   }
   el.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:16px;">加载中...</p>';
   var lectures = [];
+  var _lecLocked = null;
   try {
     // 教师端拉全部周（按周分组折叠展示）；学生端只看本周
     var url = role === 'teacher' ? '/ai-lectures?all_weeks=1' : '/ai-lectures?week=' + _lectureWeek;
     var resp = await fetchWithAuth(url);
     if (resp.ok) {
       var data = await resp.json();
+      // 2026-10-06（年哥定）：本周没交作业 → 不下发精讲视频（视频里讲的就是答案）
+      if (data.locked) _lecLocked = data.lock_reason || '';
       lectures = data.lectures || [];
     }
   } catch (e) {}
+  if (_lecLocked !== null && role !== 'teacher') { el.innerHTML = hwLockHtml(_lecLocked); return; }
 
   var html = '';
   if (role === 'teacher') {
@@ -4415,13 +4432,17 @@ async function renderMistakesBoard() {
   if (!el) return;
   // 2026-09-20：教师端错题榜改为按教学周折叠（默认展开本周，历史周收起），口径与单周一致
   var allWeeks = [];
+  var _locked = null;
   try {
     var resp = await fetchWithAuth('/class-mistakes?all_weeks=1&limit=10');
     if (resp.ok) {
       var data = await resp.json();
+      // 2026-10-06（年哥定）：本周没交作业 → 不下发错题榜（全班错题含答案，防抄）
+      if (data.locked) _locked = data.lock_reason || '';
       allWeeks = data.weeks || [];
     }
   } catch (e) {}
+  if (_locked !== null) { el.innerHTML = hwLockHtml(_locked); return; }
   if (allWeeks.length === 0) {
     el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);padding:8px 0;">本周暂无已批改的错题数据。学生提交作业并经 AI 批改后，这里会自动出现本周错题榜。</p>';
     return;
@@ -5546,6 +5567,8 @@ async function loadCloudMistakes(studentName) {
     var resp = await fetchWithAuth('/mistakes' + query);
     if (!resp.ok) throw new Error('请求失败');
     var data = await resp.json();
+    // 2026-10-06（年哥定）：本周没交作业 → 不下发错题本（防抄答案）
+    if (data.locked) { list.innerHTML = hwLockHtml(data.lock_reason); return; }
     var all = data.mistakes || [];
     // 学生端只保留本周（历史周错题不在学生端展示；教师端不受限）
     if (isSelfView) {
@@ -5842,6 +5865,13 @@ async function loadCloudReview(studentName) {
     clearTimeout(timeoutId);
     if (!resp.ok) throw new Error('请求失败 (HTTP ' + resp.status + ')');
     var data = await resp.json();
+    // 2026-10-06（年哥定）：本周没交作业 → 不下发复习推荐（防抄答案）
+    if (data.locked) {
+      _reviewWeeksData = null;
+      window._reviewTopics = [];
+      if (list) list.innerHTML = hwLockHtml(data.lock_reason);
+      return;
+    }
     _reviewWeeksData = data;
     var weeks = data.weeks || [];
     var curWeek = data.current_week || getTeachWeek();
