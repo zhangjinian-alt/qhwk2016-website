@@ -4324,9 +4324,11 @@ function buildLectureCard(l, role) {
   html += '<div style="padding:12px 14px;">';
   html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">第' + (l.display_week || l.week) + '周 · ' + l.mistake_count + '人做错' + (l.error_type ? ' · ' + fmtFrac(escHtmlSafe(l.error_type)) : '') + '</p>';
   html += '<p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.8;">' + fmtFrac(escHtmlSafe(qShort)) + '</p>';
-  html += '<div style="display:flex;gap:8px;">';
-  html += '<button onclick="openLectureVideo(\'' + l.video_url + '\',\'' + (l.title || '易错题精讲').replace(/'/g, "\\'") + '\',' + (l.id || 0) + ')" style="flex:1;padding:8px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">▶ 观看讲解</button>';
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+  html += '<button onclick="openLectureVideo(\'' + l.video_url + '\',\'' + (l.title || '易错题精讲').replace(/'/g, "\\'") + '\',' + (l.id || 0) + ')" style="flex:1;min-width:110px;padding:8px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">▶ 观看讲解</button>';
   if (role === 'teacher') {
+    // 2026-10-07（年哥要求）：讲解词要能改、改完能重生成——回填原稿到生成窗口，不改视频地址
+    html += '<button onclick="reviseLecture(' + l.id + ')" title="打开原讲解词，改字后可重新生成（推送关系不变）" style="padding:8px 12px;background:#fff;color:var(--primary);border:1.5px solid #CFE3FA;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">✏️ 改讲解词</button>';
     html += '<button onclick="deleteAiLecture(' + l.id + ')" style="padding:8px 12px;background:#fff;color:#E03131;border:1.5px solid #FFC9C9;border-radius:8px;font-size:13px;cursor:pointer;">删除</button>';
   }
   html += '</div>';
@@ -4532,13 +4534,71 @@ function setAllMistakeBoardWeeks(open) {
 }
 
 function openLectureEditor(idx) {
+  // 新建模式：从错题榜某题生成讲解（2026-10-07：改为 ctx 通用实现，支持修订回填）
   var m = window._mistakesList[idx];
   if (!m) return;
-  window._lectureImgs = [];  // 2026-09-28：每次打开弹窗重置内嵌图片
-  var html = '<h3 style="margin-bottom:12px;">✍️ 生成 AI 讲解视频</h3>';
+  _openLectureEditorCommon({
+    mode: 'new',
+    question: m.question, error_type: m.error_type || '',
+    mistake_count: m.error_students || 0, week: m._week || _lectureWeek,
+    analysisHtml: '', imgs: [], verbatim: true
+  });
+}
+
+// 2026-10-07（年哥要求）：讲解词生成后不能丢——从卡片进入回填原文，改错字后一键重新生成
+function reviseLecture(lectureId) {
+  var l = (_lectureAll || []).filter(function(x) { return x.id === lectureId; })[0];
+  if (!l) { showToast('未找到该讲解，请刷新后重试'); return; }
+  var imgs = [];
+  try { imgs = Array.isArray(l.images) ? l.images : (l.images ? JSON.parse(l.images) : []); } catch (e) { imgs = []; }
+  if (!Array.isArray(imgs)) imgs = [];
+  _openLectureEditorCommon({
+    mode: 'revise', lectureId: lectureId,
+    question: l.question || '', error_type: l.error_type || '',
+    mistake_count: l.mistake_count || 0, week: l.week,
+    analysisHtml: deserializeLectureAnalysis(l.analysis || '', imgs),
+    imgs: imgs, verbatim: true
+  });
+}
+
+// 讲解词回填：把服务端存的标记文本还原成富文本（[[img|n]] / **粗** / [[色|文本]] / [[大|小|文本]]）
+function deserializeLectureAnalysis(text, imgs) {
+  var s = String(text == null ? '' : text);
+  var esc = function(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+  var cmap = { '红': '#e03c32', '蓝': '#2864d2', '橙': '#e68c14', '绿': '#289650' };
+  function parse(str) {
+    var out = '', i = 0, m;
+    var re = /\[\[img\|(\d+)\]\]|\*\*([\s\S]*?)\*\*|\[\[(红|蓝|橙|绿|大|小)\|([\s\S]*?)\]\]/g;
+    while ((m = re.exec(str)) !== null) {
+      out += esc(str.slice(i, m.index));
+      i = re.lastIndex;
+      if (m[1] !== undefined) {
+        var ii = parseInt(m[1], 10), src = (imgs && imgs[ii]) || '';
+        if (src) out += '<span class="lec-img" contenteditable="false" data-idx="' + ii + '"><img src="' + src + '" style="max-width:100%;border-radius:6px;display:block;margin:6px 0;"></span>';
+      } else if (m[2] !== undefined) {
+        out += '<b>' + parse(m[2]) + '</b>';
+      } else {
+        var kind = m[3], inner = parse(m[4]);
+        if (kind === '大') out += '<span class="lec-big" style="font-size:1.25em;">' + inner + '</span>';
+        else if (kind === '小') out += '<span style="font-size:0.85em;">' + inner + '</span>';
+        else out += '<span style="color:' + (cmap[kind] || 'inherit') + ';">' + inner + '</span>';
+      }
+    }
+    out += esc(str.slice(i));
+    return out;
+  }
+  return parse(s).replace(/\n/g, '<br>');
+}
+
+// 生成窗口通用实现（新建/修订共用；2026-10-07 年哥要求：提交后讲解词留在窗口不走）
+function _openLectureEditorCommon(ctx) {
+  window._lectureEditCtx = ctx;
+  window._lectureImgs = (ctx.imgs || []).slice();  // 2026-09-28：内嵌图片随上下文重置/回填
+  var isRevise = ctx.mode === 'revise';
+  var html = '<h3 style="margin-bottom:12px;">' + (isRevise ? '✏️ 修改讲解词并重新生成' : '✍️ 生成 AI 讲解视频') + '</h3>';
   html += '<div style="background:var(--primary-bg);border-radius:10px;padding:12px;margin-bottom:12px;">';
-  html += '<p style="font-size:13px;color:var(--text-secondary);line-height:1.8;"><strong>题目：</strong>' + fmtFrac(escHtmlSafe(m.question)) + '</p>';
-  html += '<p style="font-size:12px;color:var(--text-muted);margin-top:6px;">🔥 ' + m.error_students + ' 人做错' + (m.error_type ? ' · 常见错误：' + fmtFrac(escHtmlSafe(m.error_type)) : '') + '</p></div>';
+  html += '<p style="font-size:13px;color:var(--text-secondary);line-height:1.8;"><strong>题目：</strong>' + fmtFrac(escHtmlSafe(ctx.question || '')) + '</p>';
+  html += '<p style="font-size:12px;color:var(--text-muted);margin-top:6px;">🔥 ' + (ctx.mistake_count || 0) + ' 人做错' + (ctx.error_type ? ' · 常见错误：' + fmtFrac(escHtmlSafe(ctx.error_type)) : '') + '</p></div>';
   html += '<label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:500;">✏️ 你的分析思路（AI 会据此生成讲解视频）</label>';
   // 2026-09-27（年哥要求）：常用数学符号快插——点击插入到光标位置
   // 分数线用 ⁄（U+2044）：fmtFrac 识别五种分数线字符之一，渲染时自动转水平横线
@@ -4569,12 +4629,18 @@ function openLectureEditor(idx) {
     '<span style="font-size:12px;color:var(--text-muted);">选中文字后点按钮生效</span>' +
     '</div>';
   // 2026-09-28：textarea → contenteditable 富文本框，支持分数块（分子在上、分母在下）所见即所得
-  html += '<div id="lectureAnalysis" contenteditable="true" data-placeholder="例如：这道题很多同学把分子分母弄反了。正确做法是先看分母，通分后再比较大小…请用学生听得懂的话写清楚思路和步骤。点「分数」按钮可插入上下结构的分数。" style="width:100%;min-height:140px;max-height:320px;overflow-y:auto;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit;white-space:pre-wrap;line-height:1.9;"></div>';
+  html += '<div id="lectureAnalysis" contenteditable="true" data-placeholder="例如：这道题很多同学把分子分母弄反了。正确做法是先看分母，通分后再比较大小…请用学生听得懂的话写清楚思路和步骤。点「分数」按钮可插入上下结构的分数。" style="width:100%;min-height:140px;max-height:320px;overflow-y:auto;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;outline:none;font-family:inherit;white-space:pre-wrap;line-height:1.9;">' + (ctx.analysisHtml || '') + '</div>';
   // 2026-09-27（年哥要求）：按原文讲解开关——勾上后 AI 不改写，老师写什么就讲什么
+  // 2026-10-07：修订模式默认勾选（改过的稿默认受同步保护，只更新人数、其余一字不变）
   html += '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:var(--text-secondary);cursor:pointer;user-select:none;">' +
-    '<input type="checkbox" id="lectureVerbatim" style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">' +
+    '<input type="checkbox" id="lectureVerbatim"' + (ctx.verbatim ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">' +
     '<span>🎙️ 按我的原文讲解（勾选后 AI 不改写，直接照上面写的念；不勾则 AI 润色成更口语的讲稿）</span></label>';
-  html += '<button onclick="submitLectureGenerate(' + idx + ')" style="margin-top:12px;width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;">🎬 生成 AI 讲解视频（约30~60秒）</button>';
+  if (isRevise) {
+    html += '<p style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.7;">💡 修改后点下方按钮即可用新讲解词重新生成，视频地址、推送关系都不变；<strong>讲解词会一直留在本窗口</strong>，随时可以再改。</p>';
+  }
+  html += '<div id="lecGenStatus" style="display:none;margin-top:10px;font-size:12.5px;border-radius:8px;padding:9px 11px;line-height:1.7;"></div>';
+  html += '<button id="lecSubmitBtn" onclick="submitLectureGenerate()" style="margin-top:12px;width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;">' + (isRevise ? '🎬 用这份讲解词重新生成（约30~60秒）' : '🎬 生成 AI 讲解视频（约30~60秒）') + '</button>';
+  html += '<button type="button" onclick="closeModalDirect()" style="margin-top:8px;width:100%;padding:10px;background:var(--bg-card);color:var(--text-secondary);border:1.5px solid var(--border);border-radius:10px;font-size:14px;cursor:pointer;">关闭（讲解词保留在卡片里，可再从「✏️ 改讲解词」进来）</button>';
   document.getElementById('modalContent').innerHTML = html;
   document.getElementById('modal').classList.add('open');
 }
@@ -4768,27 +4834,102 @@ function serializeLectureAnalysis() {
 }
 
 async function submitLectureGenerate(idx) {
-  var m = window._mistakesList[idx];
+  var ctx = window._lectureEditCtx || {};
   var analysis = serializeLectureAnalysis().trim();
   if (!analysis) { showToast('请先写下你的分析思路'); return; }
   var vb = document.getElementById('lectureVerbatim');
-  var resp = await fetchWithAuth('/ai-lecture/generate', {
-    method: 'POST',
-    body: JSON.stringify({
-      week: m._week || _lectureWeek,
-      question: m.question,
-      analysis: analysis,
-      error_type: m.error_type || '',
-      mistake_count: m.error_students || 0,
-      verbatim: vb && vb.checked ? 1 : 0,
-      images: window._lectureImgs || []
-    })
-  });
-  if (!resp.ok) { showToast('提交失败，请重试'); return; }
-  closeModalDirect();
-  showToast('🎬 正在生成讲解视频，完成后自动出现', 'success');
+  var verbatim = vb && vb.checked ? 1 : 0;
+  var _btn = document.getElementById('lecSubmitBtn');
+  if (_btn) { _btn.disabled = true; _btn.style.opacity = '.7'; }
+  var resp;
+  if (ctx.mode === 'revise' && ctx.lectureId) {
+    // 2026-10-07：改讲解词重新生成——复用原记录（题干/人数/推送关系都不变）
+    resp = await fetchWithAuth('/ai-lecture/' + ctx.lectureId + '/revise', {
+      method: 'POST',
+      body: JSON.stringify({ analysis: analysis, verbatim: verbatim, images: window._lectureImgs || [] })
+    });
+  } else {
+    resp = await fetchWithAuth('/ai-lecture/generate', {
+      method: 'POST',
+      body: JSON.stringify({
+        week: ctx.week || _lectureWeek,
+        question: ctx.question,
+        analysis: analysis,
+        error_type: ctx.error_type || '',
+        mistake_count: ctx.mistake_count || 0,
+        verbatim: verbatim,
+        images: window._lectureImgs || []
+      })
+    });
+  }
+  if (!resp.ok) {
+    if (_btn) { _btn.disabled = false; _btn.style.opacity = '1'; }
+    var em = '提交失败，请重试';
+    try { var ej = await resp.json(); if (ej && ej.detail) em = ej.detail; } catch (e) {}
+    showToast(em);
+    return;
+  }
+  var d = null; try { d = await resp.json(); } catch (e) {}
+  var lid = (d && d.id) || ctx.lectureId || 0;
+  // 2026-10-07（年哥要求）：不关窗——讲解词始终留在窗口，可改字后再生成
+  ctx.mode = 'revise';
+  if (lid) ctx.lectureId = lid;
+  window._lectureEditCtx = ctx;
+  _setLectureEditorStatus('generating', '正在生成讲解视频…讲解词已保留在本窗口，可随时修改后再次生成');
+  showToast('🎬 正在生成讲解视频（约30~60秒）', 'success');
   await renderAiLectures(getCurrentRole());
   startLecturePolling();
+  if (lid) pollLectureEditorStatus(lid);
+}
+
+// 生成窗口状态条（2026-10-07：不关窗，用状态条告诉老师进度）
+function _setLectureEditorStatus(state, msg) {
+  var el = document.getElementById('lecGenStatus');
+  var btn = document.getElementById('lecSubmitBtn');
+  if (!el) return;
+  var styles = {
+    generating: 'background:#F4F9FF;color:#2E6BB0;border:1px solid #CFE3FA;',
+    ready: 'background:#EAF3DE;color:#3B9E52;border:1px solid #CDE8C4;',
+    failed: 'background:#FFF5F5;color:#E03131;border:1px solid #FFC9C9;'
+  };
+  el.style.cssText = 'display:block;margin-top:10px;font-size:12.5px;border-radius:8px;padding:9px 11px;line-height:1.7;' + (styles[state] || styles.generating);
+  var prefix = state === 'ready' ? '✅ ' : (state === 'failed' ? '⚠️ ' : '');
+  el.textContent = prefix + (msg || '');
+  if (btn) {
+    if (state === 'generating') { btn.disabled = true; btn.style.opacity = '.7'; btn.textContent = '⏳ 正在生成，请稍候…'; }
+    else if (state === 'ready') { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = '🎬 用这份讲解词重新生成（约30~60秒）'; }
+    else { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = '↻ 再生成一次'; }
+  }
+}
+
+// 轮询当前窗口这条讲解的生成状态（生成完自动提示，不用关窗重进）
+function pollLectureEditorStatus(lectureId) {
+  var tries = 0;
+  (function tick() {
+    setTimeout(async function() {
+      tries++;
+      var cur = window._lectureEditCtx;
+      if (!cur || cur.lectureId !== lectureId) return;       // 已切换到别的讲解
+      if (!document.getElementById('lecGenStatus')) return;  // 窗口已关闭
+      try {
+        var resp = await fetchWithAuth('/ai-lectures?all_weeks=1');
+        if (resp.ok) {
+          var data = await resp.json();
+          var l = (data.lectures || []).filter(function(x) { return x.id === lectureId; })[0];
+          if (l && l.status === 'ready') {
+            _setLectureEditorStatus('ready', '视频已生成。若讲解词还有要改的，改完直接点按钮，会用新讲解词覆盖生成新视频。');
+            return;
+          }
+          if (l && l.status === 'failed') {
+            _setLectureEditorStatus('failed', (l.error || '生成失败') + '，可修改后重试');
+            return;
+          }
+        }
+      } catch (e) {}
+      if (tries < 60) tick();
+      else _setLectureEditorStatus('failed', '生成超时，请刷新页面查看，或修改后重试');
+    }, 3000);
+  })();
 }
 
 function startLecturePolling() {
