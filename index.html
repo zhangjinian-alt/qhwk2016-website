@@ -1723,9 +1723,13 @@ function hwBeijingDate(utcStr) {
   if (!utcStr) return '';
   var d = new Date(String(utcStr).replace(' ', 'T') + (String(utcStr).indexOf('Z') < 0 ? 'Z' : ''));
   if (isNaN(d.getTime())) return String(utcStr).slice(0, 10);
+  // 2026-10-07（年哥：10/7 的作业被划到第6周）：+8h 得到的是「北京钟面」，
+  // 必须用 getUTC* 分量取日期——用 getMonth/getDate 会让浏览器本地时区（东八区）
+  // 再加 8 小时（等效 UTC+16），16:00 后提交的作业日期被顶到第二天；
+  // 平时错峰在周中看不出，调休周最后一天（10/7）就整组掉进第6周。
   var bj = new Date(d.getTime() + 8 * 3600 * 1000);
-  var m = (bj.getMonth() + 1), dd = bj.getDate();
-  return bj.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (dd < 10 ? '0' + dd : dd);
+  var m = bj.getUTCMonth() + 1, dd = bj.getUTCDate();
+  return bj.getUTCFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (dd < 10 ? '0' + dd : dd);
 }
 
 // 本地记录的云端数据版本号（用于乐观锁）
@@ -12059,7 +12063,12 @@ async function retryAllPendingHw() {
 
 // 2026-09-05：「我的作业」模块已从家校互通移除（与学习反馈-作业反馈重复）
 // 撤回作业（2026-09-05：提交有误可撤回再交，后端校验只能撤自己的）
+// 2026-10-07（年哥哥定）：老师复核后学生端不得撤消重交，只能走订正入口（后端同样拦截）
 async function withdrawHw(hwId, status) {
+  if (status === 'reviewed' && getCurrentRole() !== 'teacher') {
+    showToast('老师已复核这份作业，不能撤消重交。请点「查看详细反馈」，在底部完成错题订正', 'error');
+    return;
+  }
   var msg = status === 'reviewed'
     ? '这份作业老师已复核，撤回后批改与复核记录都会删除。确定撤回吗？'
     : '撤回后这份作业的图片和批改记录都会删除，撤回后可重新拍照提交。确定撤回吗？';
@@ -12811,6 +12820,8 @@ async function loadHwFeedbackList() {
       list.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px;">还没有提交记录，去「家校互通」拍照上传作业后，这里可以看到批改进度和反馈</p>';
       return;
     }
+    // 2026-10-07（年哥哥定）：老师复核后学生端不得撤消重交，只能走订正入口。教师不受限。
+    var isTeacherRole = getCurrentRole() === 'teacher';
     list.innerHTML = mine.map(function(h) {
       var imgCount = h.image_count > 1 ? '<span class="hw-thumb-badge">' + h.image_count + '图</span>' : '';
       var hasErrors = (h.total_count > 0 && h.total_correct < h.total_count);
@@ -12830,7 +12841,10 @@ async function loadHwFeedbackList() {
         '<p style="font-size:11px;color:var(--text-muted);">' + h.created_at.slice(0, 10) + '</p>' +
         '<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">' +
         (h.status === 'reviewed' ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;" onclick="viewHwFeedback(' + h.id + ')">查看详细反馈</button>' : '') +
-        '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;color:var(--danger);" onclick="withdrawHw(' + h.id + ',\'' + h.status + '\')">↩️ 撤回重交</button>' +
+        // 2026-10-07（年哥哥定）：老师复核后不再给学生「撤回重交」，只留订正入口
+        ((isTeacherRole || h.status !== 'reviewed')
+          ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;color:var(--danger);" onclick="withdrawHw(' + h.id + ',\'' + h.status + '\')">↩️ 撤回重交</button>'
+          : '<span style="font-size:11px;color:var(--text-muted);align-self:center;">老师已复核 · 请用「查看详细反馈」订正错题</span>') +
         '</div></div></div>';
     }).join('');
   } catch (e) { list.innerHTML = ''; }
