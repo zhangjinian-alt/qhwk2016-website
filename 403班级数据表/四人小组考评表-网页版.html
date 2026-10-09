@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>403班 四人小组考评表（网页版）</title>
+<title>403班 四人小组考评表（网页版 · 0930名册调整）</title>
 <style>
   :root { --primary:#4A90D9; --bg:#f5f8fc; --card:#fff; --border:#dde6f0; --muted:#8a99ab; --danger:#e05252; }
   * { box-sizing:border-box; margin:0; padding:0; }
@@ -45,7 +45,7 @@
 </head>
 <body>
 <div class="topbar">
-  <h1>📋 403班 四人小组考评表（网页版）</h1>
+  <h1>📋 403班 四人小组考评表（网页版 · 0930名册调整）</h1>
   <label>考评周次：
     <select id="weekSel"></select>
   </label>
@@ -53,6 +53,7 @@
   <button class="btn-ghost" onclick="clearWeek()">🧹 清空本周</button>
 </div>
 <p class="tip">💡 填写说明：各栏自动限最高分（鼠标悬停列头可看）；每格填完自动保存到本机浏览器（按周分别保存）。<br>
+🔁 名册调整（2026-09-30）：第 11 组 51号 <b>王芯瑶</b> ↔ 第 4 组 12号 <b>胡振东</b> 互换小组，两人各自的评分数据已随人迁移（首次在本机打开本文件时自动执行一次，历史各周一并迁移）。<br>
 📥 点击「生成 Excel」后，若浏览器弹出保存框，请选择 <b>D:\个人网站\403班级数据表</b> 文件夹（选过一次后会记住），文件名自动为「每周三维数据（周次）」；若直接进了下载文件夹，把它移动到上述目录即可。</p>
 <div class="nav" id="groupNav"></div>
 <div id="groups"></div>
@@ -61,9 +62,10 @@
 <script>
 // ===== 教学周（周五到周四，与主站一致：2026-09-04 为第1周起点） =====
 var TEACH_WEEK_START = '2026-09-04';
-// 教学周起点调休断点表（2026-09-30 年哥哥定，国庆调休）：第5周起点前移至 9/30，
-// 第6周起点 10/8，之后恢复每 7 天一周。与主站 index.html TEACH_WEEK_OVERRIDES 保持一致。
-var TEACH_WEEK_OVERRIDES = { 5: '2026-09-30', 6: '2026-10-08' };
+// 教学周起点调休断点表（2026-09-30 年哥哥定，国庆调休；2026-10-10 二次调整）：第5周起点前移至 9/30，
+// 第6周起点 10/8，第7周起点 10/16（第6周延至 10/15，共 8 天），之后恢复每 7 天一周。
+// 与主站 index.html TEACH_WEEK_OVERRIDES 保持一致。
+var TEACH_WEEK_OVERRIDES = { 5: '2026-09-30', 6: '2026-10-08', 7: '2026-10-16' };
 function _twDate(s) { return new Date(s + 'T00:00:00'); }
 function getTeachWeek(d) {
   d = d || new Date();
@@ -85,14 +87,14 @@ var GROUPS = [
   { g:'1',  rows:[['101',53,'谢诗镁'],['102',20,'萧弼薰'],['103',26,'李泽嵘'],['104',31,'谢润泽']] },
   { g:'2',  rows:[['201',15,'黄显宇'],['202',19,'周擎宇'],['203',18,'黄淏楷'],['204',35,'杨羽涵']] },
   { g:'3',  rows:[['301',8,'陈明德'],['302',22,'刘崇智'],['303',6,'邝峻维'],['304',55,'姚熠阳']] },
-  { g:'4',  rows:[['401',7,'罗瑞宸'],['402',3,'刘柏禹'],['403',12,'胡振东'],['404',47,'黄曼嫣']] },
+  { g:'4',  rows:[['401',7,'罗瑞宸'],['402',3,'刘柏禹'],['403',51,'王芯瑶'],['404',47,'黄曼嫣']] },
   { g:'5',  rows:[['501',46,'李梓桐'],['502',11,'黄浩峰'],['503',17,'钟甫圻'],['504',54,'张可煊']] },
   { g:'6',  rows:[['601',36,'凌梓涵'],['602',34,'苗沛雯'],['603',1,'叶兆熹'],['604',30,'庞奕彬']] },
   { g:'7',  rows:[['701',37,'梅芊汇'],['702',14,'陈思航'],['703',24,'张熙粤'],['704',41,'刘善熙']] },
   { g:'8',  rows:[['801',48,'刘雅晴'],['802',13,'陆星辰'],['803',52,'龙梓萌'],['804',16,'曾书珩']] },
   { g:'9',  rows:[['901',9,'何泓希'],['902',21,'张恩睿'],['903',28,'林政烨'],['904',40,'莫雅婷']] },
   { g:'10', rows:[['1001',38,'陈思羽'],['1002',27,'吴宇邺'],['1003',42,'唐茜'],['1004',56,'巫林非']] },
-  { g:'11', rows:[['1101',10,'李廷珲'],['1102',50,'唐锦雯'],['1103',51,'王芯瑶'],['1104',5,'邝峻熙']] },
+  { g:'11', rows:[['1101',10,'李廷珲'],['1102',50,'唐锦雯'],['1103',12,'胡振东'],['1104',5,'邝峻熙']] },
   { g:'12', rows:[['1201',4,'周翊泽'],['1202',2,'荣维汐'],['1203',43,'黄嘉轩'],['1204',44,'陈渝霏']] },
   { g:'13', rows:[['1301',23,'郑果'],['1302',45,'宋语晨'],['1303',49,'黄钰淇'],['1304',29,'汤博皓']] },
   { g:'14', rows:[['1401',33,'傅山迅'],['1402',25,'宁浩宇'],['1403',39,'魏思语']] }
@@ -117,6 +119,33 @@ function weekKey(w) { return 'kp403_w' + w; }
 function curWeek() { return parseInt(document.getElementById('weekSel').value, 10); }
 function loadWeek(w) { try { return JSON.parse(localStorage.getItem(weekKey(w)) || '{}'); } catch(e) { return {}; } }
 function saveWeek(w, data) { localStorage.setItem(weekKey(w), JSON.stringify(data)); }
+
+// ===== 一次性迁移：王芯瑶(51) ↔ 胡振东(12) 互换小组（2026-09-30 定） =====
+// 评分数据按「组-行」位置存 localStorage，换人时必须把两人各自的记录一起搬位，
+// 否则分数会留在原位、错记到另一个人名下。
+// 位置：第4组第3行 A='3_2'（原胡振东） ↔ 第11组第3行 B='10_2'（原王芯瑶）
+var SWAP_MIG_FLAG = 'kp403_mig_swap_51_12_v1';
+function migrateSwapWxyHzd() {
+  if (localStorage.getItem(SWAP_MIG_FLAG)) return 0;
+  var keys = [];
+  for (var i = 0; i < localStorage.length; i++) {
+    var k = localStorage.key(i);
+    if (k && /^kp403_w\d+$/.test(k)) keys.push(k);
+  }
+  var PA = '3_2', PB = '10_2', n = 0;
+  keys.forEach(function(k) {
+    var d; try { d = JSON.parse(localStorage.getItem(k) || '{}'); } catch (e) { return; }
+    if (!d || typeof d !== 'object') return;
+    var a = d[PA], b = d[PB];
+    if (a === undefined && b === undefined) return;
+    if (b === undefined) delete d[PA]; else d[PA] = b;
+    if (a === undefined) delete d[PB]; else d[PB] = a;
+    localStorage.setItem(k, JSON.stringify(d));
+    n++;
+  });
+  localStorage.setItem(SWAP_MIG_FLAG, '1');
+  return n;
+}
 
 function toast(msg) {
   var t = document.getElementById('toast');
@@ -380,6 +409,7 @@ function downloadFallback(blob, fname) {
 
 // ===== 初始化 =====
 (function() {
+  var movedWeeks = migrateSwapWxyHzd();
   var sel = document.getElementById('weekSel');
   var cur = getTeachWeek();
   for (var i = 1; i <= 20; i++) {
@@ -390,6 +420,7 @@ function downloadFallback(blob, fname) {
   }
   sel.onchange = renderAll;
   renderAll();
+  if (movedWeeks) toast('已按新名册调整：王芯瑶 ↔ 胡振东（' + movedWeeks + ' 周数据随人迁移）');
 })();
 </script>
 </body>
