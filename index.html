@@ -12129,7 +12129,10 @@ async function viewHwFeedback(hwId) {
           if (!p.is_correct) {
             var why = (p.error_reason || p.error_type || '').trim();
             if (why) line += '<div class="hw-problem-detail">分析：' + fmtFrac(escapeHtml(why)) + '</div>';
-            var ca = (p.correct_answer != null && String(p.correct_answer) !== '') ? fmtFrac(p.correct_answer) : '';
+            // 2026-10-10 年哥定：第6周起（逐题订正）学生端不展示正确答案，防照抄；
+            // 教师端、以及第5周及以前（整份订正，需照答案订正）仍照常显示
+            var _showAns = (getCurrentRole() === 'teacher') || ((hw.teach_week || 0) < 6);
+            var ca = (_showAns && p.correct_answer != null && String(p.correct_answer) !== '') ? fmtFrac(p.correct_answer) : '';
             if (ca) line += '<div class="hw-problem-detail">正确答案：<strong style="color:#389E0D;">' + ca + '</strong></div>';
             if (p.hint) line += '<div class="hw-problem-detail">💡 ' + fmtFrac(escapeHtml(p.hint)) + '</div>';
           }
@@ -12151,9 +12154,44 @@ async function viewHwFeedback(hwId) {
       '<p style="font-size:14px;color:var(--text);line-height:1.8;">' + (hw.teacher_comment || finalResult.summary || '老师暂未添加评语') + '</p>' +
       hwCommentImagesHtml(hw.comment_images) +
       '</div>' +
-      // 错题逐题订正区（2026-10-10 年哥定「方案A」）——替代原「整份一次订正」：
-      // 每道错题一个格子，学生逐题订正 → AI 对照答案键单题判定 → 教师可逐题裁定
-      renderHwCorrectionSection(hw) +
+      // 订正区（2026-10-10 年哥定）：**第6周起**用「逐题订正」（每道错题一个格子，
+      // AI 对照答案键单题判定，教师可逐题裁定）；**第5周及以前**仍用「整份一起订正」。
+      (((hw.teach_week || 0) >= 6)
+        ? renderHwCorrectionSection(hw)
+        : (hw.corrected
+            ? renderHwCorrectedInfo(hw)
+            : (isStudentLoggedIn() && parseFloat(finalResult.accuracy) < 100)
+                ? '<div style="background:#FFF7E6;border:1px solid #FFE7BA;border-radius:var(--radius);padding:16px;margin-top:16px;">' +
+                  '<h4 style="margin-bottom:8px;">✏️ 订正错题（订正后学习效果 +2 分）</h4>' +
+                  '<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">错题要弄明白才真正进步哦！选一种方式讲解你的订正思路。</p>' +
+                  '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
+                  '<button type="button" class="hw-correct-tab" data-tab="image" onclick="switchHwCorrectTab(\'image\')" style="flex:1;padding:8px 0;border-radius:8px;font-size:13px;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--text-secondary);">📷 拍照</button>' +
+                  '<button type="button" class="hw-correct-tab" data-tab="video" onclick="switchHwCorrectTab(\'video\')" style="flex:1;padding:8px 0;border-radius:8px;font-size:13px;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--text-secondary);">🎥 视频讲解</button>' +
+                  '<button type="button" class="hw-correct-tab" data-tab="text" onclick="switchHwCorrectTab(\'text\')" style="flex:1;padding:8px 0;border-radius:8px;font-size:13px;cursor:pointer;border:1.5px solid #FA8C16;background:#FA8C16;color:#fff;">✍️ 文字</button>' +
+                  '</div>' +
+                  '<div id="hwCorrectPanel-text">' +
+                  '<textarea id="hwCorrectInput" rows="3" placeholder="如：第2题把分子分母弄反了，正确是 3/5，我明白了分数的意义..." style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;resize:vertical;"></textarea>' +
+                  '<button onclick="submitHwCorrect(' + hw.id + ')" style="margin-top:10px;width:100%;padding:10px;background:#FA8C16;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600;">📮 提交订正</button>' +
+                  '</div>' +
+                  '<div id="hwCorrectPanel-image" style="display:none;">' +
+                  '<div onclick="document.getElementById(\'hwCorrectImageInput\').click()" style="border:2px dashed var(--border);border-radius:10px;padding:22px 12px;text-align:center;cursor:pointer;background:var(--bg);">' +
+                  '<div style="font-size:30px;">📷</div><p style="font-size:13px;color:var(--text-secondary);margin-top:6px;">点击拍照或选择订正图片</p>' +
+                  '<p style="font-size:11px;color:var(--text-muted);">可拍订正后的作业或手写讲解</p></div>' +
+                  '<input type="file" id="hwCorrectImageInput" accept="image/*" style="display:none;" onchange="previewHwCorrectImage(this)">' +
+                  '<img id="hwCorrectImagePreview" style="display:none;max-width:220px;max-height:260px;border-radius:8px;margin:10px auto 0;">' +
+                  '<button id="hwCorrectMediaBtn-image" onclick="submitHwCorrectMedia(' + hw.id + ',\'image\')" style="margin-top:10px;width:100%;padding:10px;background:#FA8C16;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600;">📮 提交订正</button>' +
+                  '</div>' +
+                  '<div id="hwCorrectPanel-video" style="display:none;">' +
+                  '<div onclick="document.getElementById(\'hwCorrectVideoInput\').click()" style="border:2px dashed var(--border);border-radius:10px;padding:22px 12px;text-align:center;cursor:pointer;background:var(--bg);">' +
+                  '<div style="font-size:30px;">🎥</div><p style="font-size:13px;color:var(--text-secondary);margin-top:6px;">点击选择讲解视频</p>' +
+                  '<p style="font-size:11px;color:var(--text-muted);">录一段 1-3 分钟讲解，说清错在哪、正确思路</p></div>' +
+                  '<input type="file" id="hwCorrectVideoInput" accept="video/*" style="display:none;" onchange="previewHwCorrectVideo(this)">' +
+                  '<div id="hwCorrectVideoName" style="font-size:12px;color:var(--text-muted);margin-top:6px;text-align:center;"></div>' +
+                  '<button id="hwCorrectMediaBtn-video" onclick="submitHwCorrectMedia(' + hw.id + ',\'video\')" style="margin-top:10px;width:100%;padding:10px;background:#FA8C16;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600;">📮 提交订正</button>' +
+                  '</div>' +
+                  '</div>'
+                : '')
+      ) +
       '</div>';
 
     document.getElementById('modalContent').innerHTML = html;
@@ -12186,7 +12224,9 @@ function _corrItemHtml(it, i, hwId, isStu, isTeacher) {
   if (it.stem) h += '<div style="font-size:13px;color:var(--text);line-height:1.6;margin-top:6px;">' + fmtFrac(escHtmlSafe(it.stem)) + '</div>';
   h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">' +
        '你的答案：<b style="color:#C62828;">' + fmtFrac(escHtmlSafe(it.student_answer || '（未识别）')) + '</b>' +
-       '　正确答案：<b style="color:#389E0D;">' + fmtFrac(escHtmlSafe(it.correct_answer || '')) + '</b></div>';
+       // 2026-10-10 年哥定：订正阶段不给正确答案（防照抄），只有教师端可见
+       (isTeacher && it.correct_answer ? '　正确答案：<b style="color:#389E0D;">' + fmtFrac(escHtmlSafe(it.correct_answer)) + '</b>' : '') +
+       '</div>';
   if (it.ai_reason) h += '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">🤖 ' + fmtFrac(escHtmlSafe(it.ai_reason)) + '</div>';
   if (it.teacher_comment) h += '<div style="font-size:12px;color:#B57D05;margin-top:4px;">👩‍🏫 老师：' + escHtmlSafe(it.teacher_comment) + '</div>';
   if (it.submitted) {
@@ -13128,7 +13168,11 @@ async function viewHwDetail(hwId) {
       (grade.summary ? '<div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-top:12px;"><strong>AI评语：</strong>' + grade.summary + '</div>' : '') +
       (grade.suggestions && grade.suggestions.length ? '<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">💡 建议：' + grade.suggestions.join('、') + '</div>' : '') +
       (hw.teacher_comment ? '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:12px;margin-top:12px;"><strong>教师评语：</strong>' + hw.teacher_comment + hwCommentImagesHtml(hw.comment_images) + '</div>' : '') +
-      (hw.corrected ? renderHwCorrectedInfo(hw) : '') +
+      // 订正区（2026-10-10 年哥定）：教师端第6周起显示逐题订正+逐题裁定；
+      // 第5周及以前仍显示「整份订正」内容
+      (((hw.teach_week || 0) >= 6)
+        ? renderHwCorrectionSection(hw)
+        : (hw.corrected ? renderHwCorrectedInfo(hw) : '')) +
       '</div>';
 
     document.getElementById('modalContent').innerHTML = html;
