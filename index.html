@@ -5894,7 +5894,13 @@ function buildMistakeWeekHtml(all) {
         ' <span style="color:#C62828;font-weight:700;">（×）</span></div>';
       var why = (top.error_reason || top.error_type || m.error_reason || m.error_type || '').trim();
       if (why) blk += '<div class="reason" style="margin-top:2px;">分析：' + fmtFrac(escapeHtml(why)) + '</div>';
-      blk += '<div class="solution" style="margin-top:2px;">正确答案：' + fmtFrac(escapeHtml(m.correct_answer || '（未提供）')) + '</div>';
+      // 2026-10-10（年哥定）：学生端第6周起错题本不下发答案（后端 answers_hidden=1），
+      // 这里显示锁定提示，避免学生以为"答案丢失"
+      if (m.answers_hidden) {
+        blk += '<div class="solution" style="margin-top:2px;color:var(--text-muted);">🔒 答案已锁定：把这道题订正合格后，老师会为你开放参考答案（先自己想一想哦）</div>';
+      } else {
+        blk += '<div class="solution" style="margin-top:2px;">正确答案：' + fmtFrac(escapeHtml(m.correct_answer || '（未提供）')) + '</div>';
+      }
       // 错法汇总压成单行（与顶部「学生答案」重复的详细信息不再逐行铺开）；
       // 「其他错误」这类空洞类型不显示（2026-09-22 深夜年哥反馈卡片乱）
       if (vs.length > 1) {
@@ -6132,6 +6138,8 @@ function openReviewModal(idx) {
   html += '<p style="font-size:14px;color:var(--text);line-height:1.8;margin:0 0 8px;font-weight:600;">' + fmtFrac(escapeHtml(t.topic)) + '</p>';
   if (t.answer) {
     html += '<p style="font-size:14px;color:#389E0D;line-height:1.8;margin:0 0 6px;font-weight:600;">✅ 正确答案：' + fmtFrac(escapeHtml(t.answer)) + '</p>';
+  } else if (t.answers_hidden) {
+    html += '<p style="font-size:13px;color:var(--text-muted);line-height:1.8;margin:0 0 6px;">🔒 答案已锁定：订正合格后由老师开放（先独立思考）</p>';
   }
   var vs = t.variants || [];
   if (vs.length) {
@@ -6152,6 +6160,8 @@ function openReviewModal(idx) {
       html += '<p style="font-size:14px;color:var(--text);line-height:1.8;margin:0 0 6px;">' + fmtFrac(escapeHtml(q.question)) + '</p>';
       if (q.correct_answer) {
         html += '<p style="font-size:13px;color:#389E0D;margin:0;">✅ 正确答案：' + fmtFrac(escapeHtml(q.correct_answer)) + '</p>';
+      } else if (t.answers_hidden) {
+        html += '<p style="font-size:12px;color:var(--text-muted);margin:0;">🔒 答案已锁定（订正合格后开放）</p>';
       }
       if (q.error_reason) {
         html += '<p style="font-size:13px;color:var(--text-secondary);margin:6px 0 0;line-height:1.8;">💡 易错点：' + fmtFrac(escapeHtml(q.error_reason)) + '</p>';
@@ -6187,6 +6197,7 @@ function openPracticeModal(idx) {
     html += '<summary style="color:var(--primary);cursor:pointer;font-weight:500;">查看解析</summary>';
     html += '<div style="margin-top:8px;color:var(--text-secondary);line-height:1.8;">';
     if (q.correct_answer) html += '<p style="margin:0 0 4px;">✅ 答案：' + fmtFrac(escapeHtml(q.correct_answer)) + '</p>';
+    else if (t.answers_hidden) html += '<p style="margin:0 0 4px;color:var(--text-muted);">🔒 答案已锁定（订正合格后开放）</p>';
     if (q.error_reason) html += '<p style="margin:0;">💡 点拨：' + fmtFrac(escapeHtml(q.error_reason)) + '</p>';
     html += '</div></details>';
     html += '</div>';
