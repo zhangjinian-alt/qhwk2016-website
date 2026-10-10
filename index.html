@@ -12150,47 +12150,194 @@ async function viewHwFeedback(hwId) {
       '<p style="font-size:14px;color:var(--text);line-height:1.8;">' + (hw.teacher_comment || finalResult.summary || '老师暂未添加评语') + '</p>' +
       hwCommentImagesHtml(hw.comment_images) +
       '</div>' +
-      // 订正区（已订正内容三端可见；提交订正仅学生登录显示；订正完成 → 学习效果 +2 分）
-      (hw.corrected
-        ? renderHwCorrectedInfo(hw)
-        : (isStudentLoggedIn() && parseFloat(finalResult.accuracy) < 100)
-            ? '<div style="background:#FFF7E6;border:1px solid #FFE7BA;border-radius:var(--radius);padding:16px;margin-top:16px;">' +
-              '<h4 style="margin-bottom:8px;">✏️ 订正错题（订正后学习效果 +2 分）</h4>' +
-              '<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">错题要弄明白才真正进步哦！选一种方式讲解你的订正思路。</p>' +
-              '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
-              '<button type="button" class="hw-correct-tab" data-tab="image" onclick="switchHwCorrectTab(\'image\')" style="flex:1;padding:8px 0;border-radius:8px;font-size:13px;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--text-secondary);">📷 拍照</button>' +
-              '<button type="button" class="hw-correct-tab" data-tab="video" onclick="switchHwCorrectTab(\'video\')" style="flex:1;padding:8px 0;border-radius:8px;font-size:13px;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--text-secondary);">🎥 视频讲解</button>' +
-              '<button type="button" class="hw-correct-tab" data-tab="text" onclick="switchHwCorrectTab(\'text\')" style="flex:1;padding:8px 0;border-radius:8px;font-size:13px;cursor:pointer;border:1.5px solid #FA8C16;background:#FA8C16;color:#fff;">✍️ 文字</button>' +
-              '</div>' +
-              '<div id="hwCorrectPanel-text">' +
-              '<textarea id="hwCorrectInput" rows="3" placeholder="如：第2题把分子分母弄反了，正确是 3/5，我明白了分数的意义..." style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;resize:vertical;"></textarea>' +
-              '<button onclick="submitHwCorrect(' + hw.id + ')" style="margin-top:10px;width:100%;padding:10px;background:#FA8C16;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600;">📮 提交订正</button>' +
-              '</div>' +
-              '<div id="hwCorrectPanel-image" style="display:none;">' +
-              '<div onclick="document.getElementById(\'hwCorrectImageInput\').click()" style="border:2px dashed var(--border);border-radius:10px;padding:22px 12px;text-align:center;cursor:pointer;background:var(--bg);">' +
-              '<div style="font-size:30px;">📷</div><p style="font-size:13px;color:var(--text-secondary);margin-top:6px;">点击拍照或选择订正图片</p>' +
-              '<p style="font-size:11px;color:var(--text-muted);">可拍订正后的作业或手写讲解</p></div>' +
-              '<input type="file" id="hwCorrectImageInput" accept="image/*" style="display:none;" onchange="previewHwCorrectImage(this)">' +
-              '<img id="hwCorrectImagePreview" style="display:none;max-width:220px;max-height:260px;border-radius:8px;margin:10px auto 0;">' +
-              '<button id="hwCorrectMediaBtn-image" onclick="submitHwCorrectMedia(' + hw.id + ',\'image\')" style="margin-top:10px;width:100%;padding:10px;background:#FA8C16;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600;">📮 提交订正</button>' +
-              '</div>' +
-              '<div id="hwCorrectPanel-video" style="display:none;">' +
-              '<div onclick="document.getElementById(\'hwCorrectVideoInput\').click()" style="border:2px dashed var(--border);border-radius:10px;padding:22px 12px;text-align:center;cursor:pointer;background:var(--bg);">' +
-              '<div style="font-size:30px;">🎥</div><p style="font-size:13px;color:var(--text-secondary);margin-top:6px;">点击选择讲解视频</p>' +
-              '<p style="font-size:11px;color:var(--text-muted);">录一段 1-3 分钟讲解，说清错在哪、正确思路</p></div>' +
-              '<input type="file" id="hwCorrectVideoInput" accept="video/*" style="display:none;" onchange="previewHwCorrectVideo(this)">' +
-              '<div id="hwCorrectVideoName" style="font-size:12px;color:var(--text-muted);margin-top:6px;text-align:center;"></div>' +
-              '<button id="hwCorrectMediaBtn-video" onclick="submitHwCorrectMedia(' + hw.id + ',\'video\')" style="margin-top:10px;width:100%;padding:10px;background:#FA8C16;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600;">📮 提交订正</button>' +
-              '</div>' +
-              '</div>'
-            : ''
-      ) +
+      // 错题逐题订正区（2026-10-10 年哥定「方案A」）——替代原「整份一次订正」：
+      // 每道错题一个格子，学生逐题订正 → AI 对照答案键单题判定 → 教师可逐题裁定
+      renderHwCorrectionSection(hw) +
       '</div>';
 
     document.getElementById('modalContent').innerHTML = html;
     document.getElementById('modal').classList.add('open');
   } catch (e) {
     showToast('查看反馈失败：' + e.message);
+  }
+}
+
+// ===== 错题逐题订正 + 订正复核（2026-10-10 年哥定「方案A」） =====
+// 学生端：每道错题一个格子（文字/拍照/视频），提交后 AI 对照答案键单题判定。
+// 教师端：作业详情里逐题看订正 + 一键「合格/打回」；另有汇总复核清单（loadHwCorrectionReview）。
+var _hwCorrState = { hwId: 0, items: [] };
+
+function _corrVerdictChip(it) {
+  if (!it.submitted) return '<span style="background:#FFF1F0;color:#C62828;font-size:11px;padding:1px 8px;border-radius:8px;">未订正</span>';
+  var v = it.verdict || '';
+  if (v === 'correct') return '<span style="background:#F6FFED;color:#389E0D;font-size:11px;padding:1px 8px;border-radius:8px;">✅ 订正正确</span>';
+  if (v === 'wrong') return '<span style="background:#FFF1F0;color:#C62828;font-size:11px;padding:1px 8px;border-radius:8px;">❌ 仍然不对</span>';
+  if (v === 'uncertain') return '<span style="background:#FFF7E6;color:#B57D05;font-size:11px;padding:1px 8px;border-radius:8px;">⚠️ 待老师确认</span>';
+  return '<span style="background:#F0F5FF;color:#1D39C4;font-size:11px;padding:1px 8px;border-radius:8px;">⏳ AI 判定中</span>';
+}
+
+function _corrItemHtml(it, i, hwId, isStu, isTeacher) {
+  var h = '<div style="background:#fff;border:1px solid #FFE7BA;border-radius:10px;padding:12px;margin-bottom:10px;">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">' +
+       '<div style="font-size:13px;font-weight:700;">' + escHtmlSafe(it.qno_label || '') +
+       (it.wrong_count > 1 ? ' <span style="font-size:11px;color:#C62828;font-weight:400;">（' + it.wrong_count + ' 个空错）</span>' : '') +
+       '</div>' + _corrVerdictChip(it) + '</div>';
+  if (it.stem) h += '<div style="font-size:13px;color:var(--text);line-height:1.6;margin-top:6px;">' + fmtFrac(escHtmlSafe(it.stem)) + '</div>';
+  h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">' +
+       '你的答案：<b style="color:#C62828;">' + fmtFrac(escHtmlSafe(it.student_answer || '（未识别）')) + '</b>' +
+       '　正确答案：<b style="color:#389E0D;">' + fmtFrac(escHtmlSafe(it.correct_answer || '')) + '</b></div>';
+  if (it.ai_reason) h += '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">🤖 ' + fmtFrac(escHtmlSafe(it.ai_reason)) + '</div>';
+  if (it.teacher_comment) h += '<div style="font-size:12px;color:#B57D05;margin-top:4px;">👩‍🏫 老师：' + escHtmlSafe(it.teacher_comment) + '</div>';
+  if (it.submitted) {
+    if (it.corr_type === 'image' && it.corr_media_url) {
+      h += '<div style="margin-top:8px;"><img src="' + it.corr_media_url + '" style="max-width:200px;border-radius:8px;"></div>';
+    } else if (it.corr_type === 'video' && it.corr_media_url) {
+      h += '<div style="margin-top:8px;"><video controls playsinline webkit-playsinline preload="metadata" style="width:100%;max-width:280px;border-radius:8px;" src="' + it.corr_media_url + '"></video></div>';
+    }
+    if (it.corr_text) h += '<div style="margin-top:6px;background:#F6FFED;border-radius:8px;padding:8px;font-size:12px;">💬 ' + escHtmlSafe(it.corr_text) + '</div>';
+  }
+  // 学生：未订正 / 未通过 → 显示（重新）订正输入区；已判对不再要求重订
+  if (isStu && !(it.submitted && it.verdict === 'correct')) {
+    h += '<div style="margin-top:10px;">' +
+         '<textarea id="corrText-' + i + '" rows="2" placeholder="写下这题的订正过程或正确答案…" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;box-sizing:border-box;resize:vertical;"></textarea>' +
+         '<div style="display:flex;gap:8px;margin-top:8px;">' +
+         '<button onclick="submitHwCorrection(' + hwId + ',' + i + ',\'text\')" style="flex:1;padding:8px;background:#FA8C16;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">📮 提交文字订正</button>' +
+         '<button onclick="pickHwCorrectionMedia(' + i + ',\'image\')" title="拍照订正" style="padding:8px 14px;background:#fff;color:#FA8C16;border:1.5px solid #FA8C16;border-radius:8px;font-size:13px;cursor:pointer;">📷</button>' +
+         '<button onclick="pickHwCorrectionMedia(' + i + ',\'video\')" title="视频讲解" style="padding:8px 14px;background:#fff;color:#FA8C16;border:1.5px solid #FA8C16;border-radius:8px;font-size:13px;cursor:pointer;">🎥</button>' +
+         '</div></div>';
+  }
+  // 教师：逐题裁定（AI 拿不准 / 判错时最有用）
+  if (isTeacher && it.submitted) {
+    h += '<div style="display:flex;gap:8px;margin-top:10px;">' +
+         '<button onclick="reviewHwCorrection(' + hwId + ',' + i + ',\'correct\')" style="flex:1;padding:7px;background:' + (it.teacher_verdict === 'correct' ? '#389E0D' : '#fff') + ';color:' + (it.teacher_verdict === 'correct' ? '#fff' : '#389E0D') + ';border:1.5px solid #389E0D;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">✅ 订正合格</button>' +
+         '<button onclick="reviewHwCorrection(' + hwId + ',' + i + ',\'wrong\')" style="flex:1;padding:7px;background:' + (it.teacher_verdict === 'wrong' ? '#C62828' : '#fff') + ';color:' + (it.teacher_verdict === 'wrong' ? '#fff' : '#C62828') + ';border:1.5px solid #C62828;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">↩️ 打回重订</button>' +
+         '</div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function renderHwCorrectionSection(hw) {
+  var corr = hw.corrections || {};
+  var items = corr.items || [];
+  if (!items.length) return '';
+  var role = getCurrentRole();
+  var isStu = (role === 'student' || role === 'parent') && isStudentLoggedIn();
+  var isTeacher = (role === 'teacher');
+  _hwCorrState = { hwId: hw.id, items: items };
+  var n = items.length, sub = corr.submitted || 0;
+  var stat = '已订正 <b>' + sub + '/' + n + '</b> 题' +
+    (corr.ai_correct ? ' · <span style="color:#389E0D;">判对 ' + corr.ai_correct + '</span>' : '') +
+    (corr.ai_wrong ? ' · <span style="color:#C62828;">仍错 ' + corr.ai_wrong + '</span>' : '') +
+    (corr.ai_uncertain ? ' · <span style="color:#B57D05;">待确认 ' + corr.ai_uncertain + '</span>' : '') +
+    (corr.pending ? ' · <span style="color:#B57D05;">未订 ' + corr.pending + '</span>' : '');
+  var tip = isStu
+    ? '错题要弄明白才真正进步哦！逐题订正，提交后 AI 会先判一遍，老师再复核。'
+    : '逐题订正情况（AI 预判 + 你的裁定）；「待老师确认」的题建议点开核对一下。';
+  return '<div id="hwCorrectionBox" style="background:#FFF7E6;border:1px solid #FFE7BA;border-radius:var(--radius);padding:16px;margin-top:16px;">' +
+    '<h4 style="margin-bottom:6px;">✏️ 错题订正（共 ' + n + ' 题）</h4>' +
+    '<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">' + tip + '</p>' +
+    '<div style="font-size:12px;color:var(--text-secondary);background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:12px;">' + stat + '</div>' +
+    items.map(function(it, i) { return _corrItemHtml(it, i, hw.id, isStu, isTeacher); }).join('') +
+    '</div>';
+}
+
+// 选文件（拍照/视频）后立即提交该题订正
+function pickHwCorrectionMedia(i, ctype) {
+  var inp = document.getElementById('corrFile-' + i);
+  if (!inp) {
+    inp = document.createElement('input');
+    inp.type = 'file';
+    inp.id = 'corrFile-' + i;
+    inp.style.display = 'none';
+    document.body.appendChild(inp);
+  }
+  inp.accept = (ctype === 'image') ? 'image/*' : 'video/*';
+  inp.value = '';
+  inp.onchange = function() { submitHwCorrection(_hwCorrState.hwId, i, ctype); };
+  inp.click();
+}
+
+// 提交单题订正（文字/拍照/视频）
+async function submitHwCorrection(hwId, i, ctype) {
+  var it = (_hwCorrState.items || [])[i];
+  if (!it) return;
+  if (!isStudentLoggedIn()) { showToast('请先登录学生账号', 'error'); return; }
+  var ta = document.getElementById('corrText-' + i);
+  var text = (ta && ta.value.trim()) ? ta.value.trim() : '';
+  var fd = new FormData();
+  fd.append('qkey', it.qkey);
+  fd.append('corr_type', ctype);
+  fd.append('text', text);
+  if (ctype !== 'text') {
+    var inp = document.getElementById('corrFile-' + i);
+    if (!inp || !inp.files || !inp.files[0]) {
+      showToast(ctype === 'image' ? '请先拍照或选择图片' : '请先选择讲解视频', 'error');
+      return;
+    }
+    fd.append('file', inp.files[0]);
+  } else if (!text) {
+    showToast('请先写下你的订正', 'error');
+    return;
+  }
+  showToast('提交中…');
+  try {
+    var resp = await fetchWithAuth('/homework/' + hwId + '/correction', { method: 'POST', body: fd });
+    var data = await resp.json().catch(function() { return {}; });
+    if (!resp.ok) { showToast(data.detail || '提交失败', 'error'); return; }
+    showToast(data.message || '订正已提交', 'success');
+    qhCelebrate();
+    viewHwFeedback(hwId);
+    _pollHwCorrection(hwId, 0);
+  } catch (e) {
+    showToast('网络错误：' + e.message, 'error');
+  }
+}
+
+// AI 判定在后台跑，轮询几次把结果刷出来
+function _pollHwCorrection(hwId, n) {
+  if (n > 6) return;
+  setTimeout(function() {
+    fetchWithAuth('/homework/' + hwId).then(function(r) { return r.ok ? r.json() : null; }).then(function(hw) {
+      if (!hw) return;
+      var box = document.getElementById('hwCorrectionBox');
+      if (box) {
+        var wrap = document.createElement('div');
+        wrap.innerHTML = renderHwCorrectionSection(hw);
+        var fresh = wrap.firstChild;
+        if (fresh) box.parentNode.replaceChild(fresh, box);
+      }
+      var items = (hw.corrections || {}).items || [];
+      var waiting = items.some(function(it) { return it.submitted && !it.verdict; });
+      if (waiting) _pollHwCorrection(hwId, n + 1);
+    }).catch(function() {});
+  }, n === 0 ? 3000 : 5000);
+}
+
+// 教师逐题裁定（合格 / 打回）
+async function reviewHwCorrection(hwId, i, verdict) {
+  var it = (_hwCorrState.items || [])[i];
+  if (!it) return;
+  var cid = it.cid || 0;
+  if (!cid) { showToast('请刷新页面后重试（缺少记录编号）', 'error'); return; }
+  var comment = '';
+  if (verdict === 'wrong') {
+    comment = (prompt('打回原因（会显示给学生，可留空）：') || '').trim();
+  }
+  try {
+    var resp = await fetchWithAuth('/homework/' + hwId + '/correction/' + cid + '/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verdict: verdict, comment: comment })
+    });
+    var data = await resp.json().catch(function() { return {}; });
+    if (!resp.ok) { showToast(data.detail || '裁定失败', 'error'); return; }
+    showToast(data.message || '已裁定', 'success');
+    viewHwFeedback(hwId);
+    var box = document.getElementById('hwCorrectionReview');
+    if (box) loadHwCorrectionReview();
+  } catch (e) {
+    showToast('网络错误：' + e.message, 'error');
   }
 }
 
@@ -12350,6 +12497,15 @@ function renderHwGrading() {
       '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">未交名单按本周班级作业提交情况自动统计（全班都没交时无法推断作业项）；催办将发布一条全班可见的作业通知，内容可编辑</p>' +
       '<div id="hwPendingManage"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p></div>' +
       '</div>' +
+      // 错题订正复核（2026-10-10 方案A：逐题订正 + AI 预判 + 教师裁定）
+      '<div class="ak-card" style="margin-top:16px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+      '<h4 style="margin:0;">🔍 错题订正复核</h4>' +
+      '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="loadHwCorrectionReview(true)">🔄 刷新</button>' +
+      '</div>' +
+      '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">本周每份作业的订正情况一览：错 N 题 · 已订 M 题 · AI 判对 K 题 · 仍错 J 题。点「查看订正」进作业详情逐题核对，可一键「合格 / 打回」。AI 拿不准的题会在清单里标红优先提示。</p>' +
+      '<div id="hwCorrectionReview"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p></div>' +
+      '</div>' +
       // 已复核作业按周清理（2026-09-06）
       '<div class="ak-card" style="margin-top:16px;">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
@@ -12386,6 +12542,7 @@ function renderHwGrading() {
     loadAnswerKeyList();
     loadHwTeacherList('all');
     loadHwPendingManage();
+    loadHwCorrectionReview();
     loadReviewedWeeksManage();
   } else {
     // 学生/家长模式：我的作业与反馈（2026-09-05 起承接原「我的作业」全部职责：全状态+撤回+订正入口）
@@ -12711,6 +12868,64 @@ function renderPendingClassCard(c) {
     (unc.length ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;color:var(--warning);" onclick="urgeHomeworkNotice(\'uncorrected\',\'' + escHtmlSafe(c.class_name) + '\')">📣 一键催订正</button>' : '') +
     '</div>' + uncHtml +
     '</div>';
+}
+
+// ===== 错题订正复核清单（教师端，2026-10-10 方案A） =====
+var _hwCorrReviewData = null;
+
+async function loadHwCorrectionReview(force) {
+  var box = document.getElementById('hwCorrectionReview');
+  if (!box) return;
+  if (!isCloudLoggedIn()) {
+    box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">请先登录云端账号</p>';
+    return;
+  }
+  try {
+    var resp = await fetchWithAuth('/homework/correction-review');
+    if (!resp.ok) throw new Error('获取订正清单失败（HTTP ' + resp.status + '）');
+    var data = await resp.json();
+    _hwCorrReviewData = data;
+    var items = data.items || [];
+    var s = data.summary || {};
+    if (!items.length) {
+      box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">本周（' + escHtmlSafe(data.start || '') + ' ~ ' + escHtmlSafe(data.end || '') + '）暂无需要订正的作业</p>';
+      return;
+    }
+    var head = '<div style="font-size:12px;color:var(--text-secondary);background:var(--bg);border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.7;">' +
+      '第' + data.week + '周（' + escHtmlSafe(data.start) + ' ~ ' + escHtmlSafe(data.end) + '）：' +
+      s.homework + ' 份作业有错题 · 共 ' + s.wrong + ' 道错题 · 已订正 ' + s.submitted + ' 道' +
+      ' · <span style="color:#389E0D;">AI判对 ' + s.ai_correct + '</span>' +
+      ' · <span style="color:#C62828;">仍错 ' + s.ai_wrong + '</span>' +
+      ' · <span style="color:#B57D05;">待确认 ' + s.ai_uncertain + '</span>' +
+      ' · 未订 ' + s.pending + '</div>';
+    box.innerHTML = head + items.map(_corrReviewRowHtml).join('');
+  } catch (e) {
+    box.innerHTML = '<p style="font-size:13px;color:var(--danger);text-align:center;padding:12px;">加载失败：' + e.message + '</p>';
+  }
+}
+
+function _corrReviewRowHtml(r) {
+  var need = (r.ai_uncertain || 0) > 0 || (r.ai_wrong || 0) > 0;
+  var border = need ? '#FFA39E' : 'var(--border)';
+  var bg = need ? '#FFF7F6' : '#fff';
+  var st = '<span style="font-size:12px;color:var(--text-secondary);">错 <b>' + r.total_wrong + '</b> 题 · 已订 <b>' + r.submitted + '</b> 题';
+  if (r.ai_correct) st += ' · <span style="color:#389E0D;">判对 ' + r.ai_correct + '</span>';
+  if (r.ai_wrong) st += ' · <span style="color:#C62828;">仍错 ' + r.ai_wrong + '</span>';
+  if (r.ai_uncertain) st += ' · <span style="color:#B57D05;">待确认 ' + r.ai_uncertain + '</span>';
+  if (r.pending) st += ' · <span style="color:#B57D05;">未订 ' + r.pending + '</span>';
+  st += '</span>';
+  var badge = r.all_correct
+    ? '<span style="background:#F6FFED;color:#389E0D;font-size:11px;padding:2px 8px;border-radius:8px;">✅ 全部订正合格</span>'
+    : (need ? '<span style="background:#FFF1F0;color:#C62828;font-size:11px;padding:2px 8px;border-radius:8px;">需处理</span>'
+            : '<span style="background:#FFF7E6;color:#B57D05;font-size:11px;padding:2px 8px;border-radius:8px;">待学生订正</span>');
+  return '<div style="border:1px solid ' + border + ';background:' + bg + ';border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">' +
+    '<div style="min-width:200px;">' +
+    '<div style="font-size:13px;font-weight:600;">' + escHtmlSafe(r.student_name) +
+    ' <span style="font-size:11px;color:var(--text-muted);font-weight:400;">' + escHtmlSafe(r.title || '') + '</span></div>' +
+    '<div style="margin-top:3px;">' + st + '</div></div>' +
+    '<div style="display:flex;align-items:center;gap:8px;">' + badge +
+    '<button class="btn btn-outline" style="padding:5px 12px;font-size:12px;" onclick="viewHwFeedback(' + r.homework_id + ')">查看订正</button>' +
+    '</div></div>';
 }
 
 // 一键催办：预填通知文案，教师可编辑后发布（学生/家长登录即可见）
