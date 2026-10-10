@@ -4322,7 +4322,8 @@ function buildLectureFlatHtml(lectures, role) {
 function buildLectureCard(l, role) {
   var qShort = (l.question || '').length > 55 ? l.question.slice(0, 55) + '…' : l.question;
   var html = '<div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;">';
-  var pushBadge = (l.pushed && role !== 'teacher')
+  // 老师推荐角标：中等生/优生任一分层被推送即显示（2026-10-10 扩展优生）
+  var pushBadge = ((l.pushed || l.pushed_top) && role !== 'teacher')
     ? ' <span style="background:#FFF3D6;color:#B57D05;font-size:10px;padding:1px 7px;border-radius:8px;vertical-align:2px;font-weight:600;">老师推荐</span>' : '';
   html += '<div style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:10px 14px;font-size:14px;font-weight:600;">🎯 ' + escHtmlSafe(l.title || '易错题精讲') + pushBadge + '</div>';
   html += '<div style="padding:12px 14px;">';
@@ -4337,21 +4338,25 @@ function buildLectureCard(l, role) {
   }
   html += '</div>';
   // 2026-09-28：推送给中等生（教师专属按钮，学生端本周任务清单可见）
+  // 2026-10-10（年哥定）：新增「推送给优生」——同一精讲可分别推给两个分层，按钮/状态独立
   if (role === 'teacher' && l.video_url && l.status === 'ready') {
-    html += '<button onclick="toggleLecturePush(' + l.id + ',' + (l.pushed ? 1 : 0) + ')" style="width:100%;margin-top:8px;padding:7px;background:' + (l.pushed ? '#EAF3DE' : '#FFF3D6') + ';color:' + (l.pushed ? '#3B9E52' : '#B57D05') + ';border:1.5px solid ' + (l.pushed ? '#CDE8C4' : '#F5E3B3') + ';border-radius:8px;font-size:12px;cursor:pointer;font-weight:600;">' + (l.pushed ? '✅ 已推送给中等生 · 点击撤回' : '📮 推送给中等生') + '</button>';
+    html += '<button onclick="toggleLecturePush(' + l.id + ',' + (l.pushed ? 1 : 0) + ',\'normal\')" style="width:100%;margin-top:8px;padding:7px;background:' + (l.pushed ? '#EAF3DE' : '#FFF3D6') + ';color:' + (l.pushed ? '#3B9E52' : '#B57D05') + ';border:1.5px solid ' + (l.pushed ? '#CDE8C4' : '#F5E3B3') + ';border-radius:8px;font-size:12px;cursor:pointer;font-weight:600;">' + (l.pushed ? '✅ 已推送给中等生 · 点击撤回' : '📮 推送给中等生') + '</button>';
+    html += '<button onclick="toggleLecturePush(' + l.id + ',' + (l.pushed_top ? 1 : 0) + ',\'top\')" style="width:100%;margin-top:6px;padding:7px;background:' + (l.pushed_top ? '#EAF3DE' : '#E7F1FB') + ';color:' + (l.pushed_top ? '#3B9E52' : '#2B6CB0') + ';border:1.5px solid ' + (l.pushed_top ? '#CDE8C4' : '#CFE3F5') + ';border-radius:8px;font-size:12px;cursor:pointer;font-weight:600;">' + (l.pushed_top ? '✅ 已推送给优生 · 点击撤回' : '🌟 推送给优生') + '</button>';
   }
   html += '</div></div>';
   return html;
 }
 
-// 推送/撤回精讲视频给中等生（2026-09-28）
-async function toggleLecturePush(id, pushed) {
+// 推送/撤回精讲视频给指定分层（2026-09-28 中等生；2026-10-10 新增优生 target='top'）
+async function toggleLecturePush(id, pushed, target) {
+  target = target || 'normal';
+  var who = target === 'top' ? '优生' : '中等生';
   var btn = event && event.target;
   if (btn) btn.disabled = true;
-  var resp = await fetchWithAuth('/ai-lecture/' + id + '/push', { method: pushed ? 'DELETE' : 'POST' });
+  var resp = await fetchWithAuth('/ai-lecture/' + id + '/push?target=' + target, { method: pushed ? 'DELETE' : 'POST' });
   if (resp.ok) {
     var d = null; try { d = await resp.json(); } catch(e) {}
-    showToast((d && d.message) || (pushed ? '已撤回推送' : '已推送给中等生'), 'success');
+    showToast((d && d.message) || (pushed ? '已撤回推送' : '已推送给' + who), 'success');
     window._studentTasks = null;
     renderAiLectures(getCurrentRole());
   } else {
