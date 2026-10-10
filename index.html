@@ -4611,8 +4611,9 @@ function _openLectureEditorCommon(ctx) {
   html += '<label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:500;">✏️ 你的分析思路（AI 会据此生成讲解视频）</label>';
   // 2026-09-27（年哥要求）：常用数学符号快插——点击插入到光标位置
   // 分数线用 ⁄（U+2044）：fmtFrac 识别五种分数线字符之一，渲染时自动转水平横线
-  var _mathSyms = ['√', '✗', '○', '□', '≈', '≠', '=', '＞', '＜', '×', '÷', '∠', '°', 'π', '┆', '【】', '[]', '{}'];
-  var _symNames = { '√': '对勾', '✗': '错叉', '○': '圆圈', '□': '方框', '≈': '约等号', '≠': '不等号', '=': '等于号', '＞': '大于', '＜': '小于', '×': '乘号', '÷': '除号', '∠': '角（度数符号）', '°': '度', 'π': '圆周率', '┆': '分级线（虚线，如8050┆0000）', '【】': '方头括号（成对插入，光标居中）', '[]': '中括号（成对插入，光标居中）', '{}': '大括号（成对插入，光标居中）' };
+  // 2026-10-10（年哥要求）：补「大于或等于 ≥」「小于或等于 ≤」，紧挨 ＞ ＜ 排列
+  var _mathSyms = ['√', '✗', '○', '□', '≈', '≠', '=', '＞', '＜', '≥', '≤', '×', '÷', '∠', '°', 'π', '┆', '【】', '[]', '{}'];
+  var _symNames = { '√': '对勾', '✗': '错叉', '○': '圆圈', '□': '方框', '≈': '约等号', '≠': '不等号', '=': '等于号', '＞': '大于', '＜': '小于', '≥': '大于或等于', '≤': '小于或等于', '×': '乘号', '÷': '除号', '∠': '角（度数符号）', '°': '度', 'π': '圆周率', '┆': '分级线（虚线，如8050┆0000）', '【】': '方头括号（成对插入，光标居中）', '[]': '中括号（成对插入，光标居中）', '{}': '大括号（成对插入，光标居中）' };
   html += '<style>#lectureAnalysis:empty::before{content:attr(data-placeholder);color:#9aa7b5;pointer-events:none;}.lec-frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 2px;line-height:1.1;}.lec-frac .lf-num,.lec-frac .lf-den{min-width:14px;padding:0 4px;text-align:center;font-size:0.82em;border-radius:3px;outline:none;}.lec-frac .lf-num{border-bottom:1.5px solid currentColor;}.lec-frac .lf-num:focus,.lec-frac .lf-den:focus{background:rgba(74,144,217,0.12);}.lec-fmt-btn{min-width:30px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);cursor:pointer;font-size:13px;line-height:1.4;color:var(--text-primary);}.lec-color-dot{display:inline-block;width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,0.15);vertical-align:middle;}</style>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center;">' +
     '<span style="font-size:12px;color:var(--text-muted);">常用符号：</span>' +
