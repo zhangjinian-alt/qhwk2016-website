@@ -12234,9 +12234,15 @@ function renderHwCorrectionSection(hw) {
   var tip = isStu
     ? '错题要弄明白才真正进步哦！逐题订正，提交后 AI 会先判一遍，老师再复核。'
     : '逐题订正情况（AI 预判 + 你的裁定）；「待老师确认」的题建议点开核对一下。';
+  // 兼容：此前用「整份一次订正」交过的作业，逐题记录为空 → 明确告诉学生原订正仍有效
+  var legacy = '';
+  if (hw.corrected && !sub) {
+    legacy = '<div style="font-size:12px;color:#B57D05;background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:10px;">ℹ️ 你此前提交的整份订正仍然有效（学习效果分已计入）。现在起改为<b>逐题订正</b>，可以按题补上更清楚的过程。</div>';
+  }
   return '<div id="hwCorrectionBox" style="background:#FFF7E6;border:1px solid #FFE7BA;border-radius:var(--radius);padding:16px;margin-top:16px;">' +
     '<h4 style="margin-bottom:6px;">✏️ 错题订正（共 ' + n + ' 题）</h4>' +
     '<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">' + tip + '</p>' +
+    legacy +
     '<div style="font-size:12px;color:var(--text-secondary);background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:12px;">' + stat + '</div>' +
     items.map(function(it, i) { return _corrItemHtml(it, i, hw.id, isStu, isTeacher); }).join('') +
     '</div>';
