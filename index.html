@@ -12301,12 +12301,15 @@ function renderHwCorrectionSection(hw) {
     (corr.ai_uncertain ? ' · <span style="color:#B57D05;">待确认 ' + corr.ai_uncertain + '</span>' : '') +
     (corr.pending ? ' · <span style="color:#B57D05;">未订 ' + corr.pending + '</span>' : '');
   var tip = isStu
-    ? '错题要弄明白才真正进步哦！逐题订正，提交后 AI 会先判一遍，老师再复核。'
+    ? '错题要弄明白才真正进步哦！第6周起改为<b>逐题订正</b>：一题一交，提交后 AI 会先判一遍，老师再复核。'
     : '逐题订正情况（AI 预判 + 你的裁定）；「待老师确认」的题建议点开核对一下。';
-  // 兼容：此前用「整份一次订正」交过的作业，逐题记录为空 → 明确告诉学生原订正仍有效
+  // 2026-10-11（年哥定）：第6周起统一订正已作废，改逐题订正——学生端提示需重做。
+  // 第5周及以前（未启用逐题订正）仍按原来的"整份订正仍然有效"提示。
   var legacy = '';
   if (hw.corrected && !sub) {
-    legacy = '<div style="font-size:12px;color:#B57D05;background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:10px;">ℹ️ 你此前提交的整份订正仍然有效（学习效果分已计入）。现在起改为<b>逐题订正</b>，可以按题补上更清楚的过程。</div>';
+    legacy = ((hw.teach_week || 0) >= 6)
+      ? '<div style="font-size:12px;color:#CF1322;background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:10px;border:1px solid #FFA39E;">⚠️ 第6周起改为<b>逐题订正</b>：你之前的整份订正已作废，请按下面每道错题重新订正一遍（全部订正合格后学习效果才 +2）。</div>'
+      : '<div style="font-size:12px;color:#B57D05;background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:10px;">ℹ️ 你此前提交的整份订正仍然有效（学习效果分已计入）。</div>';
   }
   return '<div id="hwCorrectionBox" style="background:#FFF7E6;border:1px solid #FFE7BA;border-radius:var(--radius);padding:16px;margin-top:16px;">' +
     '<a name="hwCorrectionAnchor"></a>' +
