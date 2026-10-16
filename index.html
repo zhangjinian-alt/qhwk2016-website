@@ -12580,6 +12580,8 @@ function renderHwGrading() {
       '<div class="ak-card" style="margin-top:16px;">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
       '<h4 style="margin:0;">🔍 错题订正复核</h4>' +
+      '<div style="display:flex;align-items:center;gap:8px;">' +
+      '<select id="hwCorrReviewWeek" onchange="loadHwCorrectionReview(false, this.value)" style="padding:5px 8px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:#fff;">' + _hwCorrWeekOptions() + '</select>' +
       '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="loadHwCorrectionReview(true)">🔄 刷新</button>' +
       '</div>' +
       '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">本周每份作业的订正情况一览：错 N 题 · 已订 M 题 · AI 判对 K 题 · 仍错 J 题。点「查看订正」进作业详情逐题核对，可一键「合格 / 打回」。AI 拿不准的题会在清单里标红优先提示。</p>' +
@@ -12952,7 +12954,13 @@ function renderPendingClassCard(c) {
 // ===== 错题订正复核清单（教师端，2026-10-10 方案A） =====
 var _hwCorrReviewData = null;
 
-async function loadHwCorrectionReview(force) {
+function _hwCorrWeekOptions() {
+  var o = '<option value="">本周</option>';
+  for (var i = 1; i <= 12; i++) o += '<option value="' + i + '">第' + i + '周</option>';
+  return o;
+}
+
+async function loadHwCorrectionReview(force, week) {
   var box = document.getElementById('hwCorrectionReview');
   if (!box) return;
   if (!isCloudLoggedIn()) {
@@ -12960,7 +12968,8 @@ async function loadHwCorrectionReview(force) {
     return;
   }
   try {
-    var resp = await fetchWithAuth('/homework/correction-review');
+    var url = '/homework/correction-review' + (week ? ('?week=' + encodeURIComponent(week)) : '');
+    var resp = await fetchWithAuth(url);
     if (!resp.ok) throw new Error('获取订正清单失败（HTTP ' + resp.status + '）');
     var data = await resp.json();
     _hwCorrReviewData = data;
