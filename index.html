@@ -12615,14 +12615,21 @@ function renderHwGrading() {
       '<div id="hwPendingManage"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p></div>' +
       '</div>' +
       // 错题订正复核（2026-10-10 方案A：逐题订正 + AI 预判 + 教师裁定）
+      // 2026-10-18 排版修复：标题行 flex 容器此前漏写 </div>，把说明文字和
+      // 清单一并塞进了 space-between 行——手机屏窄看不出，电脑宽屏清单被甩到
+      // 最右、中间大片空白。现已补齐闭合，说明与清单回到正常文档流。
+      // 2026-10-18 二改：去掉周次下拉，改为「全部周次分组展示 + 独立收起/展开」，
+      // 本周默认展开、历史周默认收起，点组头即可翻看上周及更早的订正复核。
       '<div class="ak-card" style="margin-top:16px;">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">' +
       '<h4 style="margin:0;">🔍 错题订正复核</h4>' +
-      '<div style="display:flex;align-items:center;gap:8px;">' +
-      '<select id="hwCorrReviewWeek" onchange="loadHwCorrectionReview(false, this.value)" style="padding:5px 8px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:#fff;">' + _hwCorrWeekOptions() + '</select>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+      '<button class="btn btn-outline" style="padding:5px 12px;font-size:12px;" onclick="toggleHwCorrAll(true)">⬇ 展开全部</button>' +
+      '<button class="btn btn-outline" style="padding:5px 12px;font-size:12px;" onclick="toggleHwCorrAll(false)">⬆ 收起全部</button>' +
       '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="loadHwCorrectionReview(true)">🔄 刷新</button>' +
       '</div>' +
-      '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">本周每份作业的订正情况一览：错 N 题 · 已订 M 题 · AI 判对 K 题 · 仍错 J 题。点「查看订正」进作业详情逐题核对，可一键「合格 / 打回」。AI 拿不准的题会在清单里标红优先提示。</p>' +
+      '</div>' +
+      '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">各周作业订正情况一览（按周分组，点周标题可收起 / 展开）：错 N 题 · 已订 M 题 · AI 判对 K 题 · 仍错 J 题。点「查看订正」进作业详情逐题核对，可一键「合格 / 打回」。AI 拿不准的题会在清单里标红优先提示。</p>' +
       '<div id="hwCorrectionReview"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p></div>' +
       '</div>' +
       // 已复核作业按周清理（2026-09-06）
@@ -12990,67 +12997,120 @@ function renderPendingClassCard(c) {
 }
 
 // ===== 错题订正复核清单（教师端，2026-10-10 方案A） =====
-var _hwCorrReviewData = null;
+// 2026-10-18 二改：一次并行拉取本教学周及以前的全部周次，按周分组渲染；
+// 每周组头可独立收起/展开（本周默认展开，历史周默认收起），无需下拉框切换。
+var _hwCorrAll = {};          // week -> 接口数据缓存 { week,start,end,summary,items }
+var _hwCorrCollapse = {};     // week -> true=收起；未设置的周按「非本周默认收起」处理
 
-function _hwCorrWeekOptions() {
-  var o = '<option value="">本周</option>';
-  for (var i = 1; i <= 12; i++) o += '<option value="' + i + '">第' + i + '周</option>';
-  return o;
-}
-
-async function loadHwCorrectionReview(force, week) {
+function loadHwCorrectionReview(force) {
   var box = document.getElementById('hwCorrectionReview');
   if (!box) return;
   if (!isCloudLoggedIn()) {
     box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">请先登录云端账号</p>';
     return;
   }
-  try {
-    var url = '/homework/correction-review' + (week ? ('?week=' + encodeURIComponent(week)) : '');
-    var resp = await fetchWithAuth(url);
-    if (!resp.ok) throw new Error('获取订正清单失败（HTTP ' + resp.status + '）');
-    var data = await resp.json();
-    _hwCorrReviewData = data;
-    var items = data.items || [];
-    var s = data.summary || {};
-    if (!items.length) {
-      box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">本周（' + escHtmlSafe(data.start || '') + ' ~ ' + escHtmlSafe(data.end || '') + '）暂无需要订正的作业</p>';
-      return;
-    }
-    var head = '<div style="font-size:12px;color:var(--text-secondary);background:var(--bg);border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.7;">' +
-      '第' + data.week + '周（' + escHtmlSafe(data.start) + ' ~ ' + escHtmlSafe(data.end) + '）：' +
-      s.homework + ' 份作业有错题 · 共 ' + s.wrong + ' 道错题 · 已订正 ' + s.submitted + ' 道' +
-      ' · <span style="color:#389E0D;">AI判对 ' + s.ai_correct + '</span>' +
-      ' · <span style="color:#C62828;">仍错 ' + s.ai_wrong + '</span>' +
-      ' · <span style="color:#B57D05;">待确认 ' + s.ai_uncertain + '</span>' +
-      ' · 未订 ' + s.pending + '</div>';
-    box.innerHTML = head + items.map(_corrReviewRowHtml).join('');
-  } catch (e) {
-    box.innerHTML = '<p style="font-size:13px;color:var(--danger);text-align:center;padding:12px;">加载失败：' + e.message + '</p>';
+  if (!force && Object.keys(_hwCorrAll).length) { _renderHwCorrReview(); return; }
+  box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p>';
+  var cur = getTeachWeek() || 1;
+  var weeks = [];
+  for (var w = 1; w <= cur; w++) weeks.push(w);
+  Promise.all(weeks.map(function(w) {
+    return fetchWithAuth('/homework/correction-review?week=' + w)
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .catch(function() { return null; });
+  })).then(function(arr) {
+    _hwCorrAll = {};
+    (arr || []).forEach(function(d, i) { if (d) _hwCorrAll[weeks[i]] = d; });
+    _renderHwCorrReview();
+  }).catch(function(e) {
+    box.innerHTML = '<p style="font-size:13px;color:var(--danger);text-align:center;padding:12px;">加载失败：' + escHtmlSafe(e.message || e) + '</p>';
+  });
+}
+
+function _renderHwCorrReview() {
+  var box = document.getElementById('hwCorrectionReview');
+  if (!box) return;
+  var cur = getTeachWeek() || 1;
+  var ws = Object.keys(_hwCorrAll).map(Number).sort(function(a, b) { return b - a; })
+    .filter(function(w) { return _hwCorrAll[w] && (_hwCorrAll[w].items || []).length; });
+  if (!ws.length) {
+    box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">暂无需要订正的作业</p>';
+    return;
   }
+  box.innerHTML = ws.map(function(w) { return _corrReviewWeekHtml(w, _hwCorrAll[w], w === cur); }).join('');
+}
+
+// 单个周次分组：组头（周次+日期+汇总胶囊+箭头，点击收起/展开）+ 卡片清单
+function _corrReviewWeekHtml(w, d, isCur) {
+  var collapsed = (_hwCorrCollapse[w] !== undefined) ? _hwCorrCollapse[w] : !isCur;
+  var s = d.summary || {};
+  var items = d.items || [];
+  var _c = function(fg, label, val) {
+    return '<span style="font-size:12px;color:#555;white-space:nowrap;">' + label +
+      ' <b style="color:' + fg + ';">' + val + '</b></span>';
+  };
+  var stats = '<span style="display:inline-flex;gap:10px;flex-wrap:wrap;align-items:center;font-weight:400;">' +
+    _c('#333', '有错题作业', s.homework + ' 份') +
+    _c('#333', '错题', s.wrong) +
+    _c('#389E0D', '已订', s.submitted) +
+    (s.ai_correct ? _c('#389E0D', '判对', s.ai_correct) : '') +
+    (s.ai_wrong ? _c('#C62828', '仍错', s.ai_wrong) : '') +
+    (s.ai_uncertain ? _c('#B57D05', '待确认', s.ai_uncertain) : '') +
+    (s.pending ? _c('#B57D05', '未订', s.pending) : '') +
+    '</span>';
+  var weekTag = isCur ? '<span style="background:#E6F4FF;color:#1D5DAB;font-size:11px;padding:2px 8px;border-radius:8px;">本周</span>' : '';
+  return '<div style="border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;background:#fff;">' +
+    '<div onclick="toggleHwCorrWeek(' + w + ')" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:var(--bg);cursor:pointer;user-select:none;">' +
+    '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+    '<span style="font-size:14px;font-weight:600;">📅 第' + w + '周</span>' +
+    '<span style="font-size:12px;color:var(--text-muted);">' + escHtmlSafe(d.start || '') + ' ~ ' + escHtmlSafe(d.end || '') + '</span>' +
+    weekTag +
+    '</div>' +
+    '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' + stats +
+    '<span style="font-size:12px;color:var(--text-muted);">' + (collapsed ? '▶ 展开' : '▼ 收起') + '</span>' +
+    '</div></div>' +
+    '<div style="display:' + (collapsed ? 'none' : 'block') + ';padding:10px 12px;">' +
+    items.map(_corrReviewRowHtml).join('') +
+    '</div></div>';
+}
+
+function toggleHwCorrWeek(w) {
+  _hwCorrCollapse[w] = !((_hwCorrCollapse[w] !== undefined) ? _hwCorrCollapse[w] : (w !== (getTeachWeek() || 1)));
+  _renderHwCorrReview();
+}
+
+// 一键全部展开 / 全部收起（年哥 2026-10-18：收起打开要顺手）
+function toggleHwCorrAll(open) {
+  Object.keys(_hwCorrAll).forEach(function(w) { _hwCorrCollapse[w] = !open; });
+  _renderHwCorrReview();
 }
 
 function _corrReviewRowHtml(r) {
   var need = (r.ai_uncertain || 0) > 0 || (r.ai_wrong || 0) > 0;
   var border = need ? '#FFA39E' : 'var(--border)';
   var bg = need ? '#FFF7F6' : '#fff';
-  var st = '<span style="font-size:12px;color:var(--text-secondary);">错 <b>' + r.total_wrong + '</b> 题 · 已订 <b>' + r.submitted + '</b> 题';
-  if (r.ai_correct) st += ' · <span style="color:#389E0D;">判对 ' + r.ai_correct + '</span>';
-  if (r.ai_wrong) st += ' · <span style="color:#C62828;">仍错 ' + r.ai_wrong + '</span>';
-  if (r.ai_uncertain) st += ' · <span style="color:#B57D05;">待确认 ' + r.ai_uncertain + '</span>';
-  if (r.pending) st += ' · <span style="color:#B57D05;">未订 ' + r.pending + '</span>';
-  st += '</span>';
+  // 2026-10-18 桌面排版美化：统计拆成小胶囊、信息三段式（左身份 / 中统计 / 右操作），
+  // 窄屏自动换行不挤压
+  var _st = function(fg, label, val) {
+    return '<span style="font-size:12px;color:#555;background:#FAFAFA;border:1px solid var(--border);padding:2px 8px;border-radius:10px;white-space:nowrap;">' + label + ' <b style="color:' + fg + ';">' + val + '</b></span>';
+  };
+  var st = '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">' + _st('#333', '错', r.total_wrong + ' 题') + _st('#389E0D', '已订', r.submitted + ' 题');
+  if (r.ai_correct) st += _st('#389E0D', '判对', r.ai_correct);
+  if (r.ai_wrong) st += _st('#C62828', '仍错', r.ai_wrong);
+  if (r.ai_uncertain) st += _st('#B57D05', '待确认', r.ai_uncertain);
+  if (r.pending) st += _st('#B57D05', '未订', r.pending);
+  st += '</div>';
   var badge = r.all_correct
-    ? '<span style="background:#F6FFED;color:#389E0D;font-size:11px;padding:2px 8px;border-radius:8px;">✅ 全部订正合格</span>'
-    : (need ? '<span style="background:#FFF1F0;color:#C62828;font-size:11px;padding:2px 8px;border-radius:8px;">需处理</span>'
-            : '<span style="background:#FFF7E6;color:#B57D05;font-size:11px;padding:2px 8px;border-radius:8px;">待学生订正</span>');
-  return '<div style="border:1px solid ' + border + ';background:' + bg + ';border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">' +
-    '<div style="min-width:200px;">' +
-    '<div style="font-size:13px;font-weight:600;">' + escHtmlSafe(r.student_name) +
-    ' <span style="font-size:11px;color:var(--text-muted);font-weight:400;">' + escHtmlSafe(r.title || '') + '</span></div>' +
-    '<div style="margin-top:3px;">' + st + '</div></div>' +
-    '<div style="display:flex;align-items:center;gap:8px;">' + badge +
-    '<button class="btn btn-outline" style="padding:5px 12px;font-size:12px;" onclick="viewHwFeedback(' + r.homework_id + ')">查看订正</button>' +
+    ? '<span style="background:#F6FFED;color:#389E0D;font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;">✅ 全部订正合格</span>'
+    : (need ? '<span style="background:#FFF1F0;color:#C62828;font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;">需处理</span>'
+            : '<span style="background:#FFF7E6;color:#B57D05;font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;">待学生订正</span>');
+  return '<div style="border:1px solid ' + border + ';background:' + bg + ';border-radius:var(--radius);padding:12px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">' +
+    '<div style="min-width:180px;">' +
+    '<div style="font-size:14px;font-weight:600;">' + escHtmlSafe(r.student_name) +
+    ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">' + escHtmlSafe(r.title || '') + '</span></div></div>' +
+    st +
+    '<div style="display:flex;align-items:center;gap:8px;margin-left:auto;">' + badge +
+    '<button class="btn btn-outline" style="padding:5px 12px;font-size:12px;white-space:nowrap;" onclick="viewHwFeedback(' + r.homework_id + ')">查看订正</button>' +
     '</div></div>';
 }
 
