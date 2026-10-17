@@ -750,6 +750,17 @@ img { max-width:100%; display:block; }
 .hw-lightbox-hint { color:rgba(255,255,255,.45); font-size:12px; margin-top:4px; }
 
 /* ===== 复核弹窗评语配图（2026-09-13） ===== */
+.praise-emoji {
+  background: #FFF7E6;
+  border: 1.5px solid #F0C081;
+  border-radius: 8px;
+  font-size: 18px;
+  line-height: 1;
+  padding: 6px 9px;
+  cursor: pointer;
+  transition: transform .1s ease;
+}
+.praise-emoji:active { transform: scale(1.25); }
 .rv-cimg-wrap { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
 .rv-cimg-item { position:relative; width:80px; height:80px; border-radius:8px; overflow:hidden; border:1.5px solid var(--border); background:var(--bg); }
 .rv-cimg-item img { width:100%; height:100%; object-fit:cover; cursor:zoom-in; }
@@ -4972,14 +4983,41 @@ function openLectureVideo(url, title, lectureId) {
   html += '<div style="background:linear-gradient(180deg,#4A90D9,#2E6BB0);border-radius:12px;overflow:hidden;margin:16px 0;display:flex;align-items:center;justify-content:center;">';
   html += '<video controls playsinline webkit-playsinline preload="metadata" autoplay style="width:auto;height:auto;max-width:100%;max-height:560px;display:block;" src="' + url + '"></video>';
   html += '</div>';
+  // 2026-10-17（年哥定）：显式播放/暂停大按钮——部分手机浏览器原生控件不显眼/被截断，
+  // 学生要能一眼按到暂停键
+  html += '<div style="text-align:center;margin-top:12px;"><button id="lecToggleBtn" onclick="toggleLecturePlay()" style="background:linear-gradient(135deg,#4A90D9,#2E6BB0);color:#fff;border:none;border-radius:999px;padding:12px 34px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 3px 10px rgba(74,144,217,.35);">⏸ 暂停</button></div>';
   html += '<p style="font-size:12px;color:var(--text-muted);text-align:center;">AI 错题讲解视频 · 建议戴耳机观看</p>';
   document.getElementById('modal').classList.add('open');
   document.getElementById('modalContent').innerHTML = html;
   tryPlayModalVideo();
+  // 按钮文案跟随视频状态（含原生控件操作）
+  (function() {
+    var v0 = document.querySelector('#modalContent video');
+    var b0 = document.getElementById('lecToggleBtn');
+    if (!v0 || !b0) return;
+    v0.addEventListener('play', function() { b0.innerHTML = '⏸ 暂停'; });
+    v0.addEventListener('pause', function() { b0.innerHTML = '▶ 播放'; });
+    v0.addEventListener('ended', function() { b0.innerHTML = '▶ 重新播放'; });
+  })();
   // 2026-09-28：学生观看推送的精讲视频时上报进度（≥80% 计完成）
   if (lectureId) {
     var lv = document.querySelector('#modalContent video');
     if (lv) attachLectureWatchTracking(lv, lectureId);
+  }
+}
+
+// 精讲视频 播放/暂停 切换（2026-10-17）
+function toggleLecturePlay() {
+  var v = document.querySelector('#modalContent video');
+  var b = document.getElementById('lecToggleBtn');
+  if (!v) return;
+  if (v.paused) {
+    var p = v.play();
+    if (p && p.catch) p.catch(function() {});
+    if (b) b.innerHTML = '⏸ 暂停';
+  } else {
+    v.pause();
+    if (b) b.innerHTML = '▶ 播放';
   }
 }
 
@@ -13277,6 +13315,19 @@ async function reviewHw(hwId) {
       '<div id="rvProblems"></div>' +
       '<form onsubmit="submitHwReview(event,' + hwId + ')">' +
       '<div class="form-group" style="margin-top:16px;"><label>教师补充评语（可选，支持 Ctrl+V 粘贴错题截图）</label>' +
+      // 2026-10-17（年哥定）：表扬图标一键插入 + 满分大大的「你真棒」
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center;">' +
+      '<span style="font-size:12px;color:var(--text-muted);">表扬图标：</span>' +
+      '<button type="button" class="praise-emoji" onclick="hwReviewInsertText(\'👍\')">👍</button>' +
+      '<button type="button" class="praise-emoji" onclick="hwReviewInsertText(\'🌟\')">🌟</button>' +
+      '<button type="button" class="praise-emoji" onclick="hwReviewInsertText(\'💪\')">💪</button>' +
+      '<button type="button" class="praise-emoji" onclick="hwReviewInsertText(\'❤️\')">❤️</button>' +
+      '<button type="button" class="praise-emoji" onclick="hwReviewInsertText(\'👏\')">👏</button>' +
+      '<button type="button" class="praise-emoji" onclick="hwReviewInsertText(\'🎉\')">🎉</button>' +
+      '<button type="button" class="praise-emoji" onclick="hwReviewInsertText(\'✨\')">✨</button>' +
+      '<button type="button" class="praise-emoji" onclick="hwReviewInsertText(\'🎯\')">🎯</button>' +
+      '<button type="button" onclick="hwReviewInsertPraise()" style="margin-left:auto;background:linear-gradient(135deg,#FF9A3C,#FFC53C);border:none;color:#fff;font-size:15px;font-weight:700;padding:8px 18px;border-radius:999px;cursor:pointer;box-shadow:0 2px 8px rgba(255,154,60,.4);">🏆 你真棒！</button>' +
+      '</div>' +
       '<textarea id="hwReviewComment" onpaste="hwReviewPaste(event)" placeholder="可以补充或修改AI的评语... 直接按 Ctrl+V 粘贴裁剪好的错题图片" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;min-height:80px;resize:vertical;">' + escapeHtml(hw.teacher_comment || '') + '</textarea></div>' +
       '<div id="rvCommentImgs" class="rv-cimg-wrap"></div>' +
       '<div style="display:flex;gap:10px;margin-top:16px;">' +
@@ -13418,6 +13469,21 @@ function removeRvProblem(i) {
   if (_hwReviewState.origSa) _hwReviewState.origSa.splice(i, 1);
   if (_hwReviewState.origQ) _hwReviewState.origQ.splice(i, 1);
   renderReviewProblems();
+}
+
+// ===== 复核评语表扬图标（2026-10-17：一键插入 emoji + 满分大大的「你真棒」） =====
+function hwReviewInsertText(text) {
+  var ta = document.getElementById('hwReviewComment');
+  if (!ta) return;
+  var s = (typeof ta.selectionStart === 'number') ? ta.selectionStart : ta.value.length;
+  var e = (typeof ta.selectionEnd === 'number') ? ta.selectionEnd : ta.value.length;
+  ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
+  ta.selectionStart = ta.selectionEnd = s + text.length;
+  ta.focus();
+}
+
+function hwReviewInsertPraise() {
+  hwReviewInsertText('🏆🎉 你真棒！这次表现太出色了，继续加油！👍✨');
 }
 
 // ===== 复核评语配图（2026-09-13：Ctrl+V 粘贴错题截图） =====
