@@ -12629,7 +12629,7 @@ function renderHwGrading() {
       '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="loadHwCorrectionReview(true)">🔄 刷新</button>' +
       '</div>' +
       '</div>' +
-      '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">各周作业订正情况一览（按周分组，点周标题可收起 / 展开）：错 N 题 · 已订 M 题 · AI 判对 K 题 · 仍错 J 题。点「查看订正」进作业详情逐题核对，可一键「合格 / 打回」。AI 拿不准的题会在清单里标红优先提示。</p>' +
+      '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">各周作业订正情况一览（按周分组，点周标题可收起 / 展开；电脑端可按住学生卡片拖动调整复核顺序）：错 N 题 · 已订 M 题 · AI 判对 K 题 · 仍错 J 题。点「查看订正」进作业详情逐题核对，可一键「合格 / 打回」。AI 拿不准的题会在清单里标红优先提示。</p>' +
       '<div id="hwCorrectionReview"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p></div>' +
       '</div>' +
       // 已复核作业按周清理（2026-09-06）
@@ -13070,7 +13070,7 @@ function _corrReviewWeekHtml(w, d, isCur) {
     '<span style="font-size:12px;color:var(--text-muted);">' + (collapsed ? '▶ 展开' : '▼ 收起') + '</span>' +
     '</div></div>' +
     '<div style="display:' + (collapsed ? 'none' : 'block') + ';padding:10px 12px;">' +
-    items.map(_corrReviewRowHtml).join('') +
+    items.map(function(it) { return _corrReviewRowHtml(it, w); }).join('') +
     '</div></div>';
 }
 
@@ -13085,7 +13085,7 @@ function toggleHwCorrAll(open) {
   _renderHwCorrReview();
 }
 
-function _corrReviewRowHtml(r) {
+function _corrReviewRowHtml(r, w) {
   var need = (r.ai_uncertain || 0) > 0 || (r.ai_wrong || 0) > 0;
   var border = need ? '#FFA39E' : 'var(--border)';
   var bg = need ? '#FFF7F6' : '#fff';
@@ -13104,14 +13104,79 @@ function _corrReviewRowHtml(r) {
     ? '<span style="background:#F6FFED;color:#389E0D;font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;">✅ 全部订正合格</span>'
     : (need ? '<span style="background:#FFF1F0;color:#C62828;font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;">需处理</span>'
             : '<span style="background:#FFF7E6;color:#B57D05;font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;">待学生订正</span>');
-  return '<div style="border:1px solid ' + border + ';background:' + bg + ';border-radius:var(--radius);padding:12px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">' +
-    '<div style="min-width:180px;">' +
-    '<div style="font-size:14px;font-weight:600;">' + escHtmlSafe(r.student_name) +
-    ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">' + escHtmlSafe(r.title || '') + '</span></div></div>' +
+  // 2026-10-18 拖拽排序（年哥定）：按住卡片拖到目标位置松手即可调整复核顺序，
+  // 落点用上下蓝线提示；顺序只影响本页展示，不动后端数据
+  var hwid = r.homework_id;
+  return '<div class="corr-row" data-hwid="' + hwid + '" draggable="true"' +
+    ' ondragstart="corrDragStart(event,' + hwid + ')" ondragend="corrDragEnd(event)"' +
+    ' ondragover="corrDragOver(event)" ondragleave="corrDragLeave(event)" ondrop="corrDrop(event,' + w + ')"' +
+    ' style="border:1px solid ' + border + ';background:' + bg + ';border-radius:var(--radius);padding:12px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;cursor:grab;">' +
+    '<div style="min-width:180px;display:flex;align-items:center;gap:8px;">' +
+    '<span title="按住拖动调整顺序" style="color:var(--text-muted);font-size:14px;letter-spacing:-1px;cursor:grab;">⠿</span>' +
+    '<div><div style="font-size:14px;font-weight:600;">' + escHtmlSafe(r.student_name) +
+    ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">' + escHtmlSafe(r.title || '') + '</span></div></div></div>' +
     st +
     '<div style="display:flex;align-items:center;gap:8px;margin-left:auto;">' + badge +
-    '<button class="btn btn-outline" style="padding:5px 12px;font-size:12px;white-space:nowrap;" onclick="viewHwFeedback(' + r.homework_id + ')">查看订正</button>' +
+    '<button class="btn btn-outline" style="padding:5px 12px;font-size:12px;white-space:nowrap;" onclick="viewHwFeedback(' + hwid + ')">查看订正</button>' +
     '</div></div>';
+}
+
+// ===== 订正复核卡片拖拽排序（2026-10-18，纯前端展示顺序） =====
+var _hwCorrDragId = null;
+function corrDragStart(e, hwid) {
+  _hwCorrDragId = hwid;
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', String(hwid)); } catch (ignore) {}
+  if (e.currentTarget && e.currentTarget.style) e.currentTarget.style.opacity = '0.45';
+}
+function corrDragEnd(e) {
+  _hwCorrDragId = null;
+  if (e.currentTarget && e.currentTarget.style) e.currentTarget.style.opacity = '';
+  _corrClearDropCues();
+}
+function corrDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  var row = e.currentTarget;
+  if (!row || row.getAttribute('data-hwid') === String(_hwCorrDragId)) return;
+  var rect = row.getBoundingClientRect();
+  var before = (e.clientY - rect.top) < rect.height / 2;
+  _corrClearDropCues();
+  if (before) row.style.borderTop = '2px solid #4A90D9';
+  else row.style.borderBottom = '2px solid #4A90D9';
+}
+function corrDragLeave(e) {
+  var row = e.currentTarget;
+  if (row) { row.style.borderTop = ''; row.style.borderBottom = ''; }
+}
+function corrDrop(e, w) {
+  e.preventDefault();
+  var row = e.currentTarget;
+  var toId = row ? row.getAttribute('data-hwid') : null;
+  if (!toId || _hwCorrDragId === null || String(_hwCorrDragId) === String(toId)) { _corrClearDropCues(); return; }
+  var rect = row.getBoundingClientRect();
+  var before = (e.clientY - rect.top) < rect.height / 2;
+  var d = _hwCorrAll[w];
+  var items = d && d.items;
+  if (items) {
+    var fi = -1, ti = -1, i;
+    for (i = 0; i < items.length; i++) {
+      if (String(items[i].homework_id) === String(_hwCorrDragId)) fi = i;
+      if (String(items[i].homework_id) === String(toId)) ti = i;
+    }
+    if (fi >= 0 && ti >= 0 && fi !== ti) {
+      var it = items.splice(fi, 1)[0];
+      if (fi < ti) ti--;
+      items.splice(before ? ti : ti + 1, 0, it);
+      _renderHwCorrReview();
+    }
+  }
+  _hwCorrDragId = null;
+  _corrClearDropCues();
+}
+function _corrClearDropCues() {
+  var rows = document.querySelectorAll('.corr-row');
+  for (var i = 0; i < rows.length; i++) { rows[i].style.borderTop = ''; rows[i].style.borderBottom = ''; }
 }
 
 // 一键催办：预填通知文案，教师可编辑后发布（学生/家长登录即可见）
