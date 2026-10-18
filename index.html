@@ -749,6 +749,39 @@ img { max-width:100%; display:block; }
 .hw-lightbox-counter { color:rgba(255,255,255,.75); font-size:13px; margin-top:8px; }
 .hw-lightbox-hint { color:rgba(255,255,255,.45); font-size:12px; margin-top:4px; }
 
+/* ===== 订正视频播放器（2026-10-18 年哥定：横屏大画面 + 1×/1.5×/2× 倍速 + 满屏 + 旋转） =====
+   学生竖屏录的视频在电脑端原来只有 280px 宽的一条，教师看不清、也没法快进，
+   改为 16:9 横屏卡片 + 全屏播放层（可转横屏/转向、可倍速、可满屏）。 */
+.corr-video-card { position:relative; width:100%; max-width:520px; aspect-ratio:16/9; background:#0B1220; border-radius:10px; overflow:hidden; border:1px solid var(--border); }
+.corr-video-card video { width:100%; height:100%; object-fit:contain; display:block; background:#0B1220; }
+.corr-video-open { padding:6px 12px; background:#fff; color:var(--primary); border:1.5px solid var(--primary); border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.corr-video-open:hover { background:#F0F7FF; }
+.corr-video-mask { position:fixed; inset:0; z-index:10001; background:rgba(0,0,0,.95); display:none; flex-direction:column; }
+.corr-video-bar { display:flex; align-items:center; gap:8px; padding:10px 14px; flex-wrap:wrap; }
+.corr-video-bar .cv-title { color:#fff; font-size:14px; font-weight:700; margin-right:auto; max-width:46vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.corr-video-btn { background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.28); color:#fff; font-size:13px; height:34px; padding:0 14px; border-radius:17px; cursor:pointer; }
+.corr-video-btn:hover { background:rgba(255,255,255,.28); }
+.corr-video-btn.active { background:var(--primary); border-color:var(--primary); }
+.corr-video-stage { position:relative; flex:1; min-height:0; margin:0 10px; overflow:hidden; background:#000; border-radius:8px; }
+.corr-video-stage video { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); object-fit:contain; background:#000; }
+.corr-video-stage:fullscreen { margin:0; border-radius:0; }
+.corr-video-tip { color:rgba(255,255,255,.55); font-size:12px; text-align:center; padding:8px 10px 12px; }
+
+/* ===== 长内容弹窗的右下角常驻关闭按钮（2026-10-18 年哥：订正页滑到底还要滚回顶部才能关） =====
+   只在弹窗 open 时显示（display:none 兜底），fixed 于视口右下，滚到哪儿都能关。 */
+.hw-close-fab { display:none; }
+.modal-overlay.open .hw-close-fab {
+  display:flex; align-items:center; gap:6px;
+  position:fixed; right:26px; bottom:26px; z-index:260;
+  padding:10px 18px; border:none; border-radius:999px;
+  background:rgba(31,41,55,.92); color:#fff; font-size:14px; font-weight:700;
+  cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.28);
+}
+.modal-overlay.open .hw-close-fab:hover { background:#C62828; }
+@media (max-width:640px) {
+  .modal-overlay.open .hw-close-fab { right:14px; bottom:14px; padding:9px 14px; font-size:13px; }
+}
+
 /* ===== 复核弹窗评语配图（2026-09-13） ===== */
 .praise-emoji {
   background: #FFF7E6;
@@ -12297,7 +12330,13 @@ async function viewHwFeedback(hwId, scrollToCorr) {
                   '</div>'
                 : '')
       ) +
-      '</div>';
+      // 2026-10-18（年哥）：订正页内容长，滑到底还得滚回顶部才能关 →
+      // ① 内容末尾放一个「关闭窗口」大按钮；② 右下角常驻浮动关闭（只在弹窗打开时出现）
+      '<div style="text-align:center;margin:20px 0 6px;">' +
+      '<button type="button" onclick="closeModalDirect()" style="padding:11px 34px;background:#fff;color:var(--text-secondary);border:1.5px solid var(--border);border-radius:999px;font-size:14px;font-weight:600;cursor:pointer;">✕ 关闭窗口</button>' +
+      '</div>' +
+      '</div>' +
+      '<button type="button" class="hw-close-fab" onclick="closeModalDirect()" title="关闭窗口">✕ 关闭</button>';
 
     document.getElementById('modalContent').innerHTML = html;
     document.getElementById('modal').classList.add('open');
@@ -12388,7 +12427,16 @@ function _corrItemHtml(it, i, hwId, isStu, isTeacher) {
            'style="padding:6px 12px;background:#fff;color:var(--primary);border:1.5px solid var(--primary);border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap;">🔍 放大查看 / 旋转</button>' +
            '</div>';
     } else if (it.corr_type === 'video' && it.corr_media_url) {
-      h += '<div style="margin-top:8px;"><video controls playsinline webkit-playsinline preload="metadata" style="width:100%;max-width:280px;border-radius:8px;" src="' + it.corr_media_url + '"></video></div>';
+      // 2026-10-18（年哥）：订正视频原来是 280px 窄条、竖屏视频在电脑上更看不清，
+      // 改为 16:9 横屏卡片 + 全屏播放层（倍速 1×/1.5×/2×、旋转、满屏）。
+      var _vu = escHtmlSafe(it.corr_media_url);
+      var _vt = escHtmlSafe(it.qno_label || '订正视频讲解');
+      h += '<div style="margin-top:8px;">' +
+           '<div class="corr-video-card"><video controls playsinline webkit-playsinline preload="metadata" src="' + _vu + '"></video></div>' +
+           '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">' +
+           '<button type="button" class="corr-video-open" data-cv-url="' + _vu + '" data-cv-title="' + _vt + '" onclick="openCorrVideoFromEl(this)">⛶ 横屏 / 满屏观看</button>' +
+           '<span style="font-size:11px;color:var(--text-muted);">可 1.5× / 2× 倍速 · 竖着的画面可旋转</span>' +
+           '</div></div>';
     }
     if (it.corr_text) h += '<div style="margin-top:6px;background:#F6FFED;border-radius:8px;padding:8px;font-size:12px;">💬 ' + escHtmlSafe(it.corr_text) + '</div>';
   }
@@ -12421,6 +12469,163 @@ function _corrItemHtml(it, i, hwId, isStu, isTeacher) {
   }
   h += '</div>';
   return h;
+}
+
+/* ===== 订正视频：横屏大画面 / 倍速 / 旋转 / 满屏（2026-10-18 年哥定） =====
+   背景：学生用手机竖屏录的订正讲题视频，教师端原来只有 280px 窄条，
+   电脑上看不清、也没法快进。这里做成覆盖层播放器：
+   - 16:9 横屏舞台，视频 contain 居中，画面尽可能大；
+   - 1× / 1.5× / 2× 倍速（老师快速核对讲题过程）；
+   - 左转/右转 90°，竖屏录的视频可拧成横屏看；
+   - 满屏 = 浏览器全屏（舞台全屏，Esc 退出）。 */
+var _corrVideoState = { url: '', title: '', rate: 1, rot: 0, autoRotated: false };
+
+function openCorrVideoFromEl(el) {
+  if (!el) return;
+  // 卡片里已经看了一段，进大屏就接着播，不用从头再来
+  var box = el.parentNode ? el.parentNode.parentNode : null;
+  var small = box ? box.querySelector('video') : null;
+  openCorrVideo(el.getAttribute('data-cv-url') || '', el.getAttribute('data-cv-title') || '',
+                small ? (small.currentTime || 0) : 0);
+}
+
+function openCorrVideo(url, title, startAt) {
+  if (!url) return;
+  _corrVideoState = { url: url, title: title || '订正视频讲解', rate: 1, rot: 0, autoRotated: false, startAt: startAt || 0 };
+  var ov = document.getElementById('corrVideoMask');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'corrVideoMask';
+    ov.className = 'corr-video-mask';
+    document.body.appendChild(ov);
+    window.addEventListener('resize', function() { _corrVideoFit(); });
+    document.addEventListener('fullscreenchange', function() { setTimeout(_corrVideoFit, 80); });
+    document.addEventListener('webkitfullscreenchange', function() { setTimeout(_corrVideoFit, 80); });
+    document.addEventListener('keydown', function(e) {
+      var m = document.getElementById('corrVideoMask');
+      if (e.key === 'Escape' && m && m.style.display === 'flex') closeCorrVideo();
+    });
+  }
+  ov.innerHTML = _corrVideoHtml();
+  ov.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  var v = document.getElementById('corrVidEl');
+  if (v) {
+    v.playbackRate = 1;
+    v.addEventListener('loadedmetadata', function() {
+      _corrVideoFit();
+      if (_corrVideoState.startAt > 0.5 && v.duration && _corrVideoState.startAt < v.duration - 1) {
+        try { v.currentTime = _corrVideoState.startAt; } catch (e) {}
+      }
+      _corrVideoState.startAt = 0;
+      // iPhone 竖拍视频存储为 480x360 + rotation -90，浏览器会显示成 360x480 竖屏。
+      // 竖屏就在横屏舞台里按高度撑到最大（内容正立）；想看横屏可一键「↻ 右转」。
+      var tip = document.querySelector('#corrVideoMask .corr-video-tip');
+      if (tip) {
+        tip.textContent = (v.videoHeight > v.videoWidth)
+          ? '这是竖屏讲解视频：画面已按屏幕高度放到最大。想看横屏可点「↻ 右转」（内容会侧过来）；可切 1.5× / 2× 倍速；「⛶ 满屏」全屏观看。'
+          : '可切 1× / 1.5× / 2× 倍速；画面方向不对点「↺ 左转 / ↻ 右转」；「⛶ 满屏」全屏观看。';
+      }
+    });
+    var p = v.play();
+    if (p && p.catch) p.catch(function() {});
+  }
+  setTimeout(_corrVideoFit, 40);
+}
+
+function _corrVideoHtml() {
+  var s = _corrVideoState;
+  var rateBtns = [1, 1.5, 2].map(function(r) {
+    return '<button type="button" class="corr-video-btn' + (r === 1 ? ' active' : '') + '" data-rate="' + r + '" onclick="setCorrVideoRate(' + r + ')">' + (r === 1 ? '1× 原速' : r + '×') + '</button>';
+  }).join('');
+  return '<div class="corr-video-bar">' +
+    '<span class="cv-title">🎥 ' + escHtmlSafe(s.title) + '</span>' +
+    rateBtns +
+    '<span style="width:1px;height:22px;background:rgba(255,255,255,.3);"></span>' +
+    '<button type="button" class="corr-video-btn" onclick="rotateCorrVideo(-90)" title="逆时针旋转90°">↺ 左转</button>' +
+    '<button type="button" class="corr-video-btn" onclick="rotateCorrVideo(90)" title="顺时针旋转90°">↻ 右转</button>' +
+    '<button type="button" class="corr-video-btn" onclick="toggleCorrVideoFull()" title="浏览器全屏，画面最大化（Esc 退出）">⛶ 满屏</button>' +
+    '<button type="button" class="corr-video-btn" onclick="closeCorrVideo()" title="关闭">✕ 关闭</button>' +
+    '</div>' +
+    '<div class="corr-video-stage" id="corrVidStage">' +
+    '<video id="corrVidEl" controls playsinline webkit-playsinline preload="auto" src="' + escHtmlSafe(s.url) + '"></video>' +
+    '</div>' +
+    '<div class="corr-video-tip">画面看不清就点「⛶ 满屏」；倍速可切 1× / 1.5× / 2×；画面方向不对点「↺ 左转 / ↻ 右转」。</div>';
+}
+
+function _corrVideoFit() {
+  var st = document.getElementById('corrVidStage');
+  var v = document.getElementById('corrVidEl');
+  if (!st || !v) return;
+  var W = st.clientWidth || 1, H = st.clientHeight || 1;
+  var rot = ((_corrVideoState.rot % 360) + 360) % 360;
+  // 转 90°/270° 时容器宽高互换，避免旋转后被裁掉
+  if (rot === 90 || rot === 270) {
+    v.style.width = H + 'px';
+    v.style.height = W + 'px';
+  } else {
+    v.style.width = W + 'px';
+    v.style.height = H + 'px';
+  }
+  v.style.transform = 'translate(-50%,-50%) rotate(' + rot + 'deg)';
+}
+
+function rotateCorrVideo(deg) {
+  _corrVideoState.rot = _corrVideoState.rot + deg;
+  _corrVideoFit();
+  var r = ((_corrVideoState.rot % 360) + 360) % 360;
+  showToast('画面已旋转 ' + r + '°');
+}
+
+function setCorrVideoRate(r) {
+  var v = document.getElementById('corrVidEl');
+  if (!v) return;
+  _corrVideoState.rate = r;
+  v.playbackRate = r;
+  if (v.paused) { var p = v.play(); if (p && p.catch) p.catch(function() {}); }
+  var btns = document.querySelectorAll('#corrVideoMask .corr-video-btn[data-rate]');
+  for (var i = 0; i < btns.length; i++) {
+    var on = parseFloat(btns[i].getAttribute('data-rate')) === r;
+    if (on) btns[i].classList.add('active'); else btns[i].classList.remove('active');
+  }
+  showToast('播放速度 ' + (r === 1 ? '1×（原速）' : r + '×'));
+}
+
+function toggleCorrVideoFull() {
+  var target = document.getElementById('corrVidStage') || document.getElementById('corrVidEl');
+  if (!target) return;
+  var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fsEl) {
+    var ex = document.exitFullscreen || document.webkitExitFullscreen;
+    if (ex) { var p1 = ex.call(document); if (p1 && p1.catch) p1.catch(function() {}); }
+    return;
+  }
+  var req = target.requestFullscreen || target.webkitRequestFullscreen;
+  if (req) {
+    var p2 = req.call(target);
+    if (p2 && p2.catch) p2.catch(function() {});   // 全屏被拒就保持覆盖层大画面
+  }
+  setTimeout(_corrVideoFit, 150);
+}
+
+function closeCorrVideo() {
+  var ov = document.getElementById('corrVideoMask');
+  if (!ov) return;
+  var v = document.getElementById('corrVidEl');
+  if (v) {
+    try { v.pause(); } catch (e) {}
+    v.removeAttribute('src');
+    if (v.load) v.load();
+  }
+  ov.style.display = 'none';
+  ov.innerHTML = '';
+  var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fsEl) {
+    var ex = document.exitFullscreen || document.webkitExitFullscreen;
+    if (ex) { var p3 = ex.call(document); if (p3 && p3.catch) p3.catch(function() {}); }
+  }
+  var lb = document.getElementById('hwLightbox');
+  document.body.style.overflow = (lb && lb.style.display === 'flex') ? 'hidden' : '';
 }
 
 function renderHwCorrectionSection(hw) {
