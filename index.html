@@ -5935,6 +5935,8 @@ function buildMistakeWeekHtml(all) {
       // 2026-10-10（年哥定）：学生端第6周起错题本不下发答案（后端 answers_hidden=1），
       // 这里显示锁定提示，避免学生以为"答案丢失"
       if (m.answers_hidden) {
+        // 2026-10-18（年哥定）：解析提示只给思路引导，答案仍锁定
+        if (m.study_hint) blk += '<div class="reason" style="margin-top:2px;color:#B57D05;">💡 解析提示：' + fmtFrac(escapeHtml(m.study_hint)) + '</div>';
         blk += '<div class="solution" style="margin-top:2px;color:var(--text-muted);">🔒 参考答案暂不开放：请先自己动手订正这道题，订正合格后老师会为你开放（独立思考才是真进步）</div>';
       } else {
         blk += '<div class="solution" style="margin-top:2px;">正确答案：' + fmtFrac(escapeHtml(m.correct_answer || '（未提供）')) + '</div>';
@@ -6177,6 +6179,7 @@ function openReviewModal(idx) {
   if (t.answer) {
     html += '<p style="font-size:14px;color:#389E0D;line-height:1.8;margin:0 0 6px;font-weight:600;">✅ 正确答案：' + fmtFrac(escapeHtml(t.answer)) + '</p>';
   } else if (t.answers_hidden) {
+    if (t.study_hint) html += '<p style="font-size:13px;color:#B57D05;line-height:1.8;margin:0 0 6px;">💡 解析提示：' + fmtFrac(escapeHtml(t.study_hint)) + '</p>';
     html += '<p style="font-size:13px;color:var(--text-muted);line-height:1.8;margin:0 0 6px;">🔒 参考答案暂不开放：先自己订正这道题，订正合格后老师会为你开放</p>';
   }
   var vs = t.variants || [];
@@ -6199,6 +6202,7 @@ function openReviewModal(idx) {
       if (q.correct_answer) {
         html += '<p style="font-size:13px;color:#389E0D;margin:0;">✅ 正确答案：' + fmtFrac(escapeHtml(q.correct_answer)) + '</p>';
       } else if (t.answers_hidden) {
+        if (q.study_hint) html += '<p style="font-size:12px;color:#B57D05;margin:0;">💡 解析提示：' + fmtFrac(escapeHtml(q.study_hint)) + '</p>';
         html += '<p style="font-size:12px;color:var(--text-muted);margin:0;">🔒 参考答案暂不开放（先自己订正，合格后由老师开放）</p>';
       }
       if (q.error_reason) {
@@ -6235,7 +6239,10 @@ function openPracticeModal(idx) {
     html += '<summary style="color:var(--primary);cursor:pointer;font-weight:500;">查看解析</summary>';
     html += '<div style="margin-top:8px;color:var(--text-secondary);line-height:1.8;">';
     if (q.correct_answer) html += '<p style="margin:0 0 4px;">✅ 答案：' + fmtFrac(escapeHtml(q.correct_answer)) + '</p>';
-    else if (t.answers_hidden) html += '<p style="margin:0 0 4px;color:var(--text-muted);">🔒 参考答案暂不开放（先自己订正，合格后由老师开放）</p>';
+    else if (t.answers_hidden) {
+      if (q.study_hint) html += '<p style="margin:0 0 4px;color:#B57D05;">💡 解析提示：' + fmtFrac(escapeHtml(q.study_hint)) + '</p>';
+      html += '<p style="margin:0 0 4px;color:var(--text-muted);">🔒 参考答案暂不开放（先自己订正，合格后由老师开放）</p>';
+    }
     if (q.error_reason) html += '<p style="margin:0;">💡 点拨：' + fmtFrac(escapeHtml(q.error_reason)) + '</p>';
     html += '</div></details>';
     html += '</div>';
@@ -12331,6 +12338,23 @@ function _corrItemHtml(it, i, hwId, isStu, isTeacher) {
        (it.wrong_count > 1 ? ' <span style="font-size:11px;color:#C62828;font-weight:400;">（' + it.wrong_count + ' 个空错）</span>' : '') +
        '</div>' + _corrVerdictChip(it) + '</div>';
   if (it.stem) h += '<div style="font-size:13px;color:var(--text);line-height:1.6;margin-top:6px;">' + fmtFrac(escHtmlSafe(it.stem)) + '</div>';
+  // 2026-10-18（年哥定）：逐空明细——第几个空 + 对错标记 + 逐空答案，
+  // 一题多空不再是一串「10｜3000｜11」看不出错在哪空。
+  // 可见性与总开关一致：correct_answer 有值即后端允许看（教师/已开放/第5周前）
+  var _seeCa = !!it.correct_answer;
+  if (it.blanks && it.blanks.length) {
+    h += '<div style="margin-top:6px;">';
+    it.blanks.forEach(function(b) {
+      h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+        '<span style="background:#FFF7E6;border:1px solid #FFE7BA;border-radius:6px;padding:0 8px;font-weight:600;color:#B57D05;white-space:nowrap;">第' + escHtmlSafe(b.pos) + '个空</span>' +
+        '<span>你的答案：<b style="color:#C62828;">' + fmtFrac(escHtmlSafe(b.sa || '（未识别）')) + '</b></span>' +
+        '<span style="color:' + (b.ok ? '#389E0D' : '#C62828') + ';font-weight:700;">（' + (b.ok ? '√' : '×') + '）</span>' +
+        (_seeCa && b.ca ? '<span>正确答案：<b style="color:#389E0D;">' + fmtFrac(escHtmlSafe(b.ca)) + '</b></span>' : '') +
+        '</div>';
+    });
+    if (it.answer_opened && !isTeacher) h += '<div style="font-size:11px;color:#389E0D;margin-top:3px;">📖 参考答案已开放（本题订正合格）</div>';
+    h += '</div>';
+  } else {
   h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">' +
        '你的答案：<b style="color:#C62828;">' + fmtFrac(escHtmlSafe(it.student_answer || '（未识别）')) + '</b>' +
        // 2026-10-10 年哥定：订正阶段不给正确答案（防照抄），只有教师端可见。
@@ -12339,12 +12363,16 @@ function _corrItemHtml(it, i, hwId, isStu, isTeacher) {
        // 有答案但无 answer_opened 字段 → 照常显示（整份订正需照答案订正）。
        (function() {
           var _ca = it.correct_answer;
-          if (isTeacher && _ca) return '　正确答案：<b style="color:#389E0D;">' + fmtFrac(escHtmlSafe(_ca)) + '</b>';
           if (_ca) return '　正确答案：<b style="color:#389E0D;">' + fmtFrac(escHtmlSafe(_ca)) + '</b>' +
-            (it.answer_opened ? ' <span style="font-size:11px;color:#389E0D;">（订正合格已开放）</span>' : '');
+            (it.answer_opened && !isTeacher ? ' <span style="font-size:11px;color:#389E0D;">（订正合格已开放）</span>' : '');
           return ' <span style="font-size:11px;color:var(--text-muted);">🔒 本题答案在你订正合格后开放</span>';
         })() +
        '</div>';
+  }
+  // 2026-10-18（年哥定）：未合格的题给「解析提示」——只有思路引导，答案已脱敏
+  if (!isTeacher && !it.answer_opened && it.study_hint) {
+    h += '<div style="font-size:12px;color:#B57D05;margin-top:4px;">💡 解析提示：' + fmtFrac(escHtmlSafe(it.study_hint)) + '</div>';
+  }
   if (it.ai_reason) h += '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">🤖 ' + fmtFrac(escHtmlSafe(it.ai_reason)) + '</div>';
   if (it.teacher_comment) h += '<div style="font-size:12px;color:#B57D05;margin-top:4px;">👩‍🏫 老师：' + escHtmlSafe(it.teacher_comment) + '</div>';
   if (it.submitted) {
