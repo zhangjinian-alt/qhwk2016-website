@@ -1220,7 +1220,7 @@ body::before {
 <!-- AI 易错题精讲区（2026-09-15 从家校互通迁入，与错题本/复习推荐同页成链） -->
 <div class="container section" id="aiLectureSection">
   <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
-    <h3 style="margin-bottom:12px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3af" xlink:href="#tw-1f3af"/></svg> 本周易错题精讲</h3>
+    <h3 id="aiLectureTitle" style="margin-bottom:12px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3af" xlink:href="#tw-1f3af"/></svg> <span id="aiLectureTitleText">易错题精讲（按周查看）</span></h3>
     <div id="aiLectureList" style="min-height:60px;"></div>
   </div>
 </div>
@@ -4281,6 +4281,9 @@ var _mistakeBoardOpen = { _init: false };  // 错题榜按周折叠状态（2026
 async function renderAiLectures(role) {
   var el = document.getElementById('aiLectureList');
   if (!el) return;
+  // 2026-10-18：标题随角色切换（学生端按周查看；教师端按周分组管理）
+  var _lt = document.getElementById('aiLectureTitleText');
+  if (_lt) _lt.textContent = role === 'teacher' ? '易错题精讲（按周分组）' : '易错题精讲（按周查看）';
   // 未登录云端帐号：易错题精讲功能锁定，点击仅提示
   if (!isCloudLoggedIn() && role !== 'teacher') {
     el.innerHTML = '<div style="border:1.5px dashed var(--border);border-radius:12px;padding:28px 20px;text-align:center;background:var(--bg);">' +
@@ -4294,9 +4297,10 @@ async function renderAiLectures(role) {
   var lectures = [];
   var _lecLocked = null;
   try {
-    // 教师端拉全部周（按周分组折叠展示）；学生端只看本周
-    var url = role === 'teacher' ? '/ai-lectures?all_weeks=1' : '/ai-lectures?week=' + _lectureWeek;
-    var resp = await fetchWithAuth(url);
+    // 2026-10-18（年哥定）：学生端也拉【全部周】——原先只请求本周（?week=N），
+    // 导致第2~6周的精讲在学生端整块消失（刘柏禹等同学只能看到本周）。
+    // 现在三端统一 all_weeks=1，按教学周分组、每周默认收起。
+    var resp = await fetchWithAuth('/ai-lectures?all_weeks=1');
     if (resp.ok) {
       var data = await resp.json();
       // 2026-10-06（年哥定）：本周没交作业 → 不下发精讲视频（视频里讲的就是答案）
@@ -4307,14 +4311,13 @@ async function renderAiLectures(role) {
   if (_lecLocked !== null && role !== 'teacher') { el.innerHTML = hwLockHtml(_lecLocked); return; }
 
   var html = '';
+  _lectureAll = lectures;
   if (role === 'teacher') {
     // 教师端：错题榜（本周） + 按周折叠的讲解列表
-    _lectureAll = lectures;
     html += '<div id="mistakesBoard"><p style="text-align:center;color:var(--text-muted);padding:12px;">正在统计本周错题…</p></div>';
-    html += buildLectureWeekHtml(lectures, role);
-  } else {
-    html += buildLectureFlatHtml(lectures, role);
   }
+  // 三端统一按教学周分组（每周默认收起），学生端不再只显示本周平铺
+  html += buildLectureWeekHtml(lectures, role);
 
   el.innerHTML = html;
 
@@ -4412,16 +4415,23 @@ async function toggleLecturePush(id, pushed, target) {
 
 // 教师端：按教学周分组折叠展示全部讲解
 function buildLectureWeekHtml(lectures, role) {
+  // 2026-10-18（年哥定）：学生端不展示「生成失败」条目（没有重新生成权限，会误导），
+  // 只保留已完成与生成中的视频；教师端全量展示。
+  var visible = role === 'teacher'
+    ? lectures
+    : lectures.filter(function(l) { return l.status !== 'failed'; });
   var groups = {};
-  lectures.forEach(function(l) { (groups[l.week] = groups[l.week] || []).push(l); });
+  visible.forEach(function(l) { (groups[l.week] = groups[l.week] || []).push(l); });
   var weeks = Object.keys(groups).map(Number).sort(function(a, b) { return b - a; });
   if (weeks.length === 0) {
-    return '<p style="text-align:center;color:var(--text-muted);padding:12px;">暂无讲解视频，请从上方错题榜选择题目生成</p>';
+    return role === 'teacher'
+      ? '<p style="text-align:center;color:var(--text-muted);padding:12px;">暂无讲解视频，请从上方错题榜选择题目生成</p>'
+      : qhEmptyHtml('还没有讲解视频～', '老师把易错题做成精讲后会出现在这里，按周查看');
   }
-  var readyTotal = lectures.filter(function(l) { return l.status === 'ready'; }).length;
+  var readyTotal = visible.filter(function(l) { return l.status === 'ready'; }).length;
   var html = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
     '<div><h4 style="margin:0 0 4px;">🎬 易错题精讲（按周分组）</h4>' +
-    '<p style="font-size:13px;color:var(--text-secondary);margin:0;">共 ' + readyTotal + ' 个讲解视频 · 覆盖 ' + weeks.length + ' 个教学周，点击周次展开/收起</p></div>' +
+    '<p style="font-size:13px;color:var(--text-secondary);margin:0;">共 ' + readyTotal + ' 个讲解视频 · 覆盖 ' + weeks.length + ' 个教学周，每周默认收起，点击周次展开/收起</p></div>' +
     '<div style="display:flex;gap:8px;">' +
     '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="toggleAllLectureWeeks(true)">全部展开</button>' +
     '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="toggleAllLectureWeeks(false)">全部收起</button></div></div>';
@@ -4465,9 +4475,13 @@ function buildLectureWeekHtml(lectures, role) {
 function rerenderLectureWeeks() {
   var el = document.getElementById('aiLectureList');
   if (!el) return;
-  var board = document.getElementById('mistakesBoard');
-  var boardHtml = board ? board.outerHTML : '<div id="mistakesBoard"></div>';
-  el.innerHTML = boardHtml + buildLectureWeekHtml(_lectureAll, 'teacher');
+  var role = getCurrentRole();
+  var html = buildLectureWeekHtml(_lectureAll, role);
+  if (role === 'teacher') {
+    var board = document.getElementById('mistakesBoard');
+    html = (board ? board.outerHTML : '<div id="mistakesBoard"></div>') + html;
+  }
+  el.innerHTML = html;
 }
 
 function toggleLectureWeek(w) {
@@ -5792,13 +5806,11 @@ async function loadCloudMistakes(studentName) {
     // 2026-10-06（年哥定）：本周没交作业 → 不下发错题本（防抄答案）
     if (data.locked) { list.innerHTML = hwLockHtml(data.lock_reason); return; }
     var all = data.mistakes || [];
-    // 学生端只保留本周（历史周错题不在学生端展示；教师端不受限）
-    if (isSelfView) {
-      var _curW = getTeachWeek();
-      all = all.filter(function(m) { return mistakeWeekOf(m) === _curW; });
-    }
+    // 2026-10-18（年哥定）：学生端错题本恢复【全部教学周】展示。
+    // 原先这里是「只保留本周」的硬过滤，导致第2~6周错题整块消失（刘柏禹等同学
+    // 只看到本周）。现在按教学周分组、每周默认收起，点周次头可展开任何一周。
     if (all.length === 0) {
-      list.innerHTML = qhEmptyHtml('太棒了，本周没有错题记录！', '继续保持认真做题的好习惯');
+      list.innerHTML = qhEmptyHtml('还没有错题记录～', '继续保持认真做题的好习惯');
       return;
     }
     window._mistakeWeekAll = all;
@@ -6007,8 +6019,9 @@ function buildMistakeWeekHtml(all) {
   var weeks = Object.keys(groups).map(Number).sort(function(a, b) { return b - a; });
   var totalVariants = 0;
   all.forEach(function(m) { totalVariants += (m.variant_count || (m.variants || []).length || 1); });
-  // 默认：学生自视图展开本周；教师端全班内容多，默认全部收起
-  if (!(curWeek in _mistakeWeekOpen) && isSelfView) _mistakeWeekOpen[curWeek] = true;
+  // 2026-10-18（年哥定）：错题本每周默认收起（含本周；学生端/教师端一致），
+  // 点周次头展开，也可用「全部展开」。原先是学生端自动展开本周。
+  // （不预置任何周次为展开状态，保持 _mistakeWeekOpen 为空即可）
   var html = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;">' +
     '<h4 style="margin-bottom:8px;">📈 错题本（按题聚合 · 来自 AI 批改）</h4>' +
     '<p style="font-size:14px;color:var(--text-secondary);">共 <strong>' + all.length + '</strong> 条错题记录（按小题聚合展示）· ' + totalVariants + ' 种错法 · 覆盖 ' + weeks.length + ' 个教学周，点击周次可展开/收起</p>' +
@@ -6133,8 +6146,7 @@ async function loadCloudReview(studentName) {
 function buildReviewWeekHtml(data) {
   var weeks = data.weeks || [];
   var curWeek = data.current_week || getTeachWeek();
-  var isSelfView = getCurrentRole() !== 'teacher';
-  if (!(curWeek in _reviewWeekOpen) && isSelfView) _reviewWeekOpen[curWeek] = true;
+  // 2026-10-18（年哥定）：智能复习每周默认收起（含本周），点周次头展开或「全部展开」
   var totalTopics = 0;
   weeks.forEach(function(w) { totalTopics += (w.topics || []).length; });
   // 展平所有 topic（周次从高到低），供复习/练习 modal 按 index 取用
