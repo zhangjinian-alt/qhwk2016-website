@@ -12349,6 +12349,16 @@ function _corrItemHtml(it, i, hwId, isStu, isTeacher) {
          '<button onclick="pickHwCorrectionMedia(' + i + ',\'video\')" title="视频讲解" style="padding:8px 14px;background:#fff;color:#FA8C16;border:1.5px solid #FA8C16;border-radius:8px;font-size:13px;cursor:pointer;">🎥</button>' +
          '</div></div>';
   }
+  // 教师：逐题点评（2026-10-18 年哥定：每个错题下都可写评语，保存后学生端
+  // 「👩‍🏫 老师：…」位置显示；未订正的题也挂得住，verdict 不受影响）
+  if (isTeacher) {
+    h += '<div style="margin-top:10px;">' +
+         '<textarea id="corrNote-' + i + '" rows="2" placeholder="写给这位学生的点评 / 评语（保存后学生端可见）…" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;box-sizing:border-box;resize:vertical;">' + escHtmlSafe(it.teacher_comment || '') + '</textarea>' +
+         '<div style="display:flex;gap:8px;margin-top:6px;align-items:center;">' +
+         '<button onclick="saveHwCorrNote(' + hwId + ',' + i + ')" style="padding:7px 14px;background:#1D5DAB;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">💬 保存点评</button>' +
+         '<span id="corrNoteMsg-' + i + '" style="font-size:12px;color:var(--text-muted);"></span>' +
+         '</div></div>';
+  }
   // 教师：逐题裁定（AI 拿不准 / 判错时最有用）
   if (isTeacher && it.submitted) {
     h += '<div style="display:flex;gap:8px;margin-top:10px;">' +
@@ -12491,6 +12501,39 @@ async function reviewHwCorrection(hwId, i, verdict) {
     if (box) loadHwCorrectionReview();
   } catch (e) {
     showToast('网络错误：' + e.message, 'error');
+  }
+}
+
+// 保存单题点评（2026-10-18 年哥定）：verdict 传空 = 只存点评、不动已有合格/打回裁定；
+// 未订正的题（cid=0）后端按 qkey 建挂靠行，学生订正前也能看到老师的点评
+async function saveHwCorrNote(hwId, i) {
+  var it = (_hwCorrState.items || [])[i];
+  if (!it) return;
+  var ta = document.getElementById('corrNote-' + i);
+  var msg = document.getElementById('corrNoteMsg-' + i);
+  var comment = (ta && ta.value || '').trim();
+  if (!comment) { showToast('点评内容为空，写点什么再保存吧', 'error'); return; }
+  var cid = it.cid || 0;
+  if (!cid && !(it.qkey || '')) { showToast('该题缺少记录编号，请刷新后重试', 'error'); return; }
+  var btn = null;
+  var btns = ta.parentElement.querySelectorAll('button');
+  if (btns.length) btn = btns[0];
+  if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
+  try {
+    var resp = await fetchWithAuth('/homework/' + hwId + '/correction/' + cid + '/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verdict: '', comment: comment, qkey: it.qkey || '' })
+    });
+    var data = await resp.json().catch(function() { return {}; });
+    if (!resp.ok) { showToast(data.detail || '点评保存失败', 'error'); return; }
+    it.teacher_comment = comment;
+    if (msg) msg.textContent = '✅ 已保存，学生端可见';
+    showToast(data.message || '点评已保存', 'success');
+  } catch (e) {
+    showToast('网络错误：' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💬 保存点评'; }
   }
 }
 
