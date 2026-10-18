@@ -11894,7 +11894,12 @@ async function submitHwUpload(e) {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     showToast('当前网络未连接，作业已暂存到本地，恢复网络后可重试', 'error');
     if (status) status.innerHTML = '<p style="color:var(--warning);font-size:13px;">📦 作业已暂存到本地（离线队列）</p>';
-    files.forEach(function(f) { savePendingHomework(name, title, f); });
+    // 2026-10-18：离线暂存也用压缩后的图（原图 dataURL 会撑爆 localStorage）
+    for (var oi = 0; oi < files.length; oi++) {
+      var of0 = files[oi];
+      try { of0 = await compressImage(of0, { maxWidth: 1800, maxHeight: 1800, quality: 0.82, filename: of0.name }); } catch (cErr) { /* 原图兜底 */ }
+      savePendingHomework(name, title, of0);
+    }
     resetHwForm(fileInput);
     return;
   }
@@ -11907,11 +11912,33 @@ async function submitHwUpload(e) {
   }
 
   btn.textContent = '⏳ 上传中...'; btn.disabled = true;
-  if (status) status.innerHTML = '<p style="color:var(--primary);font-size:13px;">正在上传 ' + files.length + ' 张作业图片...</p>';
+  if (status) status.innerHTML = '<p style="color:var(--primary);font-size:13px;">正在处理 ' + files.length + ' 张作业图片...</p>';
+
+  // 2026-10-18 上传前压缩（年哥定）：手机原图 3-8MB，AI 视觉模型内部会再缩，
+  // 超过 ~1800px 长边对批改识别几乎无增益；压缩到长边 1800 / 质量 0.82（约 300-500KB/张），
+  // 上传更快、教师端打开更快，批改精度不受影响。压缩失败兜底用原图。
+  var _origKB = 0, _outKB = 0;
+  var upFiles = [];
+  for (var fi = 0; fi < files.length; fi++) {
+    var f0 = files[fi];
+    _origKB += f0.size / 1024;
+    try {
+      var fc = await compressImage(f0, { maxWidth: 1800, maxHeight: 1800, quality: 0.82, filename: f0.name });
+      upFiles.push(fc);
+      _outKB += fc.size / 1024;
+    } catch (cErr) {
+      upFiles.push(f0);   // HEIC 等浏览器解不了的格式 → 原图直传，保证可用性
+      _outKB += f0.size / 1024;
+    }
+  }
+  if (_origKB > 0 && status) {
+    status.innerHTML = '<p style="color:var(--primary);font-size:13px;">图片已压缩：' +
+      (_origKB / 1024).toFixed(1) + 'MB → ' + (_outKB / 1024).toFixed(1) + 'MB，正在上传 ' + upFiles.length + ' 张...</p>';
+  }
 
   var formData = new FormData();
-  for (var fi = 0; fi < files.length; fi++) {
-    formData.append('files', files[fi]);
+  for (var fi2 = 0; fi2 < upFiles.length; fi2++) {
+    formData.append('files', upFiles[fi2]);
   }
   formData.append('student_name', name);
   formData.append('title', title);
@@ -11938,7 +11965,8 @@ async function submitHwUpload(e) {
         showToast('上传失败：' + friendly + '（作业已暂存到本地）', 'error');
         if (status) status.innerHTML = '<p style="color:var(--danger);font-size:13px;">❌ ' + friendly + '</p>' +
           '<p style="color:var(--warning);font-size:12px;margin-top:6px;">📦 作业已暂存到本地，网络恢复后可点击"重试暂存作业"重新上传</p>';
-        files.forEach(function(f) { savePendingHomework(name, title, f); });
+        // 2026-10-18：暂存用压缩后的文件，避免原图 dataURL 撑爆 localStorage
+        upFiles.forEach(function(f) { savePendingHomework(name, title, f); });
         btn.textContent = '📤 提交作业'; btn.disabled = false;
         renderPendingHint();
         return;
@@ -12076,6 +12104,8 @@ async function retryPendingHw(id) {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) { showToast('网络未连接，无法重试', 'error'); return; }
   // dataURL 转 Blob
   var blob = await (await fetch(item.dataUrl)).blob();
+  // 2026-10-18：兼容暂存的原格式，重试上传前也压一道（已是压缩图则 compressImage 直通）
+  try { blob = await compressImage(blob, { maxWidth: 1800, maxHeight: 1800, quality: 0.82, filename: item.filename || 'homework.jpg' }); } catch (cErr) { /* 原图兜底 */ }
   var fd = new FormData();
   fd.append('file', blob, item.filename || 'homework.jpg');
   fd.append('student_name', item.name);
@@ -12532,10 +12562,16 @@ async function submitHwCorrectMedia(hwId, ctype) {
   var comment = (textInput && textInput.value.trim()) ? textInput.value.trim() : '';
   var btn = document.getElementById('hwCorrectMediaBtn-' + ctype);
   if (btn) { btn.textContent = '上传中...'; btn.disabled = true; }
+  // 2026-10-18：订正照片压缩到长边 1280 / 质量 0.8（老师人眼核对足够），失败兜底原图
+  var upFile = input.files[0];
+  if (ctype === 'image') {
+    try { upFile = await compressImage(upFile, { maxWidth: 1280, maxHeight: 1280, quality: 0.8, filename: upFile.name }); }
+    catch (cErr) { /* 保持原图 */ }
+  }
   var formData = new FormData();
   formData.append('correct_type', ctype);
   formData.append('comment', comment);
-  formData.append('file', input.files[0]);
+  formData.append('file', upFile);
   try {
     var resp = await fetchWithAuth('/homework/' + hwId + '/correct-media', { method: 'POST', body: formData });
     var data = await resp.json().catch(function() { return {}; });
