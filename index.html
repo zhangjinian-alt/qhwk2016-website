@@ -12204,6 +12204,11 @@ async function viewHwFeedback(hwId, scrollToCorr) {
     try { grade = JSON.parse(hw.grade_result); } catch(e) {}
 
     var finalResult = hw.teacher_reviewed ? JSON.parse(hw.teacher_reviewed) : grade;
+    // 2026-10-18：订正合格的题号集合（后端逐题 answer_opened=1）——
+    // 主列表「逐题批改」与订正区同步开放这些题的正确答案
+    var _corrOpenedQkeys = ((hw.corrections && hw.corrections.items) || [])
+      .filter(function(it) { return it.answer_opened; })
+      .map(function(it) { return it.qkey; });
     var problemsHtml = '';
     if (finalResult.problems && finalResult.problems.length > 0) {
       problemsHtml = _groupProblemsByQno(finalResult.problems).map(function(g) {
@@ -12221,8 +12226,10 @@ async function viewHwFeedback(hwId, scrollToCorr) {
             var why = (p.error_reason || p.error_type || '').trim();
             if (why) line += '<div class="hw-problem-detail">分析：' + fmtFrac(escapeHtml(why)) + '</div>';
             // 2026-10-10 年哥定：第6周起（逐题订正）学生端不展示正确答案，防照抄；
-            // 教师端、以及第5周及以前（整份订正，需照答案订正）仍照常显示
-            var _showAns = (getCurrentRole() === 'teacher') || ((hw.teach_week || 0) < 6);
+            // 教师端、以及第5周及以前（整份订正，需照答案订正）仍照常显示。
+            // 2026-10-18：该题订正合格（corrections.answer_opened）→ 主列表同步开放
+            var _showAns = (getCurrentRole() === 'teacher') || ((hw.teach_week || 0) < 6) ||
+                           (g.key && _corrOpenedQkeys.indexOf(g.key) >= 0);
             var ca = (_showAns && p.correct_answer != null && String(p.correct_answer) !== '') ? fmtFrac(p.correct_answer) : '';
             if (ca) line += '<div class="hw-problem-detail">正确答案：<strong style="color:#389E0D;">' + ca + '</strong></div>';
             if (p.hint) line += '<div class="hw-problem-detail">💡 ' + fmtFrac(escapeHtml(p.hint)) + '</div>';
@@ -12326,8 +12333,17 @@ function _corrItemHtml(it, i, hwId, isStu, isTeacher) {
   if (it.stem) h += '<div style="font-size:13px;color:var(--text);line-height:1.6;margin-top:6px;">' + fmtFrac(escHtmlSafe(it.stem)) + '</div>';
   h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">' +
        '你的答案：<b style="color:#C62828;">' + fmtFrac(escHtmlSafe(it.student_answer || '（未识别）')) + '</b>' +
-       // 2026-10-10 年哥定：订正阶段不给正确答案（防照抄），只有教师端可见
-       (isTeacher && it.correct_answer ? '　正确答案：<b style="color:#389E0D;">' + fmtFrac(escHtmlSafe(it.correct_answer)) + '</b>' : '') +
+       // 2026-10-10 年哥定：订正阶段不给正确答案（防照抄），只有教师端可见。
+       // 2026-10-18：该题订正合格后后端置 answer_opened=1 → 学生可见本题答案
+       //（兑现「订正合格后开放」的承诺）。第5周及以前 hide_answers=False，
+       // 有答案但无 answer_opened 字段 → 照常显示（整份订正需照答案订正）。
+       (function() {
+          var _ca = it.correct_answer;
+          if (isTeacher && _ca) return '　正确答案：<b style="color:#389E0D;">' + fmtFrac(escHtmlSafe(_ca)) + '</b>';
+          if (_ca) return '　正确答案：<b style="color:#389E0D;">' + fmtFrac(escHtmlSafe(_ca)) + '</b>' +
+            (it.answer_opened ? ' <span style="font-size:11px;color:#389E0D;">（订正合格已开放）</span>' : '');
+          return ' <span style="font-size:11px;color:var(--text-muted);">🔒 本题答案在你订正合格后开放</span>';
+        })() +
        '</div>';
   if (it.ai_reason) h += '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">🤖 ' + fmtFrac(escHtmlSafe(it.ai_reason)) + '</div>';
   if (it.teacher_comment) h += '<div style="font-size:12px;color:#B57D05;margin-top:4px;">👩‍🏫 老师：' + escHtmlSafe(it.teacher_comment) + '</div>';
