@@ -11624,7 +11624,7 @@ function renderHwPreviewGrid() {
 // 2026-09-13 v2：旋转（↶↷，90° 步进，localStorage 按图记忆）+ 缩放档位（适应/1.5×/2×）
 var _hwLightboxState = { urls: [], idx: 0, zoom: 1, rots: {} };
 var _HW_ROT_STORE_KEY = 'qhwk_hw_rot';
-var _HW_ZOOM_STEPS = [1, 1.5, 2];
+var _HW_ZOOM_STEPS = [1, 1.5, 2, 3];   // 2026-10-18 加 3× 档：订正小字/小图放大更从容
 
 function _hwLoadRots() {
   try { return JSON.parse(localStorage.getItem(_HW_ROT_STORE_KEY) || '{}') || {}; } catch (e) { return {}; }
@@ -12377,7 +12377,16 @@ function _corrItemHtml(it, i, hwId, isStu, isTeacher) {
   if (it.teacher_comment) h += '<div style="font-size:12px;color:#B57D05;margin-top:4px;">👩‍🏫 老师：' + escHtmlSafe(it.teacher_comment) + '</div>';
   if (it.submitted) {
     if (it.corr_type === 'image' && it.corr_media_url) {
-      h += '<div style="margin-top:8px;"><img src="' + it.corr_media_url + '" style="max-width:200px;border-radius:8px;"></div>';
+      // 2026-10-18（年哥）：订正照片太小看不清 → 点击进灯箱，可放大/旋转/多图切换
+      var _u = escHtmlSafe(it.corr_media_url);
+      var _gi = (window._corrLbUrls || []).indexOf(it.corr_media_url);
+      var _gal = 'window._corrLbUrls||[]';
+      h += '<div style="margin-top:8px;display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;">' +
+           '<img src="' + _u + '" alt="订正照片" onclick="openHwLightbox(' + _gal + ',' + (_gi > 0 ? _gi : 0) + ')" ' +
+           'style="max-width:200px;max-height:200px;object-fit:contain;border-radius:8px;border:1px solid var(--border);background:#FAFAFA;cursor:zoom-in;">' +
+           '<button type="button" onclick="openHwLightbox(' + _gal + ',' + (_gi > 0 ? _gi : 0) + ')" ' +
+           'style="padding:6px 12px;background:#fff;color:var(--primary);border:1.5px solid var(--primary);border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap;">🔍 放大查看 / 旋转</button>' +
+           '</div>';
     } else if (it.corr_type === 'video' && it.corr_media_url) {
       h += '<div style="margin-top:8px;"><video controls playsinline webkit-playsinline preload="metadata" style="width:100%;max-width:280px;border-radius:8px;" src="' + it.corr_media_url + '"></video></div>';
     }
@@ -12439,6 +12448,10 @@ function renderHwCorrectionSection(hw) {
       ? '<div style="font-size:12px;color:#CF1322;background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:10px;border:1px solid #FFA39E;">⚠️ 第6周起改为<b>逐题订正</b>：你之前的整份订正已作废，请按下面每道错题重新订正一遍（全部订正合格后学习效果才 +2）。</div>'
       : '<div style="font-size:12px;color:#B57D05;background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:10px;">ℹ️ 你此前提交的整份订正仍然有效（学习效果分已计入）。</div>';
   }
+  // 2026-10-18（年哥）：收集本次作业全部订正照片，灯箱里可左右切换
+  window._corrLbUrls = items.filter(function(x) {
+    return x.corr_type === 'image' && x.corr_media_url;
+  }).map(function(x) { return x.corr_media_url; });
   return '<div id="hwCorrectionBox" style="background:#FFF7E6;border:1px solid #FFE7BA;border-radius:var(--radius);padding:16px;margin-top:16px;">' +
     '<a name="hwCorrectionAnchor"></a>' +
     '<h4 style="margin-bottom:6px;">✏️ 错题订正（共 ' + n + ' 题）</h4>' +
@@ -12689,7 +12702,14 @@ function renderHwCorrectedInfo(hw) {
   var html = '<div style="background:#F6FFED;border:1px solid #B7EB8F;border-radius:var(--radius);padding:16px;margin-top:16px;">' +
     '<p style="font-size:14px;font-weight:600;color:#389E0D;text-align:center;">✅ 已提交订正' + (hw.corrected_at ? '（' + hw.corrected_at + '）' : '') + '</p>';
   if (ctype === 'image' && hw.corrected_media_url) {
-    html += '<div style="margin-top:10px;text-align:center;"><img src="' + hw.corrected_media_url + '" style="max-width:240px;border-radius:8px;"></div>';
+    // 2026-10-18（年哥）：整份订正照片同样支持点击放大 / 旋转
+    window._hwCorrectedImgs = [hw.corrected_media_url];
+    html += '<div style="margin-top:10px;text-align:center;">' +
+      '<img src="' + escHtmlSafe(hw.corrected_media_url) + '" alt="订正照片" onclick="openHwLightbox(window._hwCorrectedImgs,0)" ' +
+      'style="max-width:240px;max-height:240px;object-fit:contain;border-radius:8px;border:1px solid var(--border);background:#FAFAFA;cursor:zoom-in;vertical-align:top;">' +
+      '<div style="margin-top:6px;"><button type="button" onclick="openHwLightbox(window._hwCorrectedImgs,0)" ' +
+      'style="padding:6px 14px;background:#fff;color:#389E0D;border:1.5px solid #389E0D;border-radius:8px;font-size:12px;cursor:pointer;">🔍 放大查看 / 旋转</button></div>' +
+      '</div>';
   } else if (ctype === 'video' && hw.corrected_media_url) {
     html += '<div style="margin-top:10px;text-align:center;"><video controls playsinline webkit-playsinline preload="metadata" style="width:100%;max-width:320px;border-radius:8px;" src="' + hw.corrected_media_url + '"></video></div>';
   }
