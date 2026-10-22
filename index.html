@@ -4428,7 +4428,7 @@ function buildLectureWeekHtml(lectures, role) {
   if (weeks.length === 0) {
     return role === 'teacher'
       ? '<p style="text-align:center;color:var(--text-muted);padding:12px;">暂无讲解视频，请从上方错题榜选择题目生成</p>'
-      : qhEmptyHtml('还没有讲解视频～', '老师把易错题做成精讲后会出现在这里，按周查看');
+      : qhEmptyHtml('老师还没有推送精讲哦～', '老师推送的易错题精讲会出现在这里，请留意老师布置的任务');
   }
   var readyTotal = visible.filter(function(l) { return l.status === 'ready'; }).length;
   var html = '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
