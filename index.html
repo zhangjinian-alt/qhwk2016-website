@@ -3312,7 +3312,7 @@ function renderStudentHomeTasks(container, tasks, prog) {
   if (prog && prog.applicable) {
     html += '<div style="background:#EAF3FB;border:1.5px solid #CFE3F5;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:12.5px;color:#2C6CA8;line-height:1.6;">' +
       '🎯 第 ' + getTeachWeek() + ' 周任务已完成 <b>' + prog.done + '/' + prog.pushed + '</b> 个 · 全部看完「学习兴趣」加 <b>10</b> 分' +
-      '（当前得分 <b>' + prog.score + '</b> 分）</div>';
+      '（当前得分 <b>' + prog.score + '</b> 分。当周没看完的，补看完照样加分）</div>';
   }
   html += '</div><div class="reward-row"><span>完成全部可得</span><span style="font-size:18px;">⭐⭐⭐</span></div></div>';
   container.innerHTML = html;
@@ -3356,7 +3356,7 @@ async function appendStudentLectureTasks(container) {
     if (r3.ok) prog = await r3.json();
   } catch(e) {}
   var h = '<div class="exercise-card" style="margin-top:14px;"><h3>🎧 老师推荐的易错题精讲</h3>' +
-    '<p style="font-size:13px;color:var(--text-secondary);padding:2px 0 10px;">老师<b>本周推送</b>的精讲（内容可能是前几周的错题），完整观看（约80%以上）算完成，计入「学习兴趣」评价。</p>';
+    '<p style="font-size:13px;color:var(--text-secondary);padding:2px 0 10px;">老师<b>本周推送</b>的精讲（内容可能是前几周的错题），完整观看（约80%以上）算完成，计入「学习兴趣」评价。<span style="color:var(--primary);">以前推送但还没看完的，现在补看也算数，分照样加在规定推送的那一周。</span></p>';
   if (prog && prog.applicable) {
     h += '<div style="background:#F6F1FF;border:1.5px solid #E3D8FF;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:#7C3AED;line-height:1.6;">' +
       '🎯 本周精讲已完成 <b>' + prog.done + '/' + prog.pushed + '</b> 个 · 全部看完「学习兴趣」加 <b>10</b> 分' +
