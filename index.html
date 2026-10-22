@@ -3372,9 +3372,17 @@ async function appendStudentLectureTasks(container) {
       '<div style="font-size:11px;font-weight:600;flex-shrink:0;color:' + (lt.completed ? 'var(--success)' : 'var(--primary)') + ';">' + (lt.completed ? '已完成' : '待观看') + '</div></div>';
   });
   h += '</div>';
+  // 2026-10-22（年哥哥反馈）：首页「老师推荐的易错题精讲」重复出现 3 次——
+  // renderHomeByRole 会在导航/登录/云同步等多个时机各跑一条异步链，每条链都在
+  // fetch 完 lecture-tasks 后往 container append 一份卡片；慢返回的旧链会在新
+  // 内容渲染完之后再叠一份。改成「同 id 先移除再插入」，多条链竞争也只留最后一份。
   var box = document.createElement('div');
   box.innerHTML = h;
-  container.appendChild(box.firstChild);
+  var card = box.firstChild;
+  card.id = 'homeLectureTasksCard';
+  var stale = container.querySelector('#homeLectureTasksCard');
+  if (stale) stale.remove();
+  container.appendChild(card);
 }
 
 function openStudentTaskVideo(taskId) {
