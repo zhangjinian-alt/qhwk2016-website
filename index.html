@@ -1748,6 +1748,8 @@ function getTeachWeekStartDate() {
 // 电子荣誉证书下载解锁（2026-09-12 定版）：学习标兵/进步之星要到该教学周的周日 12:00
 // 之后评分累计才准（周末作业+视频在周日晚间收齐），此前禁止下载电子奖状。
 // 教学周周五开周 → 第 N 周起点 + 2 天 = 周日；起点改走 teachWeekStartOf 以兼容国庆调休。
+// 2026-10-24 起喜报默认展示上一周（_defaultLeaderboardWeek = 当前周-1），
+// 其解锁时点必然已过，本锁仅在第1周无上一周时兜底生效。
 function certUnlockTime(week) {
   var t = new Date(teachWeekStartOf(week || getTeachWeek()).getTime() + 2 * 86400000);
   t.setHours(12, 0, 0, 0);
@@ -6693,8 +6695,12 @@ function _defaultLeaderboardClass() {
 }
 
 function _defaultLeaderboardWeek() {
-  // 电子喜报用教学周（第1周起），与五维评价数据一致
-  return getTeachWeek();
+  // 2026-10-24（年哥定）：喜报默认展示上一周荣誉——教学周周五开周，
+  // 从本周五起一直到下周四，展示的都是上一周的学习标兵/进步之星，
+  // 孩子周五回家即可下载上周奖状（周日返校前完成）。
+  // 上一周的解锁时点（其周日12:00）必然已过，证书天然可下载；
+  // 第1周无上一周，仍显示第1周（未到周日12:00前照旧锁定）。
+  return Math.max(1, getTeachWeek() - 1);
 }
 
 // ===== 综合素养五维积分总榜（原五维评价累计积分总榜，2026-09-16 更名） =====
@@ -7232,11 +7238,11 @@ function renderEvalLeaderboard(container, data) {
   };
   var html = '<div style="max-height:560px;overflow-y:auto;padding-right:4px;">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">';
-  html += '<p style="font-size:13px;color:var(--text-muted);margin:0;">' + esc(data.class_name) + ' · 第 ' + data.week + ' 周</p>';
+  html += '<p style="font-size:13px;color:var(--text-muted);margin:0;">' + esc(data.class_name) + ' · 第 ' + data.week + ' 周（上周荣誉 · 每周五更新）</p>';
   html += '<p style="font-size:12px;color:var(--text-muted);margin:0;">' + esc(certLockedHint) + '</p>';
   html += '</div>';
-    html += renderList('本周数学学习标兵', '🏆', data.top_students, 'top', false, '');
-    html += renderList('本周数学进步之星', '🚀', data.progress_stars, 'progress', true, data.progress_note || '');
+    html += renderList('上周数学学习标兵', '🏆', data.top_students, 'top', false, '');
+    html += renderList('上周数学进步之星', '🚀', data.progress_stars, 'progress', true, data.progress_note || '');
     html += '</div>';
   container.innerHTML = html;
 }
@@ -7628,7 +7634,7 @@ async function downloadAllCertificates(items, className, week) {
 function downloadAllTopCertificates() {
   var data = window._evalLeaderboardData || {};
   var items = (data.top_students || []).map(function(s) {
-    return { name: s.name, title: '本周数学学习标兵', awardType: 'top', avatarUrl: s.avatar_url || '' };
+    return { name: s.name, title: '上周数学学习标兵', awardType: 'top', avatarUrl: s.avatar_url || '' };
   });
   downloadAllCertificates(items, data.class_name || '403班', data.week || 1);
 }
@@ -7636,7 +7642,7 @@ function downloadAllTopCertificates() {
 function downloadAllProgressCertificates() {
   var data = window._evalLeaderboardData || {};
   var items = (data.progress_stars || []).map(function(s) {
-    return { name: s.name, title: '本周数学进步之星', awardType: 'progress', avatarUrl: s.avatar_url || '' };
+    return { name: s.name, title: '上周数学进步之星', awardType: 'progress', avatarUrl: s.avatar_url || '' };
   });
   downloadAllCertificates(items, data.class_name || '403班', data.week || 1);
 }
@@ -12477,14 +12483,13 @@ function _corrItemHtml(it, i, hwId, isStu, isTeacher) {
     }
     if (it.corr_text) h += '<div style="margin-top:6px;background:#F6FFED;border-radius:8px;padding:8px;font-size:12px;">💬 ' + escHtmlSafe(it.corr_text) + '</div>';
   }
-  // 学生：未订正 / 未通过 → 显示（重新）订正输入区；已判对不再要求重订
+  // 学生：未订正 / 未通过 → 显示（重新）订正入口；已判对不再要求重订
   if (isStu && !(it.submitted && it.verdict === 'correct')) {
+    // 2026-10-25（年哥定）：取消文字订正，只保留拍照/视频两种——防止复制粘贴答案文字
     h += '<div style="margin-top:10px;">' +
-         '<textarea id="corrText-' + i + '" rows="2" placeholder="写下这题的订正过程或正确答案…" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;box-sizing:border-box;resize:vertical;"></textarea>' +
-         '<div style="display:flex;gap:8px;margin-top:8px;">' +
-         '<button onclick="submitHwCorrection(' + hwId + ',' + i + ',\'text\')" style="flex:1;padding:8px;background:#FA8C16;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">📮 提交文字订正</button>' +
-         '<button onclick="pickHwCorrectionMedia(' + i + ',\'image\')" title="拍照订正" style="padding:8px 14px;background:#fff;color:#FA8C16;border:1.5px solid #FA8C16;border-radius:8px;font-size:13px;cursor:pointer;">📷</button>' +
-         '<button onclick="pickHwCorrectionMedia(' + i + ',\'video\')" title="视频讲解" style="padding:8px 14px;background:#fff;color:#FA8C16;border:1.5px solid #FA8C16;border-radius:8px;font-size:13px;cursor:pointer;">🎥</button>' +
+         '<div style="display:flex;gap:8px;">' +
+         '<button onclick="pickHwCorrectionMedia(' + i + ',\'image\')" style="flex:1;padding:8px;background:#FA8C16;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">📷 拍照订正</button>' +
+         '<button onclick="pickHwCorrectionMedia(' + i + ',\'video\')" style="flex:1;padding:8px;background:#fff;color:#FA8C16;border:1.5px solid #FA8C16;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;">🎥 视频讲解</button>' +
          '</div></div>';
   }
   // 教师：逐题点评（2026-10-18 年哥定：每个错题下都可写评语，保存后学生端
@@ -12690,6 +12695,12 @@ function renderHwCorrectionSection(hw) {
       ? '<div style="font-size:12px;color:#CF1322;background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:10px;border:1px solid #FFA39E;">⚠️ 第6周起改为<b>逐题订正</b>：你之前的整份订正已作废，请按下面每道错题重新订正一遍（全部订正合格后学习效果才 +2）。</div>'
       : '<div style="font-size:12px;color:#B57D05;background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:10px;">ℹ️ 你此前提交的整份订正仍然有效（学习效果分已计入）。</div>';
   }
+  // 2026-10-24（年哥定）：历史周作业补订提示——补订以前周次漏订的错题同样有效，
+  // 全部订正合格后 +2 订正分回写该周的学习效果分（2026-09-26 口径）。
+  var retro = '';
+  if (isStu && hw.is_past_week && (hw.teach_week || 0) >= 6) {
+    retro = '<div style="font-size:12px;color:#1D39C4;background:#F0F5FF;border-radius:8px;padding:8px 10px;margin-bottom:10px;border:1px solid #ADC6FF;">🕰️ 这是<b>第' + (hw.teach_week || 0) + '周</b>的作业：现在补订同样有效！把下面错题全部订正合格，订正分（+2）会<b>补回到第' + (hw.teach_week || 0) + '周</b>的学习效果分。</div>';
+  }
   // 2026-10-18（年哥）：收集本次作业全部订正照片，灯箱里可左右切换
   window._corrLbUrls = items.filter(function(x) {
     return x.corr_type === 'image' && x.corr_media_url;
@@ -12699,6 +12710,7 @@ function renderHwCorrectionSection(hw) {
     '<h4 style="margin-bottom:6px;">✏️ 错题订正（共 ' + n + ' 题）</h4>' +
     '<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">' + tip + '</p>' +
     legacy +
+    retro +
     '<div style="font-size:12px;color:var(--text-secondary);background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:12px;">' + stat + '</div>' +
     items.map(function(it, i) { return _corrItemHtml(it, i, hw.id, isStu, isTeacher); }).join('') +
     '</div>';
@@ -12720,28 +12732,22 @@ function pickHwCorrectionMedia(i, ctype) {
   inp.click();
 }
 
-// 提交单题订正（文字/拍照/视频）
+// 提交单题订正（拍照/视频；2026-10-25 年哥定：文字订正已停用）
 async function submitHwCorrection(hwId, i, ctype) {
   var it = (_hwCorrState.items || [])[i];
   if (!it) return;
   if (!isStudentLoggedIn()) { showToast('请先登录学生账号', 'error'); return; }
-  var ta = document.getElementById('corrText-' + i);
-  var text = (ta && ta.value.trim()) ? ta.value.trim() : '';
+  if (ctype === 'text') { showToast('文字订正已停用，请拍照或录视频订正', 'error'); return; }
   var fd = new FormData();
   fd.append('qkey', it.qkey);
   fd.append('corr_type', ctype);
-  fd.append('text', text);
-  if (ctype !== 'text') {
-    var inp = document.getElementById('corrFile-' + i);
-    if (!inp || !inp.files || !inp.files[0]) {
-      showToast(ctype === 'image' ? '请先拍照或选择图片' : '请先选择讲解视频', 'error');
-      return;
-    }
-    fd.append('file', inp.files[0]);
-  } else if (!text) {
-    showToast('请先写下你的订正', 'error');
+  fd.append('text', '');
+  var inp = document.getElementById('corrFile-' + i);
+  if (!inp || !inp.files || !inp.files[0]) {
+    showToast(ctype === 'image' ? '请先拍照或选择图片' : '请先选择讲解视频', 'error');
     return;
   }
+  fd.append('file', inp.files[0]);
   showToast('提交中…');
   try {
     var resp = await fetchWithAuth('/homework/' + hwId + '/correction', { method: 'POST', body: fd });
@@ -13366,6 +13372,15 @@ function renderPendingClassCard(c) {
         return '<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;background:#FFF7E6;color:#D46B08;border:1px solid #FFD591;" title="' + detail + '">' + escHtmlSafe(u.student_name) + '（' + (u.items || []).length + ' 份）</span>';
       }).join('') + '</div>'
     : '<p style="font-size:13px;color:var(--success);">✅ 没有待订正的作业</p>';
+  // 2026-10-24（年哥定）：历史周漏订补订榜（第6周起、逐题口径）——可一键催订，
+  // 学生补订合格后 +2 回写该周学习效果分。
+  var uncPast = c.uncorrected_past || [];
+  var uncPastHtml = uncPast.length
+    ? '<div style="display:flex;flex-wrap:wrap;gap:6px;">' + uncPast.map(function(u) {
+        var detail = (u.items || []).map(function(i) { return '第' + i.week + '周「' + escHtmlSafe(i.title) + '」已订' + i.submitted + ' 题，还剩 ' + i.pending + ' 题'; }).join('；');
+        return '<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;background:#F0F5FF;color:#1D39C4;border:1px solid #ADC6FF;" title="' + detail + '">' + escHtmlSafe(u.student_name) + '（共 ' + (u.total_pending || 0) + ' 题未订）</span>';
+      }).join('') + '</div>'
+    : '<p style="font-size:13px;color:var(--success);">✅ 第6周以来没有漏订的错题</p>';
   return '<div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px;">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">' +
     '<strong style="font-size:14px;">🏫 ' + escHtmlSafe(c.class_name) + '</strong>' +
@@ -13378,6 +13393,10 @@ function renderPendingClassCard(c) {
     '<span style="font-size:13px;font-weight:600;">✏️ 未订正（' + unc.length + ' 人）</span>' +
     (unc.length ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;color:var(--warning);" onclick="urgeHomeworkNotice(\'uncorrected\',\'' + escHtmlSafe(c.class_name) + '\')">📣 一键催订正</button>' : '') +
     '</div>' + uncHtml +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 4px;">' +
+    '<span style="font-size:13px;font-weight:600;">🕰️ 历史周漏订（' + uncPast.length + ' 人，可补订）</span>' +
+    (uncPast.length ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;color:#1D39C4;" onclick="urgeHomeworkNotice(\'uncorrected_past\',\'' + escHtmlSafe(c.class_name) + '\')">📣 一键催补订</button>' : '') +
+    '</div>' + uncPastHtml +
     '</div>';
 }
 
@@ -13581,6 +13600,14 @@ function urgeHomeworkNotice(kind, className) {
     var missNames = (cls.unsubmitted || []).map(function(u) { return u.student_name; });
     title = '【作业催交】' + className + '本周作业提交提醒';
     content = '亲爱的同学和家长：\n截至今天，以下同学的本周作业（' + (cls.expected_titles || []).join('、') + '）还未提交：\n' + missNames.join('、') + '\n\n请尽快完成作业并拍照上传到「家校互通 → 提交作业」，老师收到后会及时批改反馈。如已提交请忽略本提醒。';
+  } else if (kind === 'uncorrected_past') {
+    // 2026-10-24（年哥定）：历史周漏订一键催补订
+    var pastNames = (cls.uncorrected_past || []).map(function(u) {
+      var per = (u.items || []).map(function(i) { return '第' + i.week + '周还剩 ' + i.pending + ' 题'; }).join('、');
+      return u.student_name + '（' + per + '）';
+    });
+    title = '【错题补订提醒】' + className + '历史周错题补订提醒';
+    content = '亲爱的同学和家长：\n以下同学还有以前周次的错题没有订正完：\n' + pastNames.join('、') + '\n\n现在补订同样有效：请登录后到「学习反馈 → 作业反馈」，找到对应周次的作业，点击「去逐题订正」补订（拍照 / 视频 / 文字均可）。全部错题订正合格后，订正分（+2）会补回到该周的学习效果分。';
   } else {
     var fixNames = (cls.uncorrected || []).map(function(u) { return u.student_name + '（' + (u.items || []).length + ' 份）'; });
     title = '【错题订正提醒】' + className + '错题订正提醒';
