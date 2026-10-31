@@ -6024,6 +6024,25 @@ function _saEqCaSuspect(p) {
   var ca = (p.correct_answer == null ? '' : String(p.correct_answer)).trim();
   return !!(sa && ca && sa === ca);
 }
+// 2026-10-31（年哥哥案「判对却显示两个不一样的答案」）：展示态取值。
+// 后端判对时把两栏展示值统一成「值（单位）」（sa_display / ca_display），原文留在
+// sa_process / ca_process。原始 sa/ca 一个字不动，抄键审计与复核编辑照旧读原值。
+function _pDispSa(p) {
+  if (!p) return '';
+  var v = (p.sa_display != null && String(p.sa_display) !== '') ? p.sa_display : p.student_answer;
+  return v == null ? '' : String(v);
+}
+function _pDispCa(p) {
+  if (!p) return '';
+  var v = (p.ca_display != null && String(p.ca_display) !== '') ? p.ca_display : p.correct_answer;
+  return v == null ? '' : String(v);
+}
+// 学生原文（写法与展示值不同时才有值），用于「看原写法」小字
+function _pProcSa(p) {
+  if (!p) return '';
+  var v = String(p.sa_process || '').trim();
+  return (v && v !== _pDispSa(p)) ? v : '';
+}
 function mistakeWeekStatsHtml(ms) {
   var s = {};
   ms.forEach(function(m) {
@@ -6085,7 +6104,7 @@ function buildMistakeWeekHtml(all) {
         if (m.study_hint) blk += '<div class="reason" style="margin-top:2px;color:#B57D05;">💡 解析提示：' + fmtFrac(escapeHtml(m.study_hint)) + '</div>';
         blk += '<div class="solution" style="margin-top:2px;color:var(--text-muted);">🔒 参考答案暂不开放：请先自己动手订正这道题，订正合格后老师会为你开放（独立思考才是真进步）</div>';
       } else {
-        blk += '<div class="solution" style="margin-top:2px;">正确答案：' + fmtFrac(escapeHtml(m.correct_answer || '（未提供）')) + '</div>';
+        blk += '<div class="solution" style="margin-top:2px;">正确答案：' + fmtFrac(escapeHtml(_pDispCa(m) || '（未提供）')) + '</div>';
       }
       // 错法汇总压成单行（与顶部「学生答案」重复的详细信息不再逐行铺开）；
       // 「其他错误」这类空洞类型不显示（2026-09-22 深夜年哥反馈卡片乱）
@@ -12574,8 +12593,8 @@ async function viewHwFeedback(hwId, scrollToCorr) {
           // 2026-10-27：判错但系统记录的作答 = 标准答案（抄键产物）时，不再显示这个不可信的作答值
           var _sq = _saEqCaSuspect(p);
           var sa = _sq ? '<b style="color:#8A5300;">（识别存疑）</b>'
-            : ((p.student_answer != null && String(p.student_answer) !== '')
-              ? '<b>' + fmtFrac(p.student_answer) + '</b>' : '（未识别）');
+            : ((_pDispSa(p) !== '')
+              ? '<b>' + fmtFrac(_pDispSa(p)) + '</b>' + (_pProcSa(p) ? ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">（原写法：' + fmtFrac(escHtmlSafe(_pProcSa(p))) + '）</span>' : '') : '（未识别）');
           var lbl = it.label ? it.label + '：' : '';
           var line = '<div style="margin-top:4px;font-size:14px;">' + lbl + '学生答案：' + sa + ' ' + mark + '</div>';
           if (_sq) line += '<div class="hw-problem-detail" style="color:#8A5300;">⚠️ 系统识别的作答文字与标准答案相同，属识别不可靠，请以老师对照原图的复核结论为准</div>';
@@ -12588,7 +12607,7 @@ async function viewHwFeedback(hwId, scrollToCorr) {
             // 2026-10-18：该题订正合格（corrections.answer_opened）→ 主列表同步开放
             var _showAns = (getCurrentRole() === 'teacher') || ((hw.teach_week || 0) < 6) ||
                            (g.key && _corrOpenedQkeys.indexOf(g.key) >= 0);
-            var ca = (_showAns && !_sq && p.correct_answer != null && String(p.correct_answer) !== '') ? fmtFrac(p.correct_answer) : '';
+            var ca = (_showAns && !_sq && _pDispCa(p) !== '') ? fmtFrac(_pDispCa(p)) : '';
             if (ca) line += '<div class="hw-problem-detail">正确答案：<strong style="color:#389E0D;">' + ca + '</strong></div>';
             if (p.hint) line += '<div class="hw-problem-detail">💡 ' + fmtFrac(escapeHtml(p.hint)) + '</div>';
           }
@@ -13265,6 +13284,8 @@ function toggleTeacherToolBox() {
   if (arrow) arrow.textContent = show ? ' ▾' : ' ▸';
   // 2026-10-31：审计面板在折叠区内，首次展开时自动拉一次，省得老师再点刷新
   if (show && !window._saRawLoaded) loadSaRawAudit(0, _saRawOnly, true);
+  // 2026-10-31 P2-2：改判回流看板同理，首次展开自动加载
+  if (show && !window._ovLoaded) loadOvPanel(true);
 }
 function renderHwGrading() {
   var section = document.getElementById('hwGradingSection');
@@ -13307,6 +13328,26 @@ function renderHwGrading() {
       '</div>' +
       '<div id="saRawStat"></div>' +
       '<div id="saRawList"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">点「刷新」加载</p></div>' +
+      '</div>' +
+      // 📊 改判回流看板（2026-10-31 P2-2，年哥哥定：把人工改判沉淀成质量指标）
+      // 数据源 grading_overrides：只记「净改判」（教师最终判定 ≠ AI 基线判定）。
+      // 漏判率 = AI 判错但有被教师改对 ÷ 该周 AI 判错题数；误判率同理。两个数
+      // 就是「AI 批改到底靠不靠谱」的硬指标，也是错因码护栏该先修哪一条的依据。
+      '<div class="ak-card" style="margin-top:16px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">' +
+      '<h4 style="margin:0;">📊 改判回流看板</h4>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+      '<select id="ovWeeks" onchange="loadOvPanel(true)" style="padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);color:var(--text-primary);">' +
+      '<option value="4">近 4 周</option><option value="8" selected>近 8 周</option><option value="16">近 16 周</option>' +
+      '</select>' +
+      '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="loadOvPanel(true)">🔄 刷新</button>' +
+      '</div>' +
+      '</div>' +
+      '<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">每一条都是「教师最终判定 ≠ AI 判定」的<strong>净改判</strong>（教师改回 AI 原判会自动销账）。<strong>漏判率</strong>=AI 判错却被改对的 ÷ 该周 AI 判错数（冤枉学生）；<strong>误判率</strong>=AI 判对却被改错的 ÷ 该周 AI 判对数（放过错题）。错因码一栏直接告诉你：哪个码的判错最不可信，下一道护栏就该修它。第 2–5 周为旧口径（答案键本身有错、或式键未支持），未回填，趋势只从第 6 周起可比。</p>' +
+      '<div id="ovSummary"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">点「刷新」加载</p></div>' +
+      '<div id="ovCodes"></div>' +
+      '<div id="ovTable"></div>' +
+      '<div id="ovSamples"></div>' +
       '</div>' +
       // 未交 / 未订正管理区（2026-09-05）
       '<div class="ak-card" style="margin-top:16px;">' +
@@ -14093,8 +14134,8 @@ async function viewHwDetail(hwId) {
           var mark = '<span style="color:#C62828;font-weight:700;">' + (p.is_correct ? '（√）' : '（×）') + '</span>';
           var _sq = _saEqCaSuspect(p);   // 2026-10-27：抄键产物，作答值不可信
           var sa = _sq ? '<b style="color:#8A5300;">（识别存疑）</b>'
-            : ((p.student_answer != null && String(p.student_answer) !== '')
-              ? '<b>' + fmtFrac(p.student_answer) + '</b>' : '（未识别）');
+            : ((_pDispSa(p) !== '')
+              ? '<b>' + fmtFrac(_pDispSa(p)) + '</b>' + (_pProcSa(p) ? ' <span style="font-size:12px;color:var(--text-muted);font-weight:400;">（原写法：' + fmtFrac(escHtmlSafe(_pProcSa(p))) + '）</span>' : '') : '（未识别）');
           var lbl = it.label ? it.label : '';
           if (lbl) lbl += '：';
           var line = '<div style="margin-top:4px;font-size:14px;">' + lbl + '学生答案：' + sa + ' ' + mark + '</div>';
@@ -14625,6 +14666,155 @@ async function deleteHw(hwId) {
 var _saRawOnly = 'flagged';    // 默认只看「系统动过作答」的条目；抄键可疑（eqkey）量大，按需切换
 var _saRawLoaded = false;
 var _saRawLoading = false;
+
+// ===== 📊 改判回流看板（P2-2，2026-10-31）=====
+// 数据来自 grading_overrides：只记净改判。指标口径见后端 _ov_stats_payload。
+var _ovLoading = false;
+var _ovLoaded = false;
+
+async function loadOvPanel(force) {
+  var box = document.getElementById('ovSummary');
+  if (!box) return;
+  if (_ovLoading && !force) return;
+  _ovLoading = true;
+  var sel = document.getElementById('ovWeeks');
+  var weeks = sel ? parseInt(sel.value, 10) || 8 : 8;
+  box.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p>';
+  try {
+    var resp = await fetchWithAuth('/teacher/grading-overrides/stats?weeks=' + weeks);
+    if (!resp.ok) {
+      var msg = '加载失败（HTTP ' + resp.status + '）';
+      try { var j = await resp.json(); if (j && j.detail) msg = j.detail; } catch (e2) {}
+      throw new Error(msg);
+    }
+    var d = await resp.json();
+    _ovLoaded = true;
+    renderOvSummary(d);
+    renderOvCodes(d.weeks || []);
+    renderOvTable(d.weeks || []);
+    renderOvSamples(d.samples || []);
+  } catch (e) {
+    box.innerHTML = '<p style="font-size:13px;color:var(--danger);text-align:center;padding:12px;">' +
+      escHtmlSafe(e.message || '加载失败') + '</p>';
+    var t = document.getElementById('ovTable'); if (t) t.innerHTML = '';
+    var s = document.getElementById('ovSamples'); if (s) s.innerHTML = '';
+    var c = document.getElementById('ovCodes'); if (c) c.innerHTML = '';
+  } finally {
+    _ovLoading = false;
+  }
+}
+
+function _ovPct(v, digits) {
+  var n = Number(v);
+  if (!isFinite(n)) n = 0;
+  return n.toFixed(digits === undefined ? 1 : digits) + '%';
+}
+
+function renderOvSummary(d) {
+  var el = document.getElementById('ovSummary');
+  if (!el) return;
+  var S = d.summary || {};
+  var judgedRight = Math.max(0, (S.total || 0) - (S.wrong || 0));
+  var wrongRate = judgedRight ? 100.0 * (S.to_wrong || 0) / judgedRight : 0;
+  var cell = function (label, val, sub, color, hint) {
+    return '<div title="' + escHtmlSafe(hint || '') + '" style="flex:1;min-width:92px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:7px 9px;text-align:center;">' +
+      '<div style="font-size:11px;color:var(--text-muted);white-space:nowrap;">' + label + '</div>' +
+      '<div style="font-size:17px;font-weight:700;color:' + (color || 'var(--text-primary)') + ';line-height:1.4;">' + val + '</div>' +
+      (sub ? '<div style="font-size:10px;color:var(--text-muted);white-space:nowrap;">' + sub + '</div>' : '') +
+      '</div>';
+  };
+  var h = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">' +
+    cell('题目条目', S.total || 0, '近 ' + (S.weeks || 8) + ' 周', '#4A90D9', '参与统计的题目条数') +
+    cell('AI 判错', S.wrong || 0, '基线', '', 'grade_result 里 is_correct=0 的条目') +
+    cell('净改判', S.overrides || 0, _ovPct(S.rate || 0, 2) + ' 的题', '#1D5FA8', '教师最终判定与 AI 不同的题数') +
+    cell('漏判（冤枉）', S.to_right || 0, '漏判率 ' + _ovPct(S.miss_rate || 0), '#CF1322', 'AI 判错、教师改对 ÷ 该周 AI 判错数') +
+    cell('误判（放过）', S.to_wrong || 0, '误判率 ' + _ovPct(wrongRate), '#D46B08', 'AI 判对、教师改错 ÷ 该周 AI 判对数') +
+    '</div>';
+  el.innerHTML = h;
+}
+
+function renderOvCodes(weeks) {
+  var el = document.getElementById('ovCodes');
+  if (!el) return;
+  var wk = null;
+  for (var i = 0; i < weeks.length; i++) {
+    if (weeks[i].codes && weeks[i].codes.length) { wk = weeks[i]; break; }
+  }
+  if (!wk) { el.innerHTML = ''; return; }
+  var rows = '';
+  wk.codes.forEach(function (c) {
+    var w = Math.max(0, Math.min(100, Number(c.rate) || 0));
+    rows += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">' +
+      '<span style="width:52px;font-size:12px;font-weight:600;color:var(--text-primary);">' + escHtmlSafe(c.code || '未标') + '</span>' +
+      '<span style="flex:1;min-width:0;font-size:11px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtmlSafe(c.label || '') + '</span>' +
+      '<span style="width:132px;height:8px;background:var(--border);border-radius:4px;overflow:hidden;">' +
+      '<span style="display:block;height:100%;width:' + w + '%;background:#CF1322;"></span></span>' +
+      '<span style="width:96px;text-align:right;font-size:11px;color:var(--text-muted);white-space:nowrap;">' +
+      (c.flipped || 0) + '/' + (c.wrong || 0) + ' · ' + _ovPct(c.rate) + '</span>' +
+      '</div>';
+  });
+  el.innerHTML = '<div style="margin:4px 0 12px;">' +
+    '<div style="font-size:12px;font-weight:600;margin-bottom:6px;">错因码可信度（第 ' + (wk.week || '') + ' 周，条越长越不可信）</div>' +
+    rows + '</div>';
+}
+
+function renderOvTable(weeks) {
+  var el = document.getElementById('ovTable');
+  if (!el) return;
+  if (!weeks.length) { el.innerHTML = ''; return; }
+  var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+    '<thead><tr style="color:var(--text-muted);text-align:right;">' +
+    '<th style="text-align:left;padding:5px 6px;font-weight:600;">周</th>' +
+    '<th style="padding:5px 6px;font-weight:600;">复核份</th>' +
+    '<th style="padding:5px 6px;font-weight:600;">题数</th>' +
+    '<th style="padding:5px 6px;font-weight:600;">AI判错</th>' +
+    '<th style="padding:5px 6px;font-weight:600;">净改判</th>' +
+    '<th style="padding:5px 6px;font-weight:600;">漏判</th>' +
+    '<th style="padding:5px 6px;font-weight:600;">误判</th>' +
+    '<th style="padding:5px 6px;font-weight:600;">漏判率</th>' +
+    '<th style="padding:5px 6px;font-weight:600;">误判率</th>' +
+    '</tr></thead><tbody>';
+  weeks.forEach(function (w) {
+    var judgedRight = Math.max(0, (w.total || 0) - (w.wrong || 0));
+    var wrongRate = judgedRight ? 100.0 * (w.to_wrong || 0) / judgedRight : 0;
+    if (!(w.total || 0)) return;
+    h += '<tr style="border-top:1px solid var(--border);text-align:right;">' +
+      '<td style="text-align:left;padding:5px 6px;font-weight:600;">第' + (w.week || '') + '周</td>' +
+      '<td style="padding:5px 6px;">' + (w.homework || 0) + '</td>' +
+      '<td style="padding:5px 6px;">' + (w.total || 0) + '</td>' +
+      '<td style="padding:5px 6px;">' + (w.wrong || 0) + '</td>' +
+      '<td style="padding:5px 6px;font-weight:600;color:#1D5FA8;">' + (w.overrides || 0) + '</td>' +
+      '<td style="padding:5px 6px;color:#CF1322;">' + (w.to_right || 0) + '</td>' +
+      '<td style="padding:5px 6px;color:#D46B08;">' + (w.to_wrong || 0) + '</td>' +
+      '<td style="padding:5px 6px;">' + _ovPct(w.miss_rate || 0) + '</td>' +
+      '<td style="padding:5px 6px;">' + _ovPct(wrongRate) + '</td>' +
+      '</tr>';
+  });
+  h += '</tbody></table></div>';
+  el.innerHTML = h;
+}
+
+function renderOvSamples(list) {
+  var el = document.getElementById('ovSamples');
+  if (!el) return;
+  if (!list || !list.length) { el.innerHTML = ''; return; }
+  var h = '<div style="margin-top:12px;"><div style="font-size:12px;font-weight:600;margin-bottom:6px;">最近改判样本</div>';
+  list.forEach(function (s) {
+    var toRight = Number(s.ai_verdict) === 0 && Number(s.teacher_verdict) === 1;
+    var tag = toRight
+      ? '<span style="color:#CF1322;font-weight:600;">AI判错→师判对</span>'
+      : '<span style="color:#D46B08;font-weight:600;">AI判对→师判错</span>';
+    h += '<div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:12px;padding:5px 0;border-top:1px solid var(--border);">' +
+      '<span style="color:var(--text-muted);white-space:nowrap;">第' + (s.week || '') + '周 · hw' + (s.hw_id || '') + '</span>' +
+      '<span style="font-weight:600;white-space:nowrap;">' + escHtmlSafe(s.qlabel || '-') + '</span>' +
+      tag +
+      (s.ai_error_code ? '<span style="color:var(--text-muted);white-space:nowrap;">' + escHtmlSafe(s.ai_error_code) + '</span>' : '') +
+      '<span style="flex:1;min-width:120px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtmlSafe(s.qtext || '') + '</span>' +
+      '</div>';
+  });
+  h += '</div>';
+  el.innerHTML = h;
+}
 
 function switchSaRawFilter(only, btn) {
   _saRawOnly = only || 'flagged';
