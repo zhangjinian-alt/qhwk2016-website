@@ -1447,8 +1447,9 @@ body::before {
       <input type="password" id="cloudPassword" placeholder="密码" autocomplete="current-password" style="width:100%;padding:12px;margin-bottom:10px;border:1px solid #ddd;border-radius:8px;font-size:15px;box-sizing:border-box;outline:none;">
       <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:#666;margin:0 0 10px;cursor:pointer;-webkit-user-select:none;user-select:none;">
         <input type="checkbox" id="cloudRemember" checked style="width:16px;height:16px;accent-color:#4A90D9;flex:none;">
-        <span>记住账号密码（30 天内免输入）</span>
+        <span>30 天内免登录（学生默认开启）</span>
       </label>
+      <p style="color:#999;font-size:12px;margin:0 0 10px;line-height:1.6;">学生账号登录后 30 天内打开本页自动登录，无需再输账号密码；共用手机请点右上角「云端已连接」退出。</p>
       <div id="cloudRememberHint" style="display:none;background:#EFF6FF;border:1px solid #BFD8F0;color:#31708F;font-size:12px;margin:0 0 10px;padding:7px 9px;border-radius:8px;line-height:1.5;"></div>
       <button id="cloudLoginBtn" onclick="doCloudLogin()" style="width:100%;padding:12px;background:#4A90D9;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600;">登录</button>
       <div style="text-align:center;margin-top:12px;">
@@ -1942,6 +1943,38 @@ function rememberDaysLeft() {
   return Math.max(1, Math.ceil((c.ts + REMEMBER_DAYS * 86400000 - Date.now()) / 86400000));
 }
 
+// 学生端凭据滑动续期（2026-10-31 年哥哥：手机登录后 30 天内免账号密码）
+// 后端学生账号本身就签发 30 天凭据；这里再每 6 天续一次，等价于「只要 30 天内打开过
+// 就一直免登录」，家长不用记密码、也不依赖「记住我」勾选。
+// 教师端不自动续期（管理账号安全优先，仍是 7 天）。
+async function maybeRefreshStudentToken() {
+  if (!isCloudLoggedIn()) return false;
+  try {
+    var role = getCloudRole();
+    if (!role) role = await ensureCloudRole();
+    if (role !== 'student') return false;
+    var last = parseInt(localStorage.getItem('qhwk_token_refresh_ts') || '0', 10) || 0;
+    if (last && Date.now() - last < 6 * 86400000) return true;   // 6 天内不重复续
+    var resp = await fetch(API_BASE + '/auth/refresh', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + getCloudToken() }
+    });
+    if (resp.ok) {
+      var d = await resp.json();
+      if (d && d.access_token) {
+        setCloudToken(d.access_token);
+        try { localStorage.setItem('qhwk_token_refresh_ts', String(Date.now())); } catch (e) {}
+        if (d.expires_at) console.log('[免登录] 学生凭据已续期至 ' + d.expires_at);
+      }
+      return true;
+    }
+    if (resp.status === 401) clearCloudToken();
+  } catch (e) {
+    console.warn('凭据续期失败（不影响本次使用）:', e.message);
+  }
+  return false;
+}
+
 // 登录（remember=true 时后端签发 30 天长效 token）
 async function cloudLogin(username, password, remember) {
   const resp = await fetch(API_BASE + "/auth/login", {
@@ -1951,6 +1984,8 @@ async function cloudLogin(username, password, remember) {
   if (resp.ok) {
     const r = await resp.json();
     setCloudToken(r.access_token);
+    // 刚拿到新凭据，记一下续期时间，免得进页面又续一次
+    try { localStorage.setItem("qhwk_token_refresh_ts", String(Date.now())); } catch (e) {}
     // 2026-09-16 商城权限修复：云端账号真实角色落盘（界面角色标签本地可随意切，不能作为权限依据）
     try { localStorage.setItem("qhwk_cloud_role", r.role || "student"); } catch (e) {}
     return { ok: true, role: r.role || 'teacher' };
@@ -3313,8 +3348,8 @@ function renderStudentHomeTasks(container, tasks, prog) {
   });
   if (prog && prog.applicable) {
     html += '<div style="background:#EAF3FB;border:1.5px solid #CFE3F5;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:12.5px;color:#2C6CA8;line-height:1.6;">' +
-      '🎯 第 ' + getTeachWeek() + ' 周任务已完成 <b>' + prog.done + '/' + prog.pushed + '</b> 个 · 全部看完「学习兴趣」加 <b>10</b> 分' +
-      '（当前得分 <b>' + prog.score + '</b> 分。当周没看完的，补看完照样加分）</div>';
+      '🎯 第 ' + getTeachWeek() + ' 周推送 <b>' + prog.pushed + '</b> 个视频 · <b>按观看比例计分</b>，全部看完「学习兴趣」加 <b>10</b> 分' +
+      '（当前得分 <b>' + prog.score + '</b> 分，已看完 ' + prog.done + ' 个；当周没看完的，补看完照样加分）</div>';
   }
   html += '</div><div class="reward-row"><span>完成全部可得</span><span style="font-size:18px;">⭐⭐⭐</span></div></div>';
   container.innerHTML = html;
@@ -4563,14 +4598,23 @@ async function renderMistakesBoard() {
         var _posTxt = '第' + (typeof _cnOrd === 'function' ? _cnOrd(m.blank_pos) : m.blank_pos) + '个空';
         html += '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;line-height:1.8;">' + fmtFrac(escHtmlSafe(_posTxt)) + '</div>';
       }
-      var vs = m.variants || [];
+      var _caV = (m.correct_answer == null ? '' : String(m.correct_answer)).trim();
+      var _vsAll = m.variants || [];
+      // 2026-10-27：作答文字 = 正确答案的「错法」是抄键产物，不当作错法展示
+      var vs = _vsAll.filter(function(v) {
+        return !(_caV && String(v.student_answer || '').trim() === _caV);
+      });
+      var _vsHidden = _vsAll.length - vs.length;
       if (vs.length > 0) {
         html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;line-height:1.8;">✍️ 学生答案（' + vs.length + ' 种错法）：';
         html += vs.map(function(v) {
           var t = v.student_answer ? ('答「' + v.student_answer + '」') : (v.error_type || '其他错误');
           return '<span style="display:inline-block;background:#FFF1E6;border-radius:6px;padding:1px 8px;margin:2px 4px 2px 0;color:#E8590C;">' + fmtFrac(escHtmlSafe(t)) + ' ×' + v.count + '人</span>';
         }).join('');
+        if (_vsHidden > 0) html += '<span style="display:inline-block;background:#FFF3E0;border-radius:6px;padding:1px 8px;color:#8A5300;">另 ' + _vsHidden + ' 人作答文字识别存疑（以原图为准）</span>';
         html += '</div>';
+      } else if (_vsHidden > 0) {
+        html += '<div style="font-size:12px;color:#8A5300;margin-bottom:6px;line-height:1.8;">✍️ ' + _vsHidden + ' 人答错，但系统识别的作答文字不可靠（与标准答案相同），请以原图为准</div>';
       } else {
         html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;line-height:1.8;">常见错误：' + fmtFrac(escHtmlSafe(m.error_type || '—')) + '</div>';
       }
@@ -5952,14 +5996,33 @@ function mistakeWeekOf(m) {
 function _errCodeBadge(p) {
   var c = String((p && p.error_code) || '').toUpperCase();
   var L = {A1:'概念不清',A2:'概念不清',A3:'概念不清',A4:'概念不清',
-           B1:'计算失误',B2:'计算失误',B3:'计算失误',B4:'计算失误',
+           B1:'计算失误',B2:'计算失误',B3:'计算失误',B4:'计算失误',B5:'计算失误',
            C1:'审题偏差',C2:'审题偏差',C3:'审题偏差',C4:'审题偏差',
            D1:'书写规范',D2:'书写规范',D3:'书写规范',D4:'书写规范',
            E1:'建模偏差',E2:'建模偏差',E3:'建模偏差',
            F1:'操作失范',F2:'操作失范',F3:'操作失范'};
   if (c === 'BLANK') return '<span style="display:inline-block;background:#F3F4F6;color:#6B7280;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:600;margin-right:6px;">未作答</span>';
-  if (!L[c]) return '';
+  if (!L[c]) {
+    // 2026-10-26：学生答案曾被系统改写、错因码待复核的记录，挂灰色「待复核」标签。
+    // 此前这些记录的 error_type 里是英文系统标记 sa_mismatch_after_fix（家长端可见），
+    // 已批量清出到独立字段；这里给出中文可读的状态，避免「分析：」后面一片空白。
+    if (p && (p.sa_mismatch_after_fix || p.review_rejudged || p.answer_equals_key)) return '<span style="display:inline-block;background:#F3F4F6;color:#6B7280;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:600;margin-right:6px;" title="该条判定存疑（系统复核调整／作答曾被改写／答案与标准答案相同），请以老师复核为准">待复核</span>';
+    return '';
+  }
   return '<span style="display:inline-block;background:#E7F1FB;color:#1D5FA8;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:600;margin-right:6px;">' + c + '·' + L[c] + '</span>';
+}
+// 2026-10-27（年哥定）：判错、但系统记录的学生作答与标准答案一字不差 →
+// 极可能是旧抄键护栏把标准答案写进了 student_answer（学生真实手写内容已不可还原）。
+// 这类题家长端会出现「作答 252360（×）· 正确答案 252360」的自相矛盾画面，
+// 故统一改口径：不再并排显示这对相同值，改提示「识别存疑，以老师对照原图的复核为准」。
+function _saEqCaSuspect(p) {
+  if (!p || p.is_correct) return false;
+  // 2026-10-27（A 方案）：后端复核落库时已判定「作答非学生真迹」并打标 → 直接采信，
+  // 不再只靠「两个值长得一样」反推（分隔符/全半角差异也能覆盖）
+  if (p.sa_unreliable) return true;
+  var sa = (p.student_answer == null ? '' : String(p.student_answer)).trim();
+  var ca = (p.correct_answer == null ? '' : String(p.correct_answer)).trim();
+  return !!(sa && ca && sa === ca);
 }
 function mistakeWeekStatsHtml(ms) {
   var s = {};
@@ -5998,11 +6061,23 @@ function buildMistakeWeekHtml(all) {
       // 位次，后端 _row_blank_ctx 聚合），不是「错空里的第几个」
       var lbl = m.blank_pos ? '<b>第' + _cnOrd(m.blank_pos) + '个空</b>：'
         : (it.label ? '<b>' + it.label + '</b>：' : '');
+      var _saTxt = (sa == null ? '' : String(sa)).trim();
+      var _caTxt = (m.correct_answer == null ? '' : String(m.correct_answer)).trim();
+      // 2026-10-27：作答文字 = 正确答案的是抄键产物，不显示这个不可信的值
+      var _sq = !!(_saTxt && _caTxt && _saTxt === _caTxt);
       var blk = '<div style="margin-top:6px;font-size:14px;">' + lbl + '学生答案：' +
-        (sa ? fmtFrac(escapeHtml(String(sa))) : '（答案未识别）') +
+        (_sq ? '<span style="color:#8A5300;font-weight:600;">（识别存疑，以原图为准）</span>'
+             : (sa ? fmtFrac(escapeHtml(String(sa))) : '（答案未识别）')) +
         ' <span style="color:#C62828;font-weight:700;">（×）</span></div>';
       var why = (top.error_reason || top.error_type || m.error_reason || m.error_type || '').trim();
-      if (why) blk += '<div class="reason" style="margin-top:2px;">分析：' + fmtFrac(escapeHtml(why)) + '</div>';
+      // 2026-10-26：学生作答曾被系统改写、错因待复核 → 显示灰色「待复核」，
+      // 并压掉兜底出来的「其他错误」，与复核页/详情页口径一致
+      // 2026-10-27：已有明确错因码的不再挂「待复核」——老师已定性的题不该再提示存疑
+      var _pend = (!(top.error_code || m.error_code) &&
+        (top.sa_mismatch_after_fix || m.sa_mismatch_after_fix || top.review_rejudged || m.review_rejudged || top.answer_equals_key || m.answer_equals_key)) ? 1 : 0;
+      if (_pend) why = '';
+      var _pendBadge = _pend ? '<span style="display:inline-block;background:#F3F4F6;color:#6B7280;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:600;margin-right:6px;" title="学生的作答内容曾被系统改写，此处判定请以老师复核为准">待复核</span>' : '';
+      if (why || _pendBadge) blk += '<div class="reason" style="margin-top:2px;">分析：' + _pendBadge + fmtFrac(escapeHtml(why)) + '</div>';
       // 2026-10-10（年哥定）：学生端第6周起错题本不下发答案（后端 answers_hidden=1），
       // 这里显示锁定提示，避免学生以为"答案丢失"
       if (m.answers_hidden) {
@@ -6200,12 +6275,17 @@ function buildReviewWeekHtml(data) {
         var ansHtml = t.answer ? '<div style="font-size:12px;color:var(--success);line-height:1.8;">✅ 正确答案：' + fmtFrac(escapeHtml(t.answer)) + '</div>' : '';
         var vs = t.variants || [];
         var vHtml = '';
-        if (vs.length) {
-          vHtml = '<div style="font-size:12px;color:var(--text-muted);line-height:1.8;">⚠️ 不同错法（' + vs.length + ' 种）：' +
-            vs.map(function(v) {
+        // 2026-10-27：作答文字 = 正确答案的是抄键产物，不计入「不同错法」
+        var _caR = (t.answer == null ? '' : String(t.answer)).trim();
+        var _vsR = vs.filter(function(v) { return !(_caR && String(v.student_answer || '').trim() === _caR); });
+        var _vHideR = vs.length - _vsR.length;
+        if (_vsR.length || _vHideR) {
+          vHtml = '<div style="font-size:12px;color:var(--text-muted);line-height:1.8;">⚠️ 不同错法（' + _vsR.length + ' 种）：' +
+            _vsR.map(function(v) {
               var txt = v.student_answer ? ('答「' + v.student_answer + '」') : (v.error_type || '其他错误');
               return '<span style="display:inline-block;background:#FFF1E6;border-radius:6px;padding:1px 8px;margin:2px 4px 2px 0;color:#E8590C;">' + fmtFrac(escapeHtml(txt)) + ' ×' + v.count + '人</span>';
-            }).join('') + '</div>';
+            }).join('') +
+            (_vHideR > 0 ? '<span style="display:inline-block;background:#FFF3E0;border-radius:6px;padding:1px 8px;color:#8A5300;">另 ' + _vHideR + ' 人作答识别存疑（以原图为准）</span>' : '') + '</div>';
         }
         return '<div class="review-item">' +
           '<div class="review-rank ' + rankClass + '">' + (i + 1) + '</div>' +
@@ -6254,12 +6334,17 @@ function openReviewModal(idx) {
     html += '<p style="font-size:13px;color:var(--text-muted);line-height:1.8;margin:0 0 6px;">🔒 参考答案暂不开放：先自己订正这道题，订正合格后老师会为你开放</p>';
   }
   var vs = t.variants || [];
-  if (vs.length) {
-    html += '<p style="font-size:12px;color:var(--text-muted);line-height:1.8;margin:0 0 6px;">⚠️ 不同错法（' + vs.length + ' 种）：';
-    html += vs.map(function(v) {
+  // 2026-10-27：作答文字 = 正确答案的是抄键产物，不计入「不同错法」
+  var _caM = (t.answer == null ? '' : String(t.answer)).trim();
+  var _vsM = vs.filter(function(v) { return !(_caM && String(v.student_answer || '').trim() === _caM); });
+  var _vHideM = vs.length - _vsM.length;
+  if (_vsM.length || _vHideM) {
+    html += '<p style="font-size:12px;color:var(--text-muted);line-height:1.8;margin:0 0 6px;">⚠️ 不同错法（' + _vsM.length + ' 种）：';
+    html += _vsM.map(function(v) {
       var txt = v.student_answer ? ('答「' + v.student_answer + '」') : (v.error_type || '其他错误');
       return '<span style="display:inline-block;background:#FFF1E6;border-radius:6px;padding:1px 8px;margin:2px 4px 2px 0;color:#E8590C;">' + fmtFrac(escapeHtml(txt)) + ' ×' + v.count + '人</span>';
     }).join('');
+    if (_vHideM > 0) html += '<span style="display:inline-block;background:#FFF3E0;border-radius:6px;padding:1px 8px;color:#8A5300;">另 ' + _vHideM + ' 人作答识别存疑（以原图为准）</span>';
     html += '</p>';
   }
   html += '<p style="font-size:14px;color:var(--text);line-height:1.8;margin:0;">' + fmtFrac(escapeHtml(t.reason)) + '</p>';
@@ -7192,7 +7277,7 @@ function renderEvalLeaderboard(container, data) {
   var certLocked = !certDownloadUnlocked(data.week);
   var certLockedHint = certLocked
     ? '🔒 本周评分尚在累计，' + certUnlockHint(data.week) + ' 后可下载奖状'
-    : '👆 点击头像下载电子奖状';
+    : '👆 点击头像保存电子奖状到相册';
   var esc = function(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
   var encodePayload = function(obj) {
     try { return btoa(encodeURIComponent(JSON.stringify(obj))); } catch(e) { return ''; }
@@ -7225,7 +7310,7 @@ function renderEvalLeaderboard(container, data) {
       if (certLocked) {
         html += '<div style="padding:8px 4px;border-radius:12px;opacity:.65;" title="' + esc(certLockedHint) + '">';
       } else {
-        html += '<div style="cursor:pointer;padding:8px 4px;border-radius:12px;transition:background .2s;" onmouseover="this.style.background=\'#F7F9FC\'" onmouseout="this.style.background=\'transparent\'" onclick="downloadCertificate(\'' + payload + '\')" title="点击下载电子奖状">';
+        html += '<div style="cursor:pointer;padding:8px 4px;border-radius:12px;transition:background .2s;" onmouseover="this.style.background=\'#F7F9FC\'" onmouseout="this.style.background=\'transparent\'" onclick="downloadCertificate(\'' + payload + '\')" title="点击保存电子奖状到相册">';
       }
       html += '<div style="position:relative;width:72px;height:72px;margin:0 auto;border-radius:50%;overflow:hidden;border:3px solid ' + borderColor + ';background:#E8ECF1;box-shadow:0 3px 8px rgba(0,0,0,0.08);">';
       html += avatar(s, 72, borderColor);
@@ -7573,6 +7658,65 @@ function generateCertificate(name, awardTitle, className, week, avatarUrl, award
   });
 }
 
+// ===== 电子奖状保存（2026-10-31 年哥哥：手机端统一存到相册）=====
+// 浏览器出于安全限制不能直接写手机相册，所以移动端走两条路，按可靠性排序：
+//   ① navigator.share 系统分享面板：安卓 Chrome / iOS Safari 里有「保存到相册 / 存储图像」；
+//   ② 兜底：把奖状渲染成常驻大图，长按 → 保存图片（微信、iOS、安卓都支持这条）。
+// 电脑端维持原样，直接下载到「下载」文件夹。
+function _isMobileUA() {
+  return /Android|iPhone|iPad|iPod|HarmonyOS|Mobile|MicroMessenger/i.test(navigator.userAgent || '');
+}
+function _certFileName(name, awardType) {
+  return (name || '学生') + '_' + (awardType === 'top' ? '数学学习标兵' : '数学进步之星') + '_奖状.png';
+}
+
+// 长按保存面板：图必须留在页面上，不能是自动消失的 toast
+function showCertSaveSheet(dataUrl, fileName) {
+  var inWx = /MicroMessenger/i.test(navigator.userAgent || '');
+  var html = '<div class="hw-detail" style="text-align:center;">' +
+    '<h3 style="margin-bottom:6px;">🏆 保存到相册</h3>' +
+    '<p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;line-height:1.7;">' +
+      '<strong>长按下面的奖状图片</strong>，选「保存图片 / 存储到相册」即可</p>' +
+    '<img src="' + dataUrl + '" alt="电子奖状" ' +
+      'style="width:100%;max-width:380px;border-radius:10px;border:1px solid var(--border);box-shadow:0 6px 20px rgba(0,0,0,.10);-webkit-touch-callout:default;touch-action:auto;">' +
+    (inWx ? '<p style="font-size:12px;color:#D46B08;background:#FFF7E6;border:1px solid #FFD591;border-radius:8px;padding:8px 10px;margin-top:12px;line-height:1.7;text-align:left;">微信里长按没反应？点右上角「⋯」→「在浏览器打开」，再长按保存。</p>' : '') +
+    '<p style="font-size:11px;color:var(--text-muted);margin-top:10px;">' + escHtmlSafe(fileName) + '</p>' +
+    '<div style="margin-top:12px;">' +
+    '<button type="button" class="btn btn-primary" style="width:100%;" onclick="closeModalDirect()">完成</button>' +
+    '</div></div>';
+  var mc = document.getElementById('modalContent');
+  if (!mc) { window.open(dataUrl, '_blank'); return; }
+  mc.innerHTML = html;
+  document.getElementById('modal').classList.add('open');
+}
+
+// 返回 'download' | 'share' | 'sheet' | 'cancel'
+async function saveCertImage(dataUrl, fileName) {
+  if (!_isMobileUA()) {
+    var link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    return 'download';
+  }
+  try {
+    if (navigator.canShare && window.File && window.fetch) {
+      var blob = await (await fetch(dataUrl)).blob();
+      var file = new File([blob], fileName, { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: fileName });
+        return 'share';
+      }
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return 'cancel';   // 用户自己取消，别再弹面板
+  }
+  showCertSaveSheet(dataUrl, fileName);
+  return 'sheet';
+}
+
 // 下载单个电子奖状
 async function downloadCertificate(payloadB64) {
   var payload;
@@ -7589,17 +7733,39 @@ async function downloadCertificate(payloadB64) {
   showToast('正在生成 ' + payload.name + ' 的奖状...');
   try {
     var dataUrl = await generateCertificate(payload.name, payload.title, payload.className, payload.week, payload.avatarUrl, payload.awardType);
-    var link = document.createElement('a');
-    link.href = dataUrl;
-    link.download = payload.name + '_' + (payload.awardType === 'top' ? '数学学习标兵' : '数学进步之星') + '_奖状.png';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('奖状已下载', 'success');
+    var how = await saveCertImage(dataUrl, _certFileName(payload.name, payload.awardType));
+    if (how === 'download') showToast('奖状已下载', 'success');
+    else if (how === 'share') showToast('已交给系统，请在分享面板选「保存图片 / 存储图像」', 'success');
+    else if (how === 'sheet') showToast('长按奖状图片即可保存到相册');
   } catch (e) {
     console.error(e);
     showToast('奖状生成失败：' + e.message);
   }
+}
+
+// 批量保存面板：手机上逐张触发下载会反复弹分享面板，体验极差，
+// 这里一次性把全部奖状列成一页，逐个长按保存（顺序与名单一致）。
+function showCertBatchSheet(entries) {
+  var inWx = /MicroMessenger/i.test(navigator.userAgent || '');
+  var cards = entries.map(function(en, i) {
+    return '<div style="margin-bottom:16px;">' +
+      '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">' + (i + 1) + '. ' +
+      escHtmlSafe(en.name) + '</div>' +
+      '<img src="' + en.dataUrl + '" alt="电子奖状" style="width:100%;border-radius:8px;border:1px solid var(--border);-webkit-touch-callout:default;touch-action:auto;">' +
+      '</div>';
+  }).join('');
+  var html = '<div class="hw-detail">' +
+    '<h3 style="margin-bottom:6px;text-align:center;">🏆 批量保存到相册（' + entries.length + ' 张）</h3>' +
+    '<p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;text-align:center;line-height:1.7;">' +
+      '逐张<strong>长按图片</strong>，选「保存图片 / 存储到相册」</p>' +
+    (inWx ? '<p style="font-size:12px;color:#D46B08;background:#FFF7E6;border:1px solid #FFD591;border-radius:8px;padding:8px 10px;margin-bottom:12px;line-height:1.7;">微信里长按没反应？点右上角「⋯」→「在浏览器打开」再保存。</p>' : '') +
+    cards +
+    '<button type="button" class="btn btn-primary" style="width:100%;" onclick="closeModalDirect()">完成</button>' +
+    '</div>';
+  var mc = document.getElementById('modalContent');
+  if (!mc) return;
+  mc.innerHTML = html;
+  document.getElementById('modal').classList.add('open');
 }
 
 // 批量下载奖状
@@ -7609,26 +7775,43 @@ async function downloadAllCertificates(items, className, week) {
     showToast('本周评分尚在累计，' + certUnlockHint(week) + ' 后才能下载电子奖状');
     return;
   }
-  showToast('开始批量生成奖状，共 ' + items.length + ' 张，请允许多次下载…');
-  var ok = 0, fail = 0;
+  var mobile = _isMobileUA();
+  var MAX_MOBILE = 20;
+  if (mobile && items.length > MAX_MOBILE) {
+    items = items.slice(0, MAX_MOBILE);
+    showToast('手机上一次最多生成 20 张，已取前 20 名，其余请分批保存');
+  }
+  showToast('开始生成奖状，共 ' + items.length + ' 张...');
+  var ok = 0, fail = 0, sheetItems = [];
   for (var i = 0; i < items.length; i++) {
     var s = items[i];
     try {
       var dataUrl = await generateCertificate(s.name, s.title, className, week, s.avatarUrl || s.avatar_url || '', s.awardType);
-      var link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = s.name + '_' + (s.awardType === 'top' ? '数学学习标兵' : '数学进步之星') + '_奖状.png';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      var fn = _certFileName(s.name, s.awardType);
+      if (mobile) {
+        // 手机上不自动下载，统一收进「批量保存面板」走相册
+        sheetItems.push({ name: s.name, dataUrl: dataUrl, fileName: fn });
+      } else {
+        var link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = fn;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
       ok++;
-      await new Promise(function(r) { setTimeout(r, 500); });
+      await new Promise(function(r) { setTimeout(r, mobile ? 120 : 500); });
     } catch (e) {
       fail++;
       console.error('奖状生成失败', e);
     }
   }
-  showToast('奖状下载完成：成功 ' + ok + ' 张' + (fail ? '，失败 ' + fail + ' 张' : ''), fail ? 'error' : 'success');
+  if (mobile && sheetItems.length) {
+    showCertBatchSheet(sheetItems);
+    showToast('已生成 ' + ok + ' 张，请长按图片逐张保存' + (fail ? '（失败 ' + fail + ' 张）' : ''), fail ? 'error' : 'success');
+  } else {
+    showToast('奖状下载完成：成功 ' + ok + ' 张' + (fail ? '，失败 ' + fail + ' 张' : ''), fail ? 'error' : 'success');
+  }
 }
 
 function downloadAllTopCertificates() {
@@ -8437,7 +8620,7 @@ function initFlvPlayer(videoId, url) {
 
 // ===== 学生观看埋点（学习兴趣分数据源） =====
 // 视频播放时向 /api/watch 上报进度；完整观看（≥80%）计 1 次。
-// 学习兴趣 = max(自由观看分[完整观看数×2封顶10], 老师本周推送完成分[完成数÷推送数×10],
+// 学习兴趣 = max(自由观看分[完整观看数×2封顶10], 老师本周推送观看分[各视频观看百分比均值×10],
 //   易错题精讲分[同比例])，2026-09-30 起「推送的看完就满分」——只推 2 个同步课也能拿 10 分。
 function attachWatchTrackingTo(videoEl, course, category) {
   if (!isStudentLoggedIn()) return;
@@ -9389,6 +9572,36 @@ function toggleWeeklyPush(vid) {
     .catch(function(e) { showToast('推送设置失败：' + e.message, 'error'); });
 }
 
+// 2026-10-31（年哥定）：每个视频的分层推送状态（优生 top / 中等生 normal）
+function _pushFlags(vid) {
+  var list = window._weeklyPushList || [];
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].video_id === vid) {
+      return { top: !!list[i].push_top, normal: !!list[i].push_normal };
+    }
+  }
+  return { top: false, normal: false };
+}
+
+// 切换单个视频对某分层的推送（教师端，两按钮互不影响）
+function toggleVideoPush(vid, level) {
+  var token = getCloudToken();
+  if (!token) { showToast('请先登录教师账号', 'error'); return; }
+  var pf = _pushFlags(vid);
+  var on = (level === 'top') ? pf.top : pf.normal;
+  var who = (level === 'top') ? '优生' : '中等生';
+  fetch(API_BASE + '/teacher/video-push/' + vid + '?target=' + level, {
+    method: on ? 'DELETE' : 'POST',
+    headers: { 'Authorization': 'Bearer ' + token }
+  })
+    .then(function(r) { if (!r.ok) return r.json().then(function(e) { throw new Error(extractErrorDetail(e) || '操作失败'); }); return r.json(); })
+    .then(function(res) {
+      showToast(res.message || ((on ? '已撤回对' : '已推送给') + who));
+      loadVideoManagement();
+    })
+    .catch(function(e) { showToast('推送设置失败：' + e.message, 'error'); });
+}
+
 function renderVideoManagementModal(videos) {
   var statusMap = { draft: ['草稿', '#999'], uploaded: ['待审核', '#FAAD14'], published: ['已发布', '#52C41A'], rejected: ['已拒绝', '#FF4D4F'] };
   var pushIds = window._weeklyPushIds || [];
@@ -9398,22 +9611,24 @@ function renderVideoManagementModal(videos) {
   var html = '<h3 style="margin-bottom:16px;">📹 视频管理' + (cat ? ' · ' + catLabel : '') + '</h3>';
 
   // 本周推送说明区
-  var syncN = 0, enrN = 0;
-  pushList.forEach(function(p) { if (p.category === 'sync') { syncN++; } else { enrN++; } });
+  var syncN = 0, enrN = 0, topN = 0, normalN = 0;
+  pushList.forEach(function(p) {
+    if (p.category === 'sync') { syncN++; } else { enrN++; }
+    if (p.push_top) { topN++; }
+    if (p.push_normal) { normalN++; }
+  });
   var tip = '';
   if (pushList.length === 0) {
     tip = '<div style="font-size:12px;color:#FAAD14;margin-top:6px;font-weight:600;">⚠️ 本周尚未推送，学生端「本周任务清单」会是空的</div>';
-  } else if (cat === 'sync' && syncN !== 2) {
-    tip = '<div style="font-size:12px;color:#FAAD14;margin-top:6px;">💡 建议：同步课堂 ' + syncN + '/2 个（中等生看，本周已推培优 ' + enrN + ' 个）</div>';
-  } else if (cat === 'enrichment' && enrN !== 5) {
-    tip = '<div style="font-size:12px;color:#FAAD14;margin-top:6px;">💡 建议：培优微课 ' + enrN + '/5 个（优生看，本周已推同步 ' + syncN + ' 个）</div>';
-  } else if (!cat && (syncN !== 2 || enrN !== 5)) {
-    tip = '<div style="font-size:12px;color:#FAAD14;margin-top:6px;">💡 建议：培优微课 ' + enrN + '/5 个（优生看），同步课堂 ' + syncN + '/2 个（中等生看）</div>';
+  } else {
+    // 2026-10-31 年哥哥定：推送个数不再设上限（原「优生 5 / 中等生 2」只是建议值），
+    // 学生看完本周推送的全部视频就给满分 10 分，没看完按观看比例折算。
+    tip = '<div style="font-size:12px;color:#52C41A;margin-top:6px;">✅ 已推：优生 <b>' + topN + '</b> 个 · 中等生 <b>' + normalN + '</b> 个（<b>个数不限</b>，想推几个推几个）——按「看完比例」计分，全部看完各得 <b>10</b> 分</div>';
   }
   html += '<div style="background:#EBF5FF;border:1px solid #B3D7F5;border-radius:10px;padding:14px 16px;margin-bottom:16px;">';
   var pushWeek = pushList.length ? pushList[0].push_week : getTeachWeek();
-  html += '<div style="font-size:14px;font-weight:600;color:#1E5FA8;">📌 第 ' + pushWeek + ' 周推送' + (pushList.length ? '（已指定 ' + pushList.length + ' 个：同步 ' + syncN + ' + 培优 ' + enrN + '）' : '（未指定）') + '</div>';
-  html += '<p style="font-size:12px;color:var(--text-secondary);margin:6px 0 0;line-height:1.6;">学生任务<b>完全由老师推送决定，没有自动推荐</b>：优生（每周推 5 个培优微课即可满分）看推送里的培优微课，中等生（每周推 2 个同步课堂即可满分）看推送里的同步课堂，顺序与勾选一致。' + (cat ? '当前列表只显示<b>' + catLabel + '</b>的视频（含其他账号上传的，均可推送），另一栏目的视频请到对应页面推送。' : '列表显示<b>全站所有已发布视频</b>（含其他账号上传的），均可推送。') + '<b>推送按教学周分批</b>：每次保存只写入本周批次，前几周推的自动退出（学生端不再显示，也不占用本周计分名额）。</p>';
+  html += '<div style="font-size:14px;font-weight:600;color:#1E5FA8;">📌 第 ' + pushWeek + ' 周推送' + (pushList.length ? '（已推 ' + pushList.length + ' 个：优生 ' + topN + ' 个 · 中等生 ' + normalN + ' 个）' : '（未指定）') + '</div>';
+  html += '<p style="font-size:12px;color:var(--text-secondary);margin:6px 0 0;line-height:1.6;">学生任务<b>完全由老师推送决定，没有自动推荐</b>：每个视频都有<b>两个按钮</b>——🌟推给优生、📮推给中等生，可以只推一边，也可以两边都推（同步课堂也能推给优生补基础）。<b>计分按观看比例</b>：本周推的视频全部看完得 <b>10</b> 分，没看完按实际观看进度折算。' + (cat ? '当前列表只显示<b>' + catLabel + '</b>的视频（含其他账号上传的，均可推送），另一栏目的视频请到对应页面推送。' : '列表显示<b>全站所有已发布视频</b>（含其他账号上传的），均可推送。') + '<b>推送按教学周分批</b>：前几周推的自动退出（学生端不再显示，也不占用本周计分名额）。</p>';
   html += tip;
   html += '</div>';
 
@@ -9433,7 +9648,12 @@ function renderVideoManagementModal(videos) {
       html += '<div style="font-size:12px;color:var(--text-muted);">' + (cat ? '' : catLabel + ' · ') + (v.unit || v.grade || '') + ' · ' + (v.duration || '') + '</div>';
       html += '</div>';
       if (v.status === 'published') {
-        html += '<button onclick="toggleWeeklyPush(' + v.id + ')" style="background:' + (pushed ? '#fff' : '#FAAD14') + ';color:' + (pushed ? '#52C41A' : '#fff') + ';border:' + (pushed ? '1px solid #52C41A' : 'none') + ';border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;flex-shrink:0;font-weight:600;">' + (pushed ? '✅ 已推送' : '📌 推送') + '</button>';
+        // 2026-10-31（年哥定）：每个视频两个推送按钮——优生 / 中等生，互相独立
+        var pf = _pushFlags(v.id);
+        html += '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;">';
+        html += '<button onclick="toggleVideoPush(' + v.id + ',\'top\')" title="推送给优生（本周任务清单）" style="background:' + (pf.top ? '#EAF3DE' : '#E7F1FB') + ';color:' + (pf.top ? '#3B9E52' : '#2B6CB0') + ';border:1.5px solid ' + (pf.top ? '#CDE8C4' : '#CFE3F5') + ';border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap;">' + (pf.top ? '✅ 已推优生' : '🌟 推给优生') + '</button>';
+        html += '<button onclick="toggleVideoPush(' + v.id + ',\'normal\')" title="推送给中等生（本周任务清单）" style="background:' + (pf.normal ? '#EAF3DE' : '#FFF3D6') + ';color:' + (pf.normal ? '#3B9E52' : '#B57D05') + ';border:1.5px solid ' + (pf.normal ? '#CDE8C4' : '#F5E3B3') + ';border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap;">' + (pf.normal ? '✅ 已推中等' : '📮 推给中等生') + '</button>';
+        html += '</div>';
       }
       html += '<span style="background:' + st[1] + ';color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;flex-shrink:0;">' + st[0] + '</span>';
       if (!mine) {
@@ -11985,7 +12205,7 @@ async function submitHwUpload(e) {
     // 2026-10-18：离线暂存也用压缩后的图（原图 dataURL 会撑爆 localStorage）
     for (var oi = 0; oi < files.length; oi++) {
       var of0 = files[oi];
-      try { of0 = await compressImage(of0, { maxWidth: 1800, maxHeight: 1800, quality: 0.82, filename: of0.name }); } catch (cErr) { /* 原图兜底 */ }
+      try { of0 = await compressImage(of0, { maxWidth: 1800, maxHeight: 1800, quality: 0.90, filename: of0.name }); } catch (cErr) { /* 原图兜底 */ }
       savePendingHomework(name, title, of0);
     }
     resetHwForm(fileInput);
@@ -12011,7 +12231,7 @@ async function submitHwUpload(e) {
     var f0 = files[fi];
     _origKB += f0.size / 1024;
     try {
-      var fc = await compressImage(f0, { maxWidth: 1800, maxHeight: 1800, quality: 0.82, filename: f0.name });
+      var fc = await compressImage(f0, { maxWidth: 1800, maxHeight: 1800, quality: 0.90, filename: f0.name });
       upFiles.push(fc);
       _outKB += fc.size / 1024;
     } catch (cErr) {
@@ -12193,7 +12413,7 @@ async function retryPendingHw(id) {
   // dataURL 转 Blob
   var blob = await (await fetch(item.dataUrl)).blob();
   // 2026-10-18：兼容暂存的原格式，重试上传前也压一道（已是压缩图则 compressImage 直通）
-  try { blob = await compressImage(blob, { maxWidth: 1800, maxHeight: 1800, quality: 0.82, filename: item.filename || 'homework.jpg' }); } catch (cErr) { /* 原图兜底 */ }
+  try { blob = await compressImage(blob, { maxWidth: 1800, maxHeight: 1800, quality: 0.90, filename: item.filename || 'homework.jpg' }); } catch (cErr) { /* 原图兜底 */ }
   var fd = new FormData();
   fd.append('file', blob, item.filename || 'homework.jpg');
   fd.append('student_name', item.name);
@@ -12300,10 +12520,14 @@ async function viewHwFeedback(hwId, scrollToCorr) {
         var lines = g.items.map(function(it) {
           var p = it.p;
           var mark = '<span style="color:#C62828;font-weight:700;">' + (p.is_correct ? '（√）' : '（×）') + '</span>';
-          var sa = (p.student_answer != null && String(p.student_answer) !== '')
-            ? '<b>' + fmtFrac(p.student_answer) + '</b>' : '（未识别）';
+          // 2026-10-27：判错但系统记录的作答 = 标准答案（抄键产物）时，不再显示这个不可信的作答值
+          var _sq = _saEqCaSuspect(p);
+          var sa = _sq ? '<b style="color:#8A5300;">（识别存疑）</b>'
+            : ((p.student_answer != null && String(p.student_answer) !== '')
+              ? '<b>' + fmtFrac(p.student_answer) + '</b>' : '（未识别）');
           var lbl = it.label ? it.label + '：' : '';
           var line = '<div style="margin-top:4px;font-size:14px;">' + lbl + '学生答案：' + sa + ' ' + mark + '</div>';
+          if (_sq) line += '<div class="hw-problem-detail" style="color:#8A5300;">⚠️ 系统识别的作答文字与标准答案相同，属识别不可靠，请以老师对照原图的复核结论为准</div>';
           if (!p.is_correct) {
             var why = (p.error_reason || p.error_type || '').trim();
             var _badge = _errCodeBadge(p);
@@ -12313,7 +12537,7 @@ async function viewHwFeedback(hwId, scrollToCorr) {
             // 2026-10-18：该题订正合格（corrections.answer_opened）→ 主列表同步开放
             var _showAns = (getCurrentRole() === 'teacher') || ((hw.teach_week || 0) < 6) ||
                            (g.key && _corrOpenedQkeys.indexOf(g.key) >= 0);
-            var ca = (_showAns && p.correct_answer != null && String(p.correct_answer) !== '') ? fmtFrac(p.correct_answer) : '';
+            var ca = (_showAns && !_sq && p.correct_answer != null && String(p.correct_answer) !== '') ? fmtFrac(p.correct_answer) : '';
             if (ca) line += '<div class="hw-problem-detail">正确答案：<strong style="color:#389E0D;">' + ca + '</strong></div>';
             if (p.hint) line += '<div class="hw-problem-detail">💡 ' + fmtFrac(escapeHtml(p.hint)) + '</div>';
           }
@@ -12427,26 +12651,35 @@ function _corrItemHtml(it, i, hwId, isStu, isTeacher) {
   if (it.blanks && it.blanks.length) {
     h += '<div style="margin-top:6px;">';
     it.blanks.forEach(function(b) {
+      // 2026-10-27：判错但逐空答案 = 正确答案（抄键产物）→ 不并排显示这对相同值
+      var _sqb = (!b.ok && b.sa && b.ca && String(b.sa).trim() === String(b.ca).trim());
       h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
         '<span style="background:#FFF7E6;border:1px solid #FFE7BA;border-radius:6px;padding:0 8px;font-weight:600;color:#B57D05;white-space:nowrap;">第' + escHtmlSafe(b.pos) + '个空</span>' +
-        '<span>你的答案：<b style="color:#C62828;">' + fmtFrac(escHtmlSafe(b.sa || '（未识别）')) + '</b></span>' +
+        (_sqb
+          ? '<span style="color:#8A5300;">作答文字识别存疑，以原图为准</span>'
+          : '<span>你的答案：<b style="color:#C62828;">' + fmtFrac(escHtmlSafe(b.sa || '（未识别）')) + '</b></span>') +
         '<span style="color:' + (b.ok ? '#389E0D' : '#C62828') + ';font-weight:700;">（' + (b.ok ? '√' : '×') + '）</span>' +
-        (_seeCa && b.ca ? '<span>正确答案：<b style="color:#389E0D;">' + fmtFrac(escHtmlSafe(b.ca)) + '</b></span>' : '') +
+        (_seeCa && b.ca && !_sqb ? '<span>正确答案：<b style="color:#389E0D;">' + fmtFrac(escHtmlSafe(b.ca)) + '</b></span>' : '') +
         '</div>';
     });
     if (it.answer_opened && !isTeacher) h += '<div style="font-size:11px;color:#389E0D;margin-top:3px;">📖 参考答案已开放（本题订正合格）</div>';
     h += '</div>';
   } else {
+  // 2026-10-27：单空同样处理——判错且作答 = 正确答案时不显示这对相同值
+  var _sqIt = (!it.is_correct && it.student_answer && it.correct_answer &&
+               String(it.student_answer).trim() === String(it.correct_answer).trim());
   h += '<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">' +
-       '你的答案：<b style="color:#C62828;">' + fmtFrac(escHtmlSafe(it.student_answer || '（未识别）')) + '</b>' +
+       '你的答案：' + (_sqIt ? '<b style="color:#8A5300;">（识别存疑，以原图为准）</b>'
+                             : '<b style="color:#C62828;">' + fmtFrac(escHtmlSafe(it.student_answer || '（未识别）')) + '</b>') +
        // 2026-10-10 年哥定：订正阶段不给正确答案（防照抄），只有教师端可见。
        // 2026-10-18：该题订正合格后后端置 answer_opened=1 → 学生可见本题答案
        //（兑现「订正合格后开放」的承诺）。第5周及以前 hide_answers=False，
        // 有答案但无 answer_opened 字段 → 照常显示（整份订正需照答案订正）。
        (function() {
-          var _ca = it.correct_answer;
+          var _ca = _sqIt ? '' : it.correct_answer;
           if (_ca) return '　正确答案：<b style="color:#389E0D;">' + fmtFrac(escHtmlSafe(_ca)) + '</b>' +
             (it.answer_opened && !isTeacher ? ' <span style="font-size:11px;color:#389E0D;">（订正合格已开放）</span>' : '');
+          if (_sqIt) return '　<span style="font-size:11px;color:#8A5300;">系统识别的作答文字不可靠，判定以老师复核为准</span>';
           return ' <span style="font-size:11px;color:var(--text-muted);">🔒 本题答案在你订正合格后开放</span>';
         })() +
        '</div>';
@@ -12979,6 +13212,8 @@ function toggleTeacherToolBox() {
   var show = box.style.display === 'none';
   box.style.display = show ? 'block' : 'none';
   if (arrow) arrow.textContent = show ? ' ▾' : ' ▸';
+  // 2026-10-31：审计面板在折叠区内，首次展开时自动拉一次，省得老师再点刷新
+  if (show && !window._saRawLoaded) loadSaRawAudit(0, _saRawOnly, true);
 }
 function renderHwGrading() {
   var section = document.getElementById('hwGradingSection');
@@ -13001,6 +13236,26 @@ function renderHwGrading() {
       '</div>' +
       '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">先上传标准答案，学生提交同标题作业时 AI 会对照答案批改，准确率更高</p>' +
       '<div id="answerKeyList"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p></div>' +
+      '</div>' +
+      // 🔬 原始读数审计（2026-10-31 P0-1 界面，年哥哥定）
+      // 判对条目里 90% 的作答与答案键一字不差——「学生真写对」与「AI 抄键」在展示层
+      // 完全不可区分。本面板把 AI 初批读数（sa_raw）与当前作答并排，系统有没有动过
+      // 作答、动成了什么，一眼可见。只读，不改任何数据。
+      '<div class="ak-card" style="margin-top:16px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">' +
+      '<h4 style="margin:0;">🔬 原始读数审计</h4>' +
+      '<button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="loadSaRawAudit(0, _saRawOnly, true)">🔄 刷新</button>' +
+      '</div>' +
+      '<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">对照「AI 初批读数 / 当前作答 / 答案键」三列：绿=判对、红=判错。<strong>系统补键</strong>=判对时作答被改写成标准答案（最危险，家长端会看到假真迹）；<strong>护栏改写</strong>=被某道护栏改写过；<strong>精读改判</strong>=单题×3 精读后翻对（真迹修正）。只读展示，不改数据。</p>' +
+      '<div id="saRawFilters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">' +
+      '<button class="hw-filter-btn active" data-saraw="flagged" onclick="switchSaRawFilter(\'flagged\',this)">⚠️ 有留痕</button>' +
+      '<button class="hw-filter-btn" data-saraw="pad" onclick="switchSaRawFilter(\'pad\',this)">🩹 系统补键</button>' +
+      '<button class="hw-filter-btn" data-saraw="drift" onclick="switchSaRawFilter(\'drift\',this)">✏️ 护栏改写</button>' +
+      '<button class="hw-filter-btn" data-saraw="reread" onclick="switchSaRawFilter(\'reread\',this)">🔁 精读改判</button>' +
+      '<button class="hw-filter-btn" data-saraw="eqkey" onclick="switchSaRawFilter(\'eqkey\',this)">🎯 抄键可疑</button>' +
+      '</div>' +
+      '<div id="saRawStat"></div>' +
+      '<div id="saRawList"><p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">点「刷新」加载</p></div>' +
       '</div>' +
       // 未交 / 未订正管理区（2026-09-05）
       '<div class="ak-card" style="margin-top:16px;">' +
@@ -13046,7 +13301,7 @@ function renderHwGrading() {
       '<button class="hw-filter-btn" onclick="filterHw(\'reviewed\',this)">已完成</button>' +
       '<button class="hw-filter-btn" onclick="filterHw(\'grading\',this)">批改中</button>' +
       '<button class="hw-filter-btn" onclick="filterHw(\'pending\',this)">待批改</button>' +
-      '<button class="hw-filter-btn" onclick="filterHw(\'failed\',this)">批改失败</button>' +
+      '<button class="hw-filter-btn" id="hwFailedTab" onclick="filterHw(\'failed\',this)">批改失败</button>' +
       '</div>' +
       // 姓名搜索 + 按周收起（2026-09-19：纯前端过滤，定位某位同学的作业）
       '<div class="hw-filter-bar" style="align-items:center;">' +
@@ -13201,9 +13456,23 @@ function _hwCardHtml(h) {
 }
 
 // 渲染（平铺 / 按周分组两种布局，共用同一份 _hwTeacherItems）
+function _updateHwFailedBadge() {
+  // 2026-10-26 聚合提醒：失败作业在标签上显示数量，不用翻列表也能发现
+  var btn = document.getElementById('hwFailedTab');
+  if (!btn) return;
+  var all = _hwTeacherItems || [];
+  var n = 0;
+  for (var i = 0; i < all.length; i++) { if (all[i] && all[i].status === 'failed') n++; }
+  btn.textContent = n > 0 ? ('批改失败 (' + n + ')') : '批改失败';
+  btn.style.color = n > 0 ? 'var(--danger)' : '';
+  btn.style.fontWeight = n > 0 ? '700' : '';
+  btn.title = n > 0 ? ('有 ' + n + ' 份作业批改失败，点此查看并重新批改') : '';
+}
+
 function _renderHwTeacherList() {
   var list = document.getElementById('hwTeacherList');
   if (!list) return;
+  _updateHwFailedBadge();
   var items = _hwTeacherItems || [];
   if (hwSearchKw) {
     // 2026-09-24：搜索同时匹配姓名与学号
@@ -13771,11 +14040,14 @@ async function viewHwDetail(hwId) {
         var lines = g.items.map(function(it) {
           var p = it.p;
           var mark = '<span style="color:#C62828;font-weight:700;">' + (p.is_correct ? '（√）' : '（×）') + '</span>';
-          var sa = (p.student_answer != null && String(p.student_answer) !== '')
-            ? '<b>' + fmtFrac(p.student_answer) + '</b>' : '（未识别）';
+          var _sq = _saEqCaSuspect(p);   // 2026-10-27：抄键产物，作答值不可信
+          var sa = _sq ? '<b style="color:#8A5300;">（识别存疑）</b>'
+            : ((p.student_answer != null && String(p.student_answer) !== '')
+              ? '<b>' + fmtFrac(p.student_answer) + '</b>' : '（未识别）');
           var lbl = it.label ? it.label : '';
           if (lbl) lbl += '：';
           var line = '<div style="margin-top:4px;font-size:14px;">' + lbl + '学生答案：' + sa + ' ' + mark + '</div>';
+          if (_sq) line += '<div class="hw-problem-detail" style="color:#8A5300;">⚠️ 系统记录的作答与标准答案一字不差（抄键产物），请对照原图确认学生真实笔迹</div>';
           if (!p.is_correct) {
             var why = (p.error_reason || p.error_type || '').trim();
             var _badge = _errCodeBadge(p);
@@ -13841,6 +14113,9 @@ async function reviewHw(hwId) {
       // sa_overrides，后端按「题干+原答案」匹配回写 grade_result 原始列（双列同步）
       origSa: (base.problems || []).map(function(p) { return String(p.student_answer != null ? p.student_answer : ''); }),
       origQ: (base.problems || []).map(function(p) { return String(p.question || '').trim(); }),
+      // 2026-10-26（年哥哥定）：错因码下拉——人工判错（字迹看不清）时可落 D1，
+      // 原值留底用于生成 error_code_overrides（只提交老师真改过的那几处）
+      origCode: (base.problems || []).map(function(p) { return String(p.error_code || '').trim(); }),
       commentImages: (hw.comment_images || []).slice(), // 2026-09-13 评语配图（可粘贴追加）
       uploadingImgs: 0
     };
@@ -13882,6 +14157,69 @@ async function reviewHw(hwId) {
   } catch (e) {
     showToast('加载复核页面失败：' + e.message);
   }
+}
+
+// 2026-10-26（年哥哥定）：复核页错因码下拉。常用项置顶（D1 字迹看不清是高频场景），
+// 其余按 23 码六大类分组，与后端 ERROR_CODE_SET 逐字一致。空值 = 不改动 AI 判定。
+var RV_ERRCODE_GROUPS = [
+  ['常用', [
+    ['D1', '书写规范（字迹看不清 / 数字写错形）'],
+    ['D4', '格式不合要求（不列式、不写答）'],
+    ['C1', '关键信息漏读或误读'],
+    ['B1', '基本口算与事实错误']
+  ]],
+  ['A 概念不清', [
+    ['A1', '概念混淆'], ['A2', '内涵理解不到位'],
+    ['A3', '外延与边界不清'], ['A4', '规律/公式记反或漏条件']
+  ]],
+  ['B 计算失误', [
+    ['B1', '基本口算与事实错误'], ['B2', '算理与对位错误'],
+    ['B3', '特殊因数处理错误'], ['B4', '估算与验算缺失'],
+    ['B5', '横式答案漏写或抄错']
+  ]],
+  ['C 审题偏差', [
+    ['C1', '关键信息漏读或误读'], ['C2', '数量关系识别错'],
+    ['C3', '答非所问'], ['C4', '图表/数轴信息读错']
+  ]],
+  ['D 书写规范', [
+    ['D1', '书写规范（字迹看不清 / 数字写错形）'], ['D2', '单位名称漏写/写错/多写'],
+    ['D3', '答语不规范'], ['D4', '格式不合要求']
+  ]],
+  ['E 建模偏差', [
+    ['E1', '加法/乘法模型用反'], ['E2', '逆向求单一量不会'], ['E3', '两步模型顺序乱']
+  ]],
+  ['F 操作失范', [
+    ['F1', '量角器/圆规/直尺手法错'], ['F2', '作图步骤缺失'], ['F3', '测量作图后不检验']
+  ]]
+];
+
+function _rvErrCodeSelect(i, cur) {
+  cur = String(cur || '').trim();
+  var marked = false, known = false;
+  var opts = '<option value="">错因码：跟随 AI（不改动）</option>';
+  // 不做跨组去重：常用组置顶只为「少滚几下」，各组仍完整列出（同 value 出现两次合法，
+  // 只有第一次命中加 selected，避免浏览器多处高亮）
+  RV_ERRCODE_GROUPS.forEach(function(g) {
+    var inner = '';
+    g[1].forEach(function(c) {
+      var sel = '';
+      if (!marked && cur === c[0]) { sel = ' selected'; marked = true; }
+      if (cur === c[0]) known = true;
+      inner += '<option value="' + c[0] + '"' + sel + '>' +
+        c[0] + ' · ' + c[1] + '</option>';
+    });
+    if (inner) opts += '<optgroup label="' + g[0] + '">' + inner + '</optgroup>';
+  });
+  if (cur && !known) {
+    // BLANK（未作答）等不在 22 码内的状态，原样显示，避免老师困惑
+    opts += '<optgroup label="当前状态"><option value="' + cur + '" selected>' + cur + '</option></optgroup>';
+  }
+  return '<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">' +
+    '<span style="font-size:11px;color:var(--text-muted);flex:none;">错因</span>' +
+    '<select id="rvCode' + i + '" onchange="rvSyncField(' + i + ',\'error_code\',this.value)" ' +
+    'title="人工判错时请选一个错因码（字迹看不清 → D1）" ' +
+    'style="flex:1;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">' +
+    opts + '</select></div>';
 }
 
 function renderReviewProblems() {
@@ -13947,14 +14285,23 @@ function renderReviewProblems() {
             '<button type="button" onclick="adoptRvAlt(' + i + ')" title="把学生答案替换为上一轮/第二读法" style="flex:none;border:1px solid #E8B368;background:#fff;border-radius:6px;padding:3px 10px;font-size:12px;color:#8A5300;cursor:pointer;">✍ 采纳</button>' +
             '</div>'
           : '';
+        // 2026-10-26（年哥哥定）：判错才给错因码下拉。老师据原图人工判错（字迹看不清）
+        // 时选 D1，前端徽章/家长端「分析」才有可读错因，不再挂「其他错误」或一片空白。
+        var codeHtml = p.is_correct ? '' : _rvErrCodeSelect(i, p.error_code);
+        // 2026-10-27（年哥定）：判错但记录的作答与标准答案一字不差 → 提醒老师这是抄键产物，
+        // 学生真实笔迹需回原图确认（可直接改左侧「学生答案」输入框）。此前正是这类被误翻成「对」。
+        var _sqT = (!p.is_correct && hasSa && String(p.correct_answer == null ? '' : p.correct_answer).trim() === String(p.student_answer).trim())
+          ? '<span style="display:inline-block;background:#FFF3E0;color:#8A5300;border:1px solid #E8B368;border-radius:6px;padding:0 6px;font-size:11px;font-weight:600;margin-left:6px;" title="判错但系统记录的作答与标准答案一字不差，极可能是旧抄键护栏把标准答案写进了学生作答，请对照原图确认学生真实笔迹">⚠ 作答疑为抄键</span>'
+          : '';
         return '<div class="hw-problem" style="display:flex;gap:8px;align-items:flex-start;' + (head ? 'margin-left:12px;' : '') + '">' +
           '<button type="button" onclick="toggleRvProblem(' + i + ')" title="点击翻转对错判定" style="' + btnStyle + 'border-radius:8px;min-width:44px;padding:6px 8px;font-size:16px;cursor:pointer;flex:none;">' + icon + '</button>' +
           '<div style="flex:1;min-width:0;">' +
-          '<div class="hw-problem-label" style="font-size:13px;">' + lbl + '学生答案：' + saHtml + ' ' + mark + '</div>' +
+          '<div class="hw-problem-label" style="font-size:13px;">' + lbl + '学生答案：' + saHtml + ' ' + mark + _sqT + '</div>' +
           '<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">' +
           '<span style="font-size:11px;color:var(--text-muted);flex:none;">正确答案</span>' +
           '<input id="rvAns' + i + '" value="' + escapeHtml(String(p.correct_answer != null ? p.correct_answer : '')) + '" oninput="rvSyncField(' + i + ',\'correct_answer\',this.value)" style="flex:1;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">' +
           '</div>' +
+          codeHtml +
           altHtml +
           '</div>' +
           '<button type="button" onclick="removeRvProblem(' + i + ')" title="AI 误识别此空，删除" style="flex:none;border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:14px;padding:4px;">✕</button>' +
@@ -14008,6 +14355,7 @@ function removeRvProblem(i) {
   // 2026-09-23：平行数组同步裁剪，保证 sa_overrides 的「题干+原答案」对位正确
   if (_hwReviewState.origSa) _hwReviewState.origSa.splice(i, 1);
   if (_hwReviewState.origQ) _hwReviewState.origQ.splice(i, 1);
+  if (_hwReviewState.origCode) _hwReviewState.origCode.splice(i, 1);
   renderReviewProblems();
 }
 
@@ -14158,6 +14506,21 @@ async function submitHwReview(e, hwId) {
       });
     }
   });
+  // 2026-10-26（年哥哥定）：错因码改动清单——只提交老师真动过的那几处，
+  // 判对的不提交（后端也会挡，避免「✅ 正确」旁边挂错因标签）
+  var codeOverrides = [];
+  st.problems.forEach(function(p, i) {
+    if (p.is_correct) return;
+    var cur = String(p.error_code || '').trim();
+    var ov0 = (st.origCode && st.origCode[i] != null) ? String(st.origCode[i]) : '';
+    if (!cur || cur === ov0) return;
+    codeOverrides.push({
+      question: (st.origQ && st.origQ[i]) || String(p.question || '').trim(),
+      old_sa: (st.origSa && st.origSa[i] != null) ? String(st.origSa[i]) : '',
+      student_answer: String(p.student_answer != null ? p.student_answer : '').trim(),
+      error_code: cur,
+    });
+  });
   var n = problems.length;
   var c = problems.filter(function(p) { return p.is_correct; }).length;
   // 组装修正版结果：以原始结果为底，替换逐题判定并重算正确率
@@ -14175,6 +14538,7 @@ async function submitHwReview(e, hwId) {
         teacher_reviewed: JSON.stringify(corrected),
         comment_images: (st.commentImages || []),
         sa_overrides: saOverrides,
+        error_code_overrides: codeOverrides,
       }),
     });
     if (!resp.ok) {
@@ -14199,6 +14563,166 @@ async function deleteHw(hwId) {
   } catch (e) {
     showToast('删除失败：' + e.message);
   }
+}
+
+// ===== 原始读数审计（P0-1，2026-10-31 年哥哥定）=====
+// 背景：第9周 1406 条作答里，判对条目有 90.4% 的 student_answer 与答案键一字不差。
+// 「孩子真写对」与「AI 直接把标准答案抄进作答格」在展示层完全同形，人工翻图根本
+// 查不过来。P0-1 在批改入口给每条拍 sa_raw（AI 初批读数）影子，出口比对后打
+// sa_rewritten / sa_padded_by_system / sa_reread_fixed 三种痕迹，本面板负责展示。
+// 只读，不动任何数据。
+var _saRawOnly = 'flagged';    // 默认只看「系统动过作答」的条目；抄键可疑（eqkey）量大，按需切换
+var _saRawLoaded = false;
+var _saRawLoading = false;
+
+function switchSaRawFilter(only, btn) {
+  _saRawOnly = only || 'flagged';
+  var wrap = document.getElementById('saRawFilters');
+  if (wrap) {
+    var bs = wrap.querySelectorAll('button[data-saraw]');
+    for (var i = 0; i < bs.length; i++) {
+      bs[i].classList.toggle('active', bs[i].getAttribute('data-saraw') === _saRawOnly);
+    }
+  }
+  loadSaRawAudit(0, _saRawOnly, true);
+}
+
+async function loadSaRawAudit(week, only, force) {
+  var statEl = document.getElementById('saRawStat');
+  var listEl = document.getElementById('saRawList');
+  if (!statEl || !listEl) return;
+  if (_saRawLoading && !force) return;
+  _saRawLoading = true;
+  only = only || _saRawOnly || 'flagged';
+  listEl.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px;">加载中...</p>';
+  try {
+    var qs = '/teacher/sa-raw-audit?week=' + (week || 0) +
+             '&only=' + encodeURIComponent(only) + '&limit=300';
+    var resp = await fetchWithAuth(qs);
+    if (!resp.ok) {
+      var msg = '加载失败（HTTP ' + resp.status + '）';
+      try { var j = await resp.json(); if (j && j.detail) msg = j.detail; } catch (e2) {}
+      throw new Error(msg);
+    }
+    var data = await resp.json();
+    _saRawLoaded = true;
+    renderSaRawStat(data.stat || {}, data.range || []);
+    renderSaRawList(data.items || [], data.stat || {});
+  } catch (e) {
+    statEl.innerHTML = '';
+    listEl.innerHTML = '<p style="font-size:13px;color:var(--danger);text-align:center;padding:12px;">' +
+      escHtmlSafe(e.message || '加载失败') + '</p>';
+  } finally {
+    _saRawLoading = false;
+  }
+}
+
+function renderSaRawStat(st, range) {
+  var el = document.getElementById('saRawStat');
+  if (!el) return;
+  var cell = function(label, val, color, hint) {
+    return '<div title="' + escHtmlSafe(hint || '') + '" style="flex:1;min-width:84px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:7px 9px;text-align:center;">' +
+      '<div style="font-size:11px;color:var(--text-muted);white-space:nowrap;">' + label + '</div>' +
+      '<div style="font-size:17px;font-weight:700;color:' + (color || 'var(--text-primary)') + ';line-height:1.5;">' + val + '</div></div>';
+  };
+  var h = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">' +
+    cell('第' + (st.week || getTeachWeek()) + '周', st.hw || 0, '#4A90D9', '本周已批改作业份数') +
+    cell('作答条目', st.items || 0, '', '全部题目条数') +
+    cell('有快照', st.with_raw || 0, '#389E0D', '批改时留存了 AI 初批读数的条目') +
+    cell('无快照', st.missing_raw || 0, '#8C8C8C', 'P0-1 上线前批改的老数据，无法审计') +
+    cell('抄键可疑', st.ok_raw_eq_key || 0, '#D46B08', '判对且初批读数=答案键（真写对与抄键不可区分）') +
+    cell('系统补键', st.padded || 0, '#CF1322', '判对时作答被改写成标准答案（最危险）') +
+    cell('护栏改写', st.drift || 0, '#D46B08', '作答被某道护栏改写过') +
+    cell('精读改判', st.reread_fixed || 0, '#1D5FA8', '单题×3 精读后翻对') +
+    '</div>';
+  if (range && range.length === 2) {
+    h += '<p style="font-size:11px;color:var(--text-muted);margin:0 0 8px;">统计区间：' +
+      escHtmlSafe(range[0]) + ' ~ ' + escHtmlSafe(range[1]) + '</p>';
+  }
+  el.innerHTML = h;
+}
+
+// 可疑度排序（2026-10-31）：eqkey 视图动辄几十上百条，人工从头看根本看不过来。
+// 实测 hw649 黄曼嫣：31 条「初读=作答=答案键」里，无键复读也同样是这 31 个值 →
+// 孩子真写对；真正可疑的是「初读=键 但无键复读读出别的值」那一类。故按
+// 补键(3) > 复读不符(2) > 被动过(1) > 其余(0) 排序，最可疑的永远在最前。
+function _saRawRisk(it) {
+  if (it.sa_padded_by_system) return 3;
+  if (it.sa_read2 && it.sa_read2_ok === false) return 2;
+  if (it.sa_rewritten || it.sa_reread_fixed || it.reread_flip) return 1;
+  return 0;
+}
+
+function renderSaRawList(items, st) {
+  var el = document.getElementById('saRawList');
+  if (!el) return;
+  if (!items.length) {
+    var why;
+    if ((st.with_raw || 0) === 0 && (st.missing_raw || 0) > 0) {
+      why = '本批作业是「原始读数留痕」上线<strong>之前</strong>批改的，没有留存 AI 初批读数，无法追溯。<br>' +
+            '重新批改之后的新作业才会开始记录。';
+    } else if (_saRawOnly === 'flagged') {
+      why = '本周没有任何「系统动过作答」的条目——这是好事。<br>' +
+            '想看「判对且初批读数＝答案键」的条目（抄键可疑，需盲读佐证），请切到「🎯 抄键可疑」。';
+    } else {
+      why = '当前筛选下没有条目。';
+    }
+    el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:14px;line-height:1.9;">' + why + '</p>';
+    return;
+  }
+  items = items.slice().sort(function(a, b) {
+    var ra = _saRawRisk(a), rb = _saRawRisk(b);
+    if (ra !== rb) return rb - ra;
+    return (a.homework_id || 0) - (b.homework_id || 0);
+  });
+  var boxOf = function(label, val, color) {
+    var shown = val ? escHtmlSafe(val) : '<span style="color:#BFBFBF;font-weight:400;">—</span>';
+    return '<div style="flex:1;min-width:76px;">' +
+      '<div style="font-size:10px;color:var(--text-muted);margin-bottom:2px;white-space:nowrap;">' + label + '</div>' +
+      '<div style="font-size:13px;font-weight:600;color:' + color + ';word-break:break-all;line-height:1.45;">' + shown + '</div></div>';
+  };
+  var tagOf = function(text, bg, fg, bd) {
+    return '<span style="display:inline-block;padding:1px 7px;border-radius:9px;font-size:10px;font-weight:600;background:' +
+      bg + ';color:' + fg + ';border:1px solid ' + bd + ';margin-right:4px;">' + text + '</span>';
+  };
+  var html = items.map(function(it) {
+    var okColor = it.is_correct ? '#389E0D' : '#CF1322';
+    var okText = it.is_correct ? '判对' : '判错';
+    var tags = tagOf(okText, it.is_correct ? '#F6FFED' : '#FFF1F0', okColor, it.is_correct ? '#B7EB8F' : '#FFA39E');
+    if (it.sa_padded_by_system) tags += tagOf('系统补键', '#FFF1F0', '#CF1322', '#FFA39E');
+    if (it.sa_reread_fixed || it.reread_flip) tags += tagOf('精读改判', '#E6F4FF', '#1D5FA8', '#91CAFF');
+    if (it.sa_rewritten) tags += tagOf('护栏改写', '#FFF7E6', '#D46B08', '#FFD591');
+    // 初批读数与当前作答不一致 → 作答确实被动过，用橙底提示
+    var rawChanged = it.sa_raw && it.student_answer && it.sa_raw !== it.student_answer;
+    var reads = '';
+    if (it.reread_reads && it.reread_reads.length) {
+      reads = '<div style="font-size:11px;color:#1D5FA8;margin-top:6px;">🔁 三次精读：' +
+        escHtmlSafe(it.reread_reads.join(' / ')) + '</div>';
+    } else if (it.sa_read2) {
+      reads = '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">🔄 无键复读：' +
+        escHtmlSafe(it.sa_read2) + (it.sa_read2_ok === true ? '（与答案相符）' : (it.sa_read2_ok === false ? '（与答案不符）' : '')) + '</div>';
+    }
+    var hint = it.hint ? '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.6;">📝 ' +
+      escHtmlSafe(it.hint) + '</div>' : '';
+    return '<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--bg-card);">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">' +
+      '<div style="font-size:13px;font-weight:600;">' + escHtmlSafe(it.student_name || '') +
+      '<span style="font-weight:400;color:var(--text-muted);font-size:11px;margin-left:6px;">' +
+      escHtmlSafe(it.question || '') + '</span></div>' +
+      '<div>' + tags + '</div></div>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;background:' + (rawChanged ? '#FFF7E6' : 'transparent') + ';border-radius:8px;padding:' + (rawChanged ? '6px 8px' : '0') + ';">' +
+      boxOf('AI 初批读数', it.sa_raw, '#1D5FA8') +
+      boxOf('当前作答', it.student_answer, rawChanged ? '#D46B08' : 'var(--text-primary)') +
+      boxOf('答案键', it.correct_answer, '#389E0D') +
+      '</div>' +
+      reads + hint +
+      '<div style="text-align:right;margin-top:6px;">' +
+      '<button class="btn btn-outline" style="padding:3px 10px;font-size:11px;" onclick="viewHwDetail(' + it.homework_id + ')">查看作业</button>' +
+      '</div></div>';
+  }).join('');
+  var more = items.length >= 300
+    ? '<p style="font-size:11px;color:#D46B08;text-align:center;padding:6px;">已达 300 条上限，只显示前 300 条</p>' : '';
+  el.innerHTML = html + more;
 }
 
 // ===== 标准答案管理 =====
@@ -14464,6 +14988,8 @@ async function init() {
   var tokenValid = await validateCloudToken();
   // 记住账号密码：token 已失效但凭据在 30 天保存期内 → 静默重登，学生打开即用、免输账号密码
   if (!tokenValid) tokenValid = await trySilentRelogin();
+  // 学生端凭据滑动续期：30 天内打开过就一直免登录（教师端不动）
+  if (tokenValid) await maybeRefreshStudentToken();
   if (tokenValid && isCloudLoggedIn()) {
     setSyncStatus("syncing");
     const cloudData = await loadFromCloud();
