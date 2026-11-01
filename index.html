@@ -6896,7 +6896,11 @@ function renderCumulativeLeaderboard(container, meta, data) {
     html += '<div style="padding:10px 4px;border-radius:12px;transition:background .2s;" onmouseover="this.style.background=\'#F7F9FC\'" onmouseout="this.style.background=\'transparent\'">';
     html += starRow(rank);
     html += '<div style="' + wrapperStyle + '">' + rankBadge + avatarHtml + '</div>';
-    html += '<div style="font-size:13px;color:var(--text-primary);margin-top:8px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(s.name) + '</div>';
+    var _isNew = !!s.is_new;
+    var _newBadge = _isNew
+      ? ' <span title="本周新进入前30名" style="display:inline-block;font-size:10px;line-height:1;color:#fff;background:#E03E3E;border-radius:4px;padding:2px 4px;vertical-align:2px;font-weight:700;">新</span>'
+      : '';
+    html += '<div style="font-size:13px;color:var(--text-primary);margin-top:8px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(s.name) + _newBadge + '</div>';
     html += '<div style="font-size:12px;color:var(--primary);font-weight:600;margin-top:2px;">' + (s.total || 0).toFixed(1) + ' 分</div>';
     // 2026-09-26：排名变化 + 本周加分——孩子做了/没做，名次先后立马看得见（涨红跌绿）
     var _rc = s.rank_change || 0;
@@ -6904,7 +6908,9 @@ function renderCumulativeLeaderboard(container, meta, data) {
       ? '<span style="color:#E03E3E;font-weight:700;" title="比上周上升' + _rc + '名">↑' + _rc + '</span>'
       : (_rc < 0
         ? '<span style="color:#2E9E5B;font-weight:700;" title="比上周下降' + Math.abs(_rc) + '名">↓' + Math.abs(_rc) + '</span>'
-        : '<span style="color:var(--text-muted);" title="名次与上周持平">–</span>');
+        : (_isNew
+          ? '<span style="color:#E03E3E;font-weight:700;" title="本周新进入前30名">新</span>'
+          : '<span style="color:var(--text-muted);" title="名次与上周持平">–</span>'));
     var _wg = (s.week_gain === undefined || s.week_gain === null) ? null : (Number(s.week_gain) || 0);
     var _wgHtml = _wg === null ? '' : (_wg > 0
       ? '<span style="color:#E03E3E;" title="本周新增积分">+' + _wg.toFixed(1) + '</span>'
