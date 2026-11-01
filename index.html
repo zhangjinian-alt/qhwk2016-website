@@ -1011,7 +1011,7 @@ body::before {
     <div class="stats-row">
       <div class="stat-item"><span><svg class="tw" viewBox="0 0 36 36"><use href="#tw-2b50" xlink:href="#tw-2b50"/></svg></span><span id="totalPoints">128 积分</span></div>
       <div class="stat-item"><span><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3c5" xlink:href="#tw-1f3c5"/></svg></span><span id="totalMedals">15 枚勋章</span></div>
-      <div class="stat-item"><span><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f525" xlink:href="#tw-1f525"/></svg></span><span id="streakDays">连续 7 天</span></div>
+      <div class="stat-item"><span><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3af" xlink:href="#tw-1f3af"/></svg></span><span id="streakDays">正确率 91%</span></div>
     </div>
   </div>
 </div>
@@ -3120,8 +3120,8 @@ function updateHomeStats() {
   } else {
     if (p) p.textContent = appData.points + ' 积分';
     if (m) m.textContent = appData.medals.filter(x => x.unlocked).length + ' 枚勋章';
-    if (s) s.textContent = '连续 ' + appData.streak + ' 天';
-    // 学生端登录后：积分/勋章/连续学习天数改用后端真实数据（2026-09-05）
+    if (s) s.textContent = '正确率 —';
+    // 学生端登录后：积分/勋章/本学期正确率改用后端真实数据（2026-09-05，2026-11-01 改口径）
     if (isCloudLoggedIn()) loadStudentHomeStats();
   }
   updateWelcome();
@@ -3160,9 +3160,20 @@ function applyStudentHomeStats(data) {
   var p = document.getElementById('totalPoints');
   var m = document.getElementById('totalMedals');
   var s = document.getElementById('streakDays');
+  // 2026-11-01（年哥定）：积分=每周累计总积分；勋章=开学以来累计总枚数；第三项改本学期累计正确率
   if (p) p.textContent = (Number(data.points) || 0) + ' 积分';
-  if (m) m.textContent = (Number(data.medals) || 0) + ' 枚勋章';
-  if (s) s.textContent = '连续 ' + (Number(data.streak) || 0) + ' 天';
+  if (m) {
+    var _tm = (data.term_medals === undefined || data.term_medals === null)
+      ? (Number(data.medals) || 0) : (Number(data.term_medals) || 0);
+    m.textContent = _tm + ' 枚勋章';
+  }
+  if (s) {
+    var _ht = Number(data.hw_total) || 0;
+    s.textContent = _ht > 0 ? ('正确率 ' + (Number(data.accuracy) || 0).toFixed(1) + '%') : '正确率 —';
+    s.title = _ht > 0
+      ? ('本学期累计 ' + data.hw_correct + '/' + _ht + ' 题（第1周起全部作业）')
+      : '本学期还没有已批改的作业';
+  }
 }
 
 function heroRoleImg() {
