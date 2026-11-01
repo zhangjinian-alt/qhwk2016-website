@@ -12786,6 +12786,15 @@ function _corrItemHtml(it, i, hwId, isStu, isTeacher) {
     }
     if (it.corr_text) h += '<div style="margin-top:6px;background:#F6FFED;border-radius:8px;padding:8px;font-size:12px;">💬 ' + escHtmlSafe(it.corr_text) + '</div>';
   }
+  // 2026-11-01（年哥定）：学生可「撤销再提交」——撤掉这次提交后重新拍照/录视频。
+  // 老师已核定合格的题不允许撤销（can_withdraw 后端算好），防刷分也防误删老师认定。
+  if (isStu && it.submitted && it.can_withdraw) {
+    h += '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+         '<button type="button" onclick="withdrawHwCorrection(' + hwId + ',' + i + ')" ' +
+         'style="padding:6px 12px;background:#fff;color:#8C8C8C;border:1px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;">↩ 撤销本次订正，重新提交</button>' +
+         (it.withdraw_count ? '<span style="font-size:11px;color:var(--text-muted);">已撤销 ' + it.withdraw_count + ' 次</span>' : '') +
+         '</div>';
+  }
   // 学生：未订正 / 未通过 → 显示（重新）订正入口；已判对不再要求重订
   if (isStu && !(it.submitted && it.verdict === 'correct')) {
     // 2026-10-25（年哥定）：取消文字订正，只保留拍照/视频两种——防止复制粘贴答案文字
@@ -12798,6 +12807,11 @@ function _corrItemHtml(it, i, hwId, isStu, isTeacher) {
   // 教师：逐题点评（2026-10-18 年哥定：每个错题下都可写评语，保存后学生端
   // 「👩‍🏫 老师：…」位置显示；未订正的题也挂得住，verdict 不受影响）
   if (isTeacher) {
+    // 2026-11-01：撤销留痕——反复撤销多半是订正卡住（拍不清/不会讲），值得点一句
+    if (it.withdraw_count > 0) {
+      h += '<div style="font-size:11px;color:#8A5300;margin-top:6px;">↩ 学生撤销过 ' + it.withdraw_count +
+           ' 次' + (it.withdrawn_at ? '（最近 ' + escHtmlSafe(it.withdrawn_at) + '）' : '') + '</div>';
+    }
     h += '<div style="margin-top:10px;">' +
          '<textarea id="corrNote-' + i + '" rows="2" placeholder="写给这位学生的点评 / 评语（保存后学生端可见）…" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;box-sizing:border-box;resize:vertical;">' + escHtmlSafe(it.teacher_comment || '') + '</textarea>' +
          '<div style="display:flex;gap:8px;margin-top:6px;align-items:center;">' +
@@ -13107,6 +13121,29 @@ async function reviewHwCorrection(hwId, i, verdict) {
     viewHwFeedback(hwId);
     var box = document.getElementById('hwCorrectionReview');
     if (box) loadHwCorrectionReview();
+  } catch (e) {
+    showToast('网络错误：' + e.message, 'error');
+  }
+}
+
+// 学生：撤销本题已提交的订正（2026-11-01 年哥定）——撤回后可重新拍照/录视频。
+// 老师已核定合格的题后端会拒（can_withdraw=0，按钮不显示）。
+async function withdrawHwCorrection(hwId, i) {
+  var it = (_hwCorrState.items || [])[i];
+  if (!it) return;
+  var cid = it.cid || 0;
+  if (!cid) { showToast('请刷新页面后重试（缺少记录编号）', 'error'); return; }
+  var tip = '撤销「' + (it.qno_label || '本题') + '」已提交的订正？\n\n撤销后这次提交和判定结果会清空，需要重新拍照或录视频。';
+  if (it.withdraw_count) tip += '\n（这道题已撤销 ' + it.withdraw_count + ' 次）';
+  if (!confirm(tip)) return;
+  try {
+    var resp = await fetchWithAuth('/homework/' + hwId + '/correction/' + cid + '/withdraw', {
+      method: 'POST'
+    });
+    var data = await resp.json().catch(function() { return {}; });
+    if (!resp.ok) { showToast(data.detail || '撤销失败', 'error'); return; }
+    showToast(data.message || '已撤销，可以重新提交', 'success');
+    viewHwFeedback(hwId);
   } catch (e) {
     showToast('网络错误：' + e.message, 'error');
   }
