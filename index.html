@@ -1009,9 +1009,27 @@ body::before {
       <button class="btn btn-outline" onclick="navigate('feedback')"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f4ca" xlink:href="#tw-1f4ca"/></svg> 查看学习报告</button>
     </div>
     <div class="stats-row">
-      <div class="stat-item"><span><svg class="tw" viewBox="0 0 36 36"><use href="#tw-2b50" xlink:href="#tw-2b50"/></svg></span><span id="totalPoints">128 积分</span></div>
+      <!-- 2026-11-10 晚·年哥定：积分图标改成「五维雷达图」形状（自绘 SVG，随主题蓝） -->
+      <div class="stat-item"><span style="line-height:0;">
+        <svg viewBox="0 0 36 36" aria-hidden="true" style="width:24px;height:24px;display:block;">
+          <polygon points="18,3.5 31.6,13.4 26.4,29.6 9.6,29.6 4.4,13.4"
+                   fill="#2F6FB5" fill-opacity="0.12" stroke="#2F6FB5"
+                   stroke-width="2.4" stroke-linejoin="round"/>
+          <line x1="18" y1="18" x2="18" y2="3.5" stroke="#2F6FB5" stroke-width="1.3" opacity="0.5"/>
+          <line x1="18" y1="18" x2="31.6" y2="13.4" stroke="#2F6FB5" stroke-width="1.3" opacity="0.5"/>
+          <line x1="18" y1="18" x2="26.4" y2="29.6" stroke="#2F6FB5" stroke-width="1.3" opacity="0.5"/>
+          <line x1="18" y1="18" x2="9.6" y2="29.6" stroke="#2F6FB5" stroke-width="1.3" opacity="0.5"/>
+          <line x1="18" y1="18" x2="4.4" y2="13.4" stroke="#2F6FB5" stroke-width="1.3" opacity="0.5"/>
+          <polygon points="18,8.6 26.8,14.5 22.2,23.2 13.4,24.6 10.9,15.6"
+                   fill="#2F6FB5" fill-opacity="0.45" stroke="#2F6FB5"
+                   stroke-width="1.6" stroke-linejoin="round"/>
+          <circle cx="18" cy="18" r="1.6" fill="#2F6FB5"/>
+        </svg>
+      </span><span id="totalPoints">128 积分</span></div>
       <div class="stat-item"><span><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3c5" xlink:href="#tw-1f3c5"/></svg></span><span id="totalMedals">15 枚勋章</span></div>
       <div class="stat-item"><span><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3af" xlink:href="#tw-1f3af"/></svg></span><span id="streakDays">正确率 91%</span></div>
+      <!-- 2026-11-10 晚·年哥定：第四项「累计星星」（成长星星榜累计得星，随后台数据实时变化） -->
+      <div class="stat-item"><span><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f31f" xlink:href="#tw-1f31f"/></svg></span><span id="totalStars">0 颗星星</span></div>
     </div>
   </div>
 </div>
@@ -3162,6 +3180,7 @@ function applyStudentHomeStats(data) {
   var p = document.getElementById('totalPoints');
   var m = document.getElementById('totalMedals');
   var s = document.getElementById('streakDays');
+  var st = document.getElementById('totalStars');
   // 2026-11-01（年哥定）：积分=每周累计总积分；勋章=开学以来累计总枚数；第三项改本学期累计正确率
   if (p) p.textContent = (Number(data.points) || 0) + ' 积分';
   if (m) {
@@ -3175,6 +3194,13 @@ function applyStudentHomeStats(data) {
     s.title = _ht > 0
       ? ('本学期累计 ' + data.hw_correct + '/' + _ht + ' 题（第1周起全部作业）')
       : '本学期还没有已批改的作业';
+  }
+  // 第四项：累计星星（与「积分榜 · 成长星星榜」同一口径，自第 10 周起算）
+  if (st) {
+    var _ts = Number(data.total_stars) || 0;
+    var _ws = Number(data.week_stars) || 0;
+    st.textContent = _ts + ' 颗星星';
+    st.title = '成长星星榜累计得星：开学以来共 ' + _ts + ' 颗\n本周 ' + _ws + ' 颗（六项每周比上周，进步或持平各得 1 颗，最多 6 颗）';
   }
 }
 
@@ -6951,7 +6977,9 @@ function renderCumulativeLeaderboard(container, meta, data) {
     var url = rawUrl;
     if (rawUrl && typeof photoUrl === 'function') url = photoUrl(rawUrl);
     var initial = esc(s.name ? s.name.slice(-2) : '?');
-    var borderColor = isTop3 ? top3Colors[rank - 1] : t.color;
+    // 2026-11-10 晚·年哥定：头像圆框圈线一律金色（不再按名次档金/银/铜），
+    // 名次档只用卡片浅底色与「金星档/银星档/铜星档」文案区分，视觉更统一。
+    var borderColor = '#E4B22A';
     var boxStyle = 'position:relative;width:56px;height:56px;margin:0 auto;';
     var wrapperStyle = 'position:absolute;top:0;left:0;width:56px;height:56px;box-sizing:border-box;' +
       'border-radius:50%;overflow:hidden;border:3px solid ' + borderColor + ';background:#E8ECF1;' +
