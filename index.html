@@ -1238,13 +1238,15 @@ body::before {
   </div>
 </div>
 
-<!-- 综合素养五维积分总榜（2026-09-15 从家校互通迁入；2026-09-16 更名并扩至前30名） -->
+<!-- 积分榜 + 成长星星榜（2026-11-10 年哥定：原「综合素养五维积分总榜」更名；
+     积分口径不变、全班全量展示；头像上方挂本周六项星星，颜色按积分名次金/银/铜） -->
 <div class="container section" id="cumulativeLeaderboardSection">
   <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
-      <h3 style="margin:0;font-size:18px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3c6" xlink:href="#tw-1f3c6"/></svg> 综合素养五维积分总榜</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <h3 style="margin:0;font-size:18px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3c6" xlink:href="#tw-1f3c6"/></svg> 积分榜 · 成长星星榜</h3>
       <span id="cumulativeLeaderboardMeta" style="font-size:13px;color:var(--text-muted);"></span>
     </div>
+    <div id="cumulativeLeaderboardRule" style="font-size:12.5px;color:var(--text-muted);line-height:1.7;background:#F7FAFE;border:1px solid #E3EDF9;border-radius:10px;padding:10px 12px;margin-bottom:16px;"></div>
     <div id="cumulativeLeaderboard" style="min-height:60px;"></div>
   </div>
 </div>
@@ -6846,80 +6848,173 @@ async function loadCumulativeLeaderboard() {
 }
 
 function renderCumulativeLeaderboard(container, meta, data) {
-  var esc = function(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-  var photoUrlFn = function(url) {
-    if (!url) return '';
-    if (url.startsWith('http')) return url;
-    return url;
+  var esc = function(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   };
   var students = data.top_students || [];
+  var starsMax = data.stars_max || 6;
+  var goldCut = data.gold_cut || 20;
+  var silverCut = data.silver_cut || 40;
+  var fromWeek = data.wrote_star_from_week || 10;
+  var starFromWeek = data.star_from_week || 10;
+  var curWeek = data.current_week || 0;
+
   if (meta) {
     var parts = [esc(data.class_name || ''), esc(data.term || '')];
-    if (data.week_count > 0) parts.push('累计 ' + data.week_count + ' 周');
+    if (curWeek > 0) parts.push('第 ' + curWeek + ' 周');
+    if (data.week_count > 0) parts.push('已累加 ' + data.week_count + ' 周');
+    if (data.student_count > 0) parts.push('共 ' + data.student_count + ' 人');
     meta.textContent = parts.filter(function(p) { return p; }).join(' · ');
   }
+
+  // 规则 / 图例（星星颜色按积分名次分档）
+  var ruleEl = document.getElementById('cumulativeLeaderboardRule');
+  if (ruleEl) {
+    var sIcon = function(f) {
+      return '<img src="' + f + '?cb=20261110a" style="width:13px;height:13px;vertical-align:-2px;">';
+    };
+    ruleEl.innerHTML =
+      '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:3px;">' +
+        '<span>' + sIcon('stars/star-gold.png') + ' 本周得星（统一金色）</span>' +
+        '<span style="color:#B4BECE;">名次档看卡片描边：前 ' + goldCut + ' 名金框 · 第 ' +
+          (goldCut + 1) + '~' + silverCut + ' 名银框 · 第 ' + (silverCut + 1) + ' 名以后铜框</span>' +
+      '</div>' +
+      '<div>⭐ 星星评比：<b>作业正确率 · 作业书写 · 逐题订正 · 学习兴趣 · 功勋墙 · 五维得分</b> 六项，' +
+        '每周每项只要比上周<b>有进步或持平</b>就得 1 颗星，回落不得星 —— 每人每周 0~' + starsMax + ' 颗。' +
+        '头像上方挂的就是本周实际得星，星数随后台数据实时刷新。</div>' +
+      '<div style="margin-top:2px;">星星自第 ' + starFromWeek + ' 周起算，之前的周不计星；' +
+        '「作业书写」由老师批改时识别家长写在卷面上的书写评分，自第 ' + fromWeek + ' 周起计入。</div>';
+  }
+
   if (students.length === 0) {
     container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">暂无五维评价数据</p>';
     return;
   }
-  // 奖牌色
-  var medalColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
+
+  // 2026-11-10 晚·年哥定：星星只要一种颜色 —— 全部金色。
+  // tier 仍按积分名次分三档，但只体现在「卡片描边 / 浅底色 / 名次文案」上，不再决定星色。
+  var tier = {
+    gold:   { img: 'stars/star-gold.png', color: '#E4B22A', bg: '#FFFDF4', label: '金星档' },
+    silver: { img: 'stars/star-gold.png', color: '#A8B4C0', bg: '#FBFCFD', label: '银星档' },
+    bronze: { img: 'stars/star-gold.png', color: '#C4834A', bg: '#FFFCF7', label: '铜星档' }
+  };
+  var STAR_IMG = 'stars/star-gold.png';   // 星色统一：金色
+  var top3Colors = ['#FFD700', '#C0C0C0', '#CD7F32'];
   var medalLabels = ['🥇', '🥈', '🥉'];
-  // 2026-09-16 星榜分层：1-10 五星金榜 / 11-20 四星银榜 / 21-30 三星铜榜
-  // 10:50 二次迭代：改用立体金属星挂件图（stars/star-*.png），中间大两边小、弧形排列
-  var starTier = function(rank) {
-    if (rank <= 10) return { img: 'stars/star-gold.png',   n: 5, sizes: [13,17,21,17,13], dys: [16,5,0,5,16], label: '五星金榜' };
-    if (rank <= 20) return { img: 'stars/star-silver.png', n: 4, sizes: [15,19,19,15], dys: [12,0,0,12], label: '四星银榜' };
-    return              { img: 'stars/star-bronze.png', n: 3, sizes: [14,18,14],    dys: [8,0,8],     label: '三星铜榜' };
-  };
-  var starRow = function(rank) {
-    var t = starTier(rank);
-    var s = '';
-    for (var i = 0; i < t.n; i++) {
-      s += '<img src="' + t.img + '?cb=20260916a" alt="" style="width:' + t.sizes[i] + 'px;height:' + t.sizes[i] + 'px;margin:0 -1px;margin-top:' + t.dys[i] + 'px;filter:drop-shadow(0 1px 1px rgba(0,0,0,0.25));">';
-    }
-    return '<div title="' + t.label + '" style="display:flex;justify-content:center;align-items:flex-start;height:29px;margin-bottom:-8px;position:relative;z-index:2;">' + s + '</div>';
-  };
-  var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:16px;text-align:center;">';
+
+  var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:12px;text-align:center;">';
   students.forEach(function(s, idx) {
-    var rank = idx + 1;
-    var borderColor = idx < 3 ? medalColors[idx] : '#E8ECF1';
-    var url = photoUrlFn(s.avatar_url || '');
-    var avatarStyle = 'width:64px;height:64px;border-radius:50%;object-fit:cover;background:#E8ECF1;';
-    var wrapperStyle = 'position:relative;width:64px;height:64px;margin:0 auto;border-radius:50%;overflow:hidden;border:3px solid ' + borderColor + ';background:#E8ECF1;box-shadow:0 2px 6px rgba(0,0,0,0.06);';
+    var rank = s.rank || (idx + 1);
+    var t = tier[s.star_tier] || tier.bronze;
+    var items = s.star_items || [];
+    var isTop3 = rank <= 3;
+
+    // 本周星级（2026-11-10 晚·年哥定）：沿用 2026-09-16 原样式——
+    // 立体金属星挂件、中间大两边小、弧形排；颗数＝本周实际得星数（0~6），
+    // 星色仍按积分名次金/银/铜（前20金 / 21~40银 / 41后铜）。
+    var shape = {
+      1: { s: [25],                     d: [0] },
+      2: { s: [19, 19],                 d: [5, 5] },
+      3: { s: [14, 18, 14],             d: [8, 0, 8] },
+      4: { s: [15, 19, 19, 15],         d: [15, 0, 0, 15] },
+      5: { s: [13, 17, 21, 17, 13],     d: [17, 5, 0, 5, 17] },
+      6: { s: [12, 16, 19, 19, 16, 12], d: [18, 6, 0, 0, 6, 18] }
+    };
+    var got = [];
+    for (var gi = 0; gi < items.length; gi++) {
+      if (items[gi] && items[gi].ok) got.push(items[gi]);
+    }
+    var gotN = Math.min(got.length, starsMax);
+    var sh = shape[gotN] || null;
+    var starHtml = '';
+    if (sh) {
+      for (var k = 0; k < gotN; k++) {
+        var it = got[k];
+        var tip = it.label + '：' + (it.text || '') + '  ⭐';
+        starHtml += '<img src="' + STAR_IMG + '?cb=20260916a" alt="" title="' + esc(tip) + '" ' +
+          'style="width:' + sh.s[k] + 'px;height:' + sh.s[k] + 'px;margin:0 -1px;' +
+          'margin-top:' + sh.d[k] + 'px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));">';
+      }
+    } else {
+      // 本周一颗没拿到：留一个极淡的占位，保持卡片高度整齐，也让孩子看见「这周没亮星」
+      starHtml = '<span title="本周六项均未比上周进步，未得星" style="display:inline-block;' +
+        'width:14px;height:14px;line-height:14px;font-size:12px;color:#D3DAE4;margin-top:2px;">·</span>';
+    }
+
+    // 头像（2026-11-10 晚补）：统一走 photoUrl，/student-avatars/ 落主域；
+    // 万一张图挂了，自动回退成姓名末两字，不留空白圆圈。
+    // 2026-11-10 二次修：绝对定位 + box-sizing:border-box + display:block，
+    // 保证 55 人的头像外径严格 56px 一样大（原先 img 是 inline，基线留缝会吃高度，
+    // 看起来有的大有的小）；奖牌也移出圆框，避免被 overflow:hidden 裁掉。
+    var rawUrl = s.avatar_url || '';
+    var url = rawUrl;
+    if (rawUrl && typeof photoUrl === 'function') url = photoUrl(rawUrl);
+    var initial = esc(s.name ? s.name.slice(-2) : '?');
+    var borderColor = isTop3 ? top3Colors[rank - 1] : t.color;
+    var boxStyle = 'position:relative;width:56px;height:56px;margin:0 auto;';
+    var wrapperStyle = 'position:absolute;top:0;left:0;width:56px;height:56px;box-sizing:border-box;' +
+      'border-radius:50%;overflow:hidden;border:3px solid ' + borderColor + ';background:#E8ECF1;' +
+      'box-shadow:0 2px 6px rgba(0,0,0,.06);';
+    var imgStyle = 'display:block;position:absolute;top:0;left:0;width:100%;height:100%;' +
+      'object-fit:cover;object-position:center;';
+    var avatarFallback = '<div style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;' +
+      'align-items:center;justify-content:center;color:var(--primary);font-weight:700;font-size:22px;">' +
+      initial + '</div>';
     var avatarHtml = url
-      ? '<img src="' + esc(url) + '" style="' + avatarStyle + '" alt="' + esc(s.name) + '">'
-      : '<div style="' + avatarStyle + 'display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:700;font-size:28px;">' + esc(s.name ? s.name.slice(-2) : '?') + '</div>';
-    var rankBadge = idx < 3
-      ? '<div style="position:absolute;top:-6px;left:50%;transform:translateX(-50%);font-size:20px;z-index:2;">' + medalLabels[idx] + '</div>'
+      ? '<img src="' + esc(url) + '" style="' + imgStyle + '" alt="' + esc(s.name) + '" ' +
+        'onerror="this.style.display=\'none\';var n=this.nextElementSibling;' +
+        'if(n){n.style.display=\'flex\';}">' + avatarFallback
+      : '<div style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;' +
+        'justify-content:center;color:var(--primary);font-weight:700;font-size:22px;">' + initial + '</div>';
+    // 奖牌留在头像正上方居中（年哥定：不用移），压在圆框上沿一点点，
+    // 加白描边从照片里跳出来；星星行留了缝，不会跟它打架。
+    var rankBadge = isTop3
+      ? '<div style="position:absolute;top:-2px;left:50%;transform:translateX(-50%);font-size:16px;' +
+        'line-height:1;z-index:3;filter:drop-shadow(0 0 2px rgba(255,255,255,.95)) ' +
+        'drop-shadow(0 1px 1px rgba(0,0,0,.18));">' + medalLabels[rank - 1] + '</div>'
       : '';
-    html += '<div style="padding:10px 4px;border-radius:12px;transition:background .2s;" onmouseover="this.style.background=\'#F7F9FC\'" onmouseout="this.style.background=\'transparent\'">';
-    html += starRow(rank);
-    html += '<div style="' + wrapperStyle + '">' + rankBadge + avatarHtml + '</div>';
-    var _isNew = !!s.is_new;
-    var _newBadge = _isNew
-      ? ' <span title="本周新进入前30名" style="display:inline-block;font-size:10px;line-height:1;color:#fff;background:#E03E3E;border-radius:4px;padding:2px 4px;vertical-align:2px;font-weight:700;">新</span>'
-      : '';
-    html += '<div style="font-size:13px;color:var(--text-primary);margin-top:8px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(s.name) + _newBadge + '</div>';
-    html += '<div style="font-size:12px;color:var(--primary);font-weight:600;margin-top:2px;">' + (s.total || 0).toFixed(1) + ' 分</div>';
-    // 2026-09-26：排名变化 + 本周加分——孩子做了/没做，名次先后立马看得见（涨红跌绿）
+
+    // 名次变化：涨红跌绿（中国习惯）
     var _rc = s.rank_change || 0;
-    var _rcHtml = _rc > 0
+    var rcHtml = _rc > 0
       ? '<span style="color:#E03E3E;font-weight:700;" title="比上周上升' + _rc + '名">↑' + _rc + '</span>'
       : (_rc < 0
         ? '<span style="color:#2E9E5B;font-weight:700;" title="比上周下降' + Math.abs(_rc) + '名">↓' + Math.abs(_rc) + '</span>'
-        : (_isNew
-          ? '<span style="color:#E03E3E;font-weight:700;" title="本周新进入前30名">新</span>'
-          : '<span style="color:var(--text-muted);" title="名次与上周持平">–</span>'));
-    var _wg = (s.week_gain === undefined || s.week_gain === null) ? null : (Number(s.week_gain) || 0);
-    var _wgHtml = _wg === null ? '' : (_wg > 0
-      ? '<span style="color:#E03E3E;" title="本周新增积分">+' + _wg.toFixed(1) + '</span>'
-      : (_wg < 0 ? '<span style="color:#2E9E5B;" title="本周积分减少">' + _wg.toFixed(1) + '</span>'
-                 : '<span style="color:var(--text-muted);" title="本周暂无新增">+0.0</span>'));
-    html += '<div style="font-size:11px;margin-top:1px;white-space:nowrap;">' + _rcHtml + ' <span style="color:var(--text-muted);">·</span> ' + _wgHtml + '</div>';
-    if (s.weeks > 0) {
-      html += '<div style="font-size:11px;color:var(--text-muted);">' + s.weeks + '周</div>';
-    }
+        : '');
+    var _wg = (s.week_gain === undefined || s.week_gain === null) ? null : Number(s.week_gain);
+    var wgHtml = (_wg === null) ? '' : (_wg > 0
+      ? '本周 +' + _wg.toFixed(1)
+      : (_wg < 0 ? '本周 ' + _wg.toFixed(1) : '本周 +0.0'));
+
+    // 悬停看六项明细
+    var detail = items.map(function(it) {
+      return it.label + ' ' + (it.text || '') + (it.ok ? ' ⭐' : '');
+    }).join('；');
+    var cardTitle = s.name + '（第 ' + rank + ' 名 · ' + t.label + '）&#10;本周 ' +
+      (s.week_stars || 0) + '/' + starsMax + ' 颗星，累计 ' + (s.total_stars || 0) + ' 颗&#10;' +
+      detail + (wgHtml ? '&#10;' + wgHtml : '');
+
+    var newBadge = s.is_new
+      ? ' <span title="本周新进金星区（前 ' + goldCut + ' 名）" style="display:inline-block;font-size:10px;' +
+        'line-height:1;color:#fff;background:#E03E3E;border-radius:4px;padding:2px 4px;vertical-align:2px;' +
+        'font-weight:700;">新</span>'
+      : '';
+
+    var baseBg = (rank <= goldCut) ? t.bg : 'transparent';
+    html += '<div title="' + cardTitle + '" style="padding:8px 4px 10px;border-radius:12px;background:' + baseBg +
+      ';transition:background .2s;" onmouseover="this.style.background=\'#F2F7FD\'" ' +
+      'onmouseout="this.style.background=\'' + baseBg + '\'">';
+    html += '<div style="height:30px;display:flex;justify-content:center;align-items:flex-start;margin-bottom:0;">' + starHtml + '</div>';
+    html += '<div style="' + boxStyle + '">' + rankBadge +
+      '<div style="' + wrapperStyle + '">' + avatarHtml + '</div></div>';
+    html += '<div style="font-size:13px;color:var(--text-primary);margin-top:7px;font-weight:500;' +
+      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(s.name) + newBadge + '</div>';
+    html += '<div style="font-size:12.5px;color:var(--primary);font-weight:600;margin-top:1px;">' +
+      (Number(s.total) || 0).toFixed(1) + ' 分</div>';
+    html += '<div style="font-size:11px;color:var(--text-muted);margin-top:1px;">第 ' + rank + ' 名 ' + rcHtml + '</div>';
+    html += '<div style="font-size:11.5px;color:#B8860B;font-weight:600;margin-top:1px;">⭐ 累计 ' +
+      (s.total_stars || 0) + ' 颗</div>';
     html += '</div>';
   });
   html += '</div>';
@@ -13921,6 +14016,8 @@ function _corrReviewRowHtml(r, w) {
   if (r.ai_correct) st += _st('#389E0D', '判对', r.ai_correct);
   if (r.ai_wrong) st += _st('#C62828', '仍错', r.ai_wrong);
   if (r.ai_uncertain) st += _st('#B57D05', '待确认', r.ai_uncertain);
+  // 2026-11-01 P2③：AI 判错/说不准、老师还没裁定的条数——这些必须老师一句话才能结案
+  if (r.teacher_todo) st += _st('#C62828', '待老师裁定', r.teacher_todo);
   if (r.pending) st += _st('#B57D05', '未订', r.pending);
   st += '</div>';
   var badge = r.all_correct
@@ -14997,7 +15094,9 @@ function renderSaRawList(items, st) {
         escHtmlSafe(it.reread_reads.join(' / ')) + '</div>';
     } else if (it.sa_read2) {
       reads = '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">🔄 无键复读：' +
-        escHtmlSafe(it.sa_read2) + (it.sa_read2_ok === true ? '（与答案相符）' : (it.sa_read2_ok === false ? '（与答案不符）' : '')) + '</div>';
+        escHtmlSafe(it.sa_read2) + (it.read2_key_echo
+          ? '（与答案键完全相同，疑受答案键影响，不作笔迹依据）'
+          : (it.sa_read2_ok === true ? '（与答案相符）' : (it.sa_read2_ok === false ? '（与答案不符）' : ''))) + '</div>';
     }
     var hint = it.hint ? '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.6;">📝 ' +
       escHtmlSafe(it.hint) + '</div>' : '';
