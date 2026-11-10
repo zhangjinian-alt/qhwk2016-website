@@ -11,7 +11,7 @@
     --bg-card:#FFFFFF; --radius-lg:16px; --shadow:0 2px 12px rgba(31,45,61,.07);
   }
   *{box-sizing:border-box;}
-  body{margin:0;background:#F4F7FB;color:var(--text-primary);
+  body{margin:0;background:#F4F7FB;color:var(--text-primary);overflow-x:hidden;
     font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
     -webkit-text-size-adjust:100%;}
   .wrap{max-width:860px;margin:0 auto;padding:14px 12px 40px;}
@@ -20,17 +20,37 @@
   .head h1{margin:0;font-size:19px;letter-spacing:.5px;}
   .head .sub{margin-top:6px;font-size:12.5px;opacity:.92;line-height:1.6;}
   .panel{background:var(--bg-card);border-radius:var(--radius-lg);padding:16px 14px 20px;
-    box-shadow:var(--shadow);margin-top:12px;}
+    box-shadow:var(--shadow);margin-top:12px;overflow:hidden;}
   .panel h2{margin:0 0 10px;font-size:15px;}
   #cumulativeLeaderboardMeta{font-size:12.5px;color:var(--text-muted);}
   #cumulativeLeaderboardRule{font-size:12px;color:var(--text-muted);line-height:1.7;
     background:#F7FAFE;border:1px solid #E3EDF9;border-radius:10px;padding:10px 12px;margin:10px 0 14px;}
   .searchbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;}
-  .searchbar input{flex:1;padding:9px 12px;border:1px solid #DFE6EF;border-radius:10px;
+  .searchbar input{flex:1;min-width:0;padding:9px 12px;border:1px solid #DFE6EF;border-radius:10px;
     font-size:14px;outline:none;background:#FBFDFF;}
   .searchbar input:focus{border-color:var(--primary);}
   .searchbar button{padding:9px 12px;border:none;border-radius:10px;background:#EDF3FB;
-    color:var(--primary);font-size:13px;font-weight:600;}
+    color:var(--primary);font-size:13px;font-weight:600;white-space:nowrap;}
+  /* 列数用媒体查询硬控（!important 覆盖渲染函数的内联 grid-template-columns）：
+     主站是电脑看所以写死 116px 列宽，家长手机必须按屏宽重排，否则右侧被切。 */
+  #cumulativeLeaderboard{max-width:100%;overflow:hidden;}
+  #cumulativeLeaderboard > div{
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    gap:10px 8px !important;width:100% !important;
+  }
+  @media (min-width:340px){
+    #cumulativeLeaderboard > div{grid-template-columns:repeat(3,minmax(0,1fr)) !important;}
+  }
+  @media (min-width:520px){
+    #cumulativeLeaderboard > div{grid-template-columns:repeat(4,minmax(0,1fr)) !important;}
+  }
+  @media (min-width:680px){
+    #cumulativeLeaderboard > div{grid-template-columns:repeat(5,minmax(0,1fr)) !important;}
+  }
+  @media (min-width:820px){
+    #cumulativeLeaderboard > div{grid-template-columns:repeat(6,minmax(0,1fr)) !important;}
+  }
   .foot{text-align:center;font-size:12px;color:#9AA7B8;line-height:1.9;margin-top:16px;}
   .loading{text-align:center;color:var(--text-muted);padding:28px;font-size:14px;}
   .err{text-align:center;color:#E03E3E;padding:24px;font-size:14px;line-height:1.8;}
@@ -188,7 +208,9 @@ function renderCumulativeLeaderboard(container, meta, data) {
     var url = rawUrl;
     if (rawUrl && typeof photoUrl === 'function') url = photoUrl(rawUrl);
     var initial = esc(s.name ? s.name.slice(-2) : '?');
-    var borderColor = isTop3 ? top3Colors[rank - 1] : t.color;
+    // 2026-11-10 晚·年哥定：头像圆框圈线一律金色（不再按名次档金/银/铜），
+    // 名次档只用卡片浅底色与「金星档/银星档/铜星档」文案区分，视觉更统一。
+    var borderColor = '#E4B22A';
     var boxStyle = 'position:relative;width:56px;height:56px;margin:0 auto;';
     var wrapperStyle = 'position:absolute;top:0;left:0;width:56px;height:56px;box-sizing:border-box;' +
       'border-radius:50%;overflow:hidden;border:3px solid ' + borderColor + ';background:#E8ECF1;' +
@@ -268,6 +290,9 @@ function tagCardNames(container, data){
     cards[i].setAttribute('data-stu-name', list[i].name || '');
   }
 }
+
+// 列数由 CSS 媒体查询硬控（见上面 #cumulativeLeaderboard > div 的 !important 规则），
+// 不再用 JS 量宽——内联样式会被内容撑开，手机端会右侧被切。
 
 function applyFilter(){
   var kw = (document.getElementById('nameSearch').value || '').trim();
