@@ -15855,7 +15855,8 @@ if ('serviceWorker' in navigator) {
     var n = overflowingCount();
     var iw = window.innerWidth, vw = visW();
     var layoutTooWide = iw > vw * 1.4;   // 布局视口远宽于可视视口（被裁半屏的信号）
-    if (!force && n === 0 && !layoutTooWide) { if (badge) { badge.remove(); badge = null; } return; }
+    // 2026-11-14：平时不打扰家长孩子——只有带 ?vpdebug=1，或自动纠偏后仍然「布局宽≫可视宽」才显示角标
+    if (!force && !layoutTooWide) { if (badge) { badge.remove(); badge = null; } return; }
     var label = '📐 ' + iw + '/' + vw + '·宽' + n;
     if (badge) { badge.textContent = label; return; }
     badge = document.createElement('button');
