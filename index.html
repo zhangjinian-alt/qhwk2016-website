@@ -12156,6 +12156,41 @@ var _hwLightboxState = { urls: [], idx: 0, zoom: 1, rots: {} };
 var _HW_ROT_STORE_KEY = 'qhwk_hw_rot';
 var _HW_ZOOM_STEPS = [1, 1.5, 2, 3];   // 2026-10-18 加 3× 档：订正小字/小图放大更从容
 
+// 2026-11-14（年哥哥反馈）：电脑端复核时看完作业原图、关闭后，复核页会跳到最下面。
+// 原因：关闭只解了 body 的滚动锁，没管复核弹窗自身的滚动位置——浏览器关闭浮层后
+// 焦点/滚动回收会把滚到最底。这里在打开原图前记住滚动位置，关闭后分三次还原
+// （0ms / rAF / 160ms），压住后到的跳动，回到原先（通常是最上面）看的位置。
+var _hwLbScrollMemo = null;
+
+function _hwLbScrollEls() {
+  var els = [];
+  var m = document.querySelector('#modal .modal');   // 复核弹窗自己的滚动容器
+  if (m) els.push(m);
+  var se = document.scrollingElement || document.documentElement;
+  if (se) els.push(se);
+  return els;
+}
+
+function _hwLbSaveScroll() {
+  _hwLbScrollMemo = _hwLbScrollEls().map(function(el) {
+    return { el: el, top: el.scrollTop || 0 };
+  });
+}
+
+function _hwLbRestoreScroll() {
+  var memo = _hwLbScrollMemo;
+  if (!memo || !memo.length) return;
+  var apply = function() {
+    memo.forEach(function(it) {
+      try { it.el.scrollTop = it.top; } catch (e) {}
+    });
+  };
+  apply();
+  if (window.requestAnimationFrame) requestAnimationFrame(apply);
+  setTimeout(apply, 50);
+  setTimeout(apply, 160);
+}
+
 function _hwLoadRots() {
   try { return JSON.parse(localStorage.getItem(_HW_ROT_STORE_KEY) || '{}') || {}; } catch (e) { return {}; }
 }
@@ -12201,6 +12236,7 @@ function openHwLightbox(urls, idx) {
     document.body.appendChild(ov);
   }
   renderHwLightbox();
+  _hwLbSaveScroll();          // 2026-11-14：记住打开前复核页的滚动位置
   ov.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
@@ -12297,6 +12333,12 @@ function closeHwLightbox() {
   var ov = document.getElementById('hwLightbox');
   if (ov) ov.style.display = 'none';
   document.body.style.overflow = '';
+  // 2026-11-14（年哥哥反馈）：关闭原图后不要跳到页面最下面 —— 弹出层里的按钮失焦
+  // 可能触发滚动补偿，先把焦点交还 body，再还原打开前记下的滚动位置。
+  try {
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  } catch (e) {}
+  _hwLbRestoreScroll();
 }
 
 document.addEventListener('keydown', function(e) {
@@ -14475,6 +14517,7 @@ async function reviewHw(hwId) {
     // 2026-11-14（年哥哥要求）：电脑端复核弹窗近全屏，批改更方便（手机端不变）
     var _mbox = document.querySelector('#modal .modal');
     if (_mbox && window.innerWidth >= 900) _mbox.classList.add('modal-fullscreen');
+    if (_mbox) _mbox.scrollTop = 0;   // 2026-11-14：新开一份作业，从最上面开始看
     renderReviewProblems();
     renderRvCommentImages();
     // 2026-11-14 年哥哥要求：电脑端点「复核」直接跳出作业原图 3× 预览（省一步）；
