@@ -15783,6 +15783,7 @@ if ('serviceWorker' in navigator) {
     lines.push('【视口】innerWidth=' + window.innerWidth + '  clientWidth=' + de.clientWidth + '  scrollWidth=' + de.scrollWidth);
     lines.push('【设备】dpr=' + (window.devicePixelRatio || 1) + '  screen=' + screen.width + '×' + screen.height + '  avail=' + screen.availWidth + '×' + screen.availHeight + '  outerWidth=' + (window.outerWidth || '-'));
     lines.push('【可视】visualViewport=' + (vv ? (Math.round(vv.width) + '×' + Math.round(vv.height) + ' scale=' + vv.scale.toFixed(2) + ' offsetLeft=' + Math.round(vv.offsetLeft)) : '不支持'));
+    if (window.__vpFixNote) lines.push('【已纠偏】' + window.__vpFixNote);
     lines.push('【媒体】≤480:' + (window.matchMedia('(max-width:480px)').matches ? 'Y' : 'N') + '  ≤768:' + (window.matchMedia('(max-width:768px)').matches ? 'Y' : 'N') + '  ≤900:' + (window.matchMedia('(max-width:900px)').matches ? 'Y' : 'N'));
     var tg = document.getElementById('homeTaskGrid');
     if (tg) {
@@ -15818,14 +15819,47 @@ if ('serviceWorker' in navigator) {
     panel.querySelector('button').onclick = show;
     document.body.appendChild(panel);
   }
+  function overflowingCount(){
+    var de = document.documentElement, cw = de.clientWidth, n = 0;
+    var all = document.querySelectorAll('body *');
+    for (var i = 0; i < all.length; i++) {
+      var r = all[i].getBoundingClientRect();
+      if (r.width > 1 && r.right > cw + 1) n++;
+    }
+    return n;
+  }
+  function visW(){
+    return window.visualViewport ? Math.round(window.visualViewport.width) : window.innerWidth;
+  }
+  // 自动纠偏：个别手机浏览器/webview 会把「布局视口」算成可视视口的约 2 倍
+  // （把物理像素当 CSS 像素、或桌面模式），表现为页面右半截被裁掉且滑不动。
+  // 检测到后把 viewport 显式收敛到真实可视宽度（用户手动缩放时不干预）。
+  function fixViewport(){
+    var vv = window.visualViewport;
+    if (!vv || window.__vpFixed) return;
+    if (Math.abs(vv.scale - 1) > 0.05) return;   // 用户在手动缩放，别动
+    var iw = window.innerWidth, vw = Math.round(vv.width);
+    if (iw > vw * 1.4 && vw >= 200) {
+      window.__vpFixed = true;
+      var m = document.querySelector('meta[name="viewport"]');
+      if (m) {
+        m.setAttribute('content', 'width=' + vw + ', initial-scale=1, viewport-fit=cover');
+        window.__vpFixNote = iw + '→' + vw;
+      }
+    }
+  }
   function check(){
+    fixViewport();
     var de = document.documentElement;
-    var overflow = de.scrollWidth - de.clientWidth;
     var force = /[?&]vpdebug=1/.test(location.search);
-    if (!force && overflow <= 2) { if (badge) { badge.remove(); badge = null; } return; }
-    if (badge) return;
+    var n = overflowingCount();
+    var iw = window.innerWidth, vw = visW();
+    var layoutTooWide = iw > vw * 1.4;   // 布局视口远宽于可视视口（被裁半屏的信号）
+    if (!force && n === 0 && !layoutTooWide) { if (badge) { badge.remove(); badge = null; } return; }
+    var label = '📐 ' + iw + '/' + vw + '·宽' + n;
+    if (badge) { badge.textContent = label; return; }
     badge = document.createElement('button');
-    badge.textContent = '📐 排版自检' + (overflow > 2 ? '（超宽' + overflow + 'px）' : '');
+    badge.textContent = label;
     badge.style.cssText = 'position:fixed;left:8px;bottom:84px;z-index:2147482000;padding:8px 12px;border-radius:999px;background:#FF4D4F;color:#fff;font-size:12px;font-weight:700;border:none;box-shadow:0 4px 14px rgba(0,0,0,.3);';
     badge.onclick = show;
     document.body.appendChild(badge);
