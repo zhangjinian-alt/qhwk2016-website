@@ -127,7 +127,17 @@ img { max-width:100%; display:block; }
 .menu-toggle {
   display:none; font-size:24px; color:var(--text);
   padding:8px; border-radius:8px;
+  flex-shrink:0; margin-left:auto;
 }
+/* 2026-11-14 手机窄屏（≤320pt 显示缩放/分屏窗口）防溢出：
+   header 按钮不压缩、logo 文字可截断，杜绝横向滚动把版面顶宽 */
+.header-inner { min-width:0; }
+.header .btn-lock { flex-shrink:0; }
+.header .logo-text { min-width:0; }
+.header .logo-title, .header .logo-domain {
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:38vw;
+}
+html, body { overflow-x:clip; }
 
 /* ===== Mobile Nav ===== */
 .mobile-nav {
@@ -573,6 +583,14 @@ img { max-width:100%; display:block; }
   float:right; font-size:24px; cursor:pointer; color:var(--text-muted);
 }
 .modal video { width:100%; border-radius:var(--radius); }
+/* 2026-11-14（年哥哥要求）：教师端电脑打开「作业复核」时弹窗近全屏，批改更方便。
+   仅桌面宽屏（≥900px）生效；手机端维持原样。关闭弹窗时由 closeModal/closeModalDirect 还原。 */
+@media (min-width:900px) {
+  .modal-overlay .modal.modal-fullscreen {
+    width:calc(100vw - 40px); max-width:1560px; height:calc(100vh - 40px);
+    max-height:none; padding:20px 28px; border-radius:16px;
+  }
+}
 
 /* ===== Bubble Mascot ===== */
 .bubble {
@@ -1257,7 +1275,7 @@ body::before {
 </div>
 
 <!-- 积分榜 + 成长星星榜（2026-11-10 年哥定：原「综合素养五维积分总榜」更名；
-     积分口径不变、全班全量展示；头像上方挂本周六项星星，颜色按积分名次金/银/铜） -->
+     积分口径不变、全班全量展示；头像上方挂本周五项星星（书写只记录不评星），颜色按积分名次金/银/铜） -->
 <div class="container section" id="cumulativeLeaderboardSection">
   <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
@@ -3208,7 +3226,7 @@ function applyStudentHomeStats(data) {
     var _ts = Number(data.total_stars) || 0;
     var _ws = Number(data.week_stars) || 0;
     st.textContent = _ts + ' 颗星星';
-    st.title = '成长星星榜累计得星：开学以来共 ' + _ts + ' 颗\n本周 ' + _ws + ' 颗（六项每周比上周，进步或持平各得 1 颗，最多 6 颗）';
+    st.title = '成长星星榜累计得星：开学以来共 ' + _ts + ' 颗\n本周 ' + _ws + ' 颗（五项每周比上周，进步或持平各得 1 颗，最多 5 颗；作业书写只记录不评星）';
   }
 }
 
@@ -6887,7 +6905,7 @@ function renderCumulativeLeaderboard(container, meta, data) {
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   };
   var students = data.top_students || [];
-  var starsMax = data.stars_max || 6;
+  var starsMax = data.stars_max || 5;
   var goldCut = data.gold_cut || 20;
   var silverCut = data.silver_cut || 40;
   var fromWeek = data.wrote_star_from_week || 10;
@@ -6902,18 +6920,17 @@ function renderCumulativeLeaderboard(container, meta, data) {
     meta.textContent = parts.filter(function(p) { return p; }).join(' · ');
   }
 
-  // 规则说明（2026-11-14 年哥哥定：删繁就简，只留主体一句 + 书写评分单独一条）
+  // 规则说明（2026-11-14 年哥哥定：书写只记录不评星，实际评星五项）
   var ruleEl = document.getElementById('cumulativeLeaderboardRule');
   if (ruleEl) {
     ruleEl.innerHTML =
-      '<div>六星成长榜：<b>作业正确率 · 作业书写 · 逐题订正 · 学习兴趣 · 功勋墙 · 五维得分</b> 六项，' +
+      '<div>成长星星榜：<b>作业正确率 · 逐题订正 · 学习兴趣 · 功勋墙 · 五维得分</b> 五项，' +
       '每周每项只要比上周<b>有进步或持平</b>就得 1 颗星，回落不得星 —— 每人每周 0~' + starsMax + ' 颗。' +
       '头像上方挂的就是本周实际得星，星星数随后台数据实时刷新。' +
       '从第' + starFromWeek + '周开始计星星，星星总数累计。</div>' +
       '<div style="margin-top:3px;">' +
-      '<b>书写评分（作业书写）评星条件</b>：由系统在批改作业时自动读取家长手写的书写评分；' +
-      '<b>如果家长本周没有手写书写评分，则这一项评星取消</b> —— 本周只按其余五项计星，最多 ' +
-      (starsMax - 1) + ' 颗。</div>';
+      '<b>作业书写</b>：系统在批改作业时自动读取家长手写的书写评分，<b>只记录本周得分、不参与评星</b>' +
+      '（书写没有跨周可比的基线，比不出真实进步；分数照常保存，可在作业详情查看）。</div>';
   }
 
   if (students.length === 0) {
@@ -6940,7 +6957,8 @@ function renderCumulativeLeaderboard(container, meta, data) {
     var isTop3 = rank <= 3;
 
     // 本周星级（2026-11-10 晚·年哥定）：沿用 2026-09-16 原样式——
-    // 立体金属星挂件、中间大两边小、弧形排；颗数＝本周实际得星数（0~6），
+    // 立体金属星挂件、中间大两边小、弧形排；颗数＝本周实际得星数（0~5，
+    // 2026-11-14 起书写只记录不评星，故上限由 6 降为 5），
     // 星色仍按积分名次金/银/铜（前20金 / 21~40银 / 41后铜）。
     var shape = {
       1: { s: [25],                     d: [0] },
@@ -6967,7 +6985,7 @@ function renderCumulativeLeaderboard(container, meta, data) {
       }
     } else {
       // 本周一颗没拿到：留一个极淡的占位，保持卡片高度整齐，也让孩子看见「这周没亮星」
-      starHtml = '<span title="本周六项均未比上周进步，未得星" style="display:inline-block;' +
+      starHtml = '<span title="本周五项均未比上周进步，未得星" style="display:inline-block;' +
         'width:14px;height:14px;line-height:14px;font-size:12px;color:#D3DAE4;margin-top:2px;">·</span>';
     }
 
@@ -7018,7 +7036,7 @@ function renderCumulativeLeaderboard(container, meta, data) {
       ? '本周 +' + _wg.toFixed(1)
       : (_wg < 0 ? '本周 ' + _wg.toFixed(1) : '本周 +0.0'));
 
-    // 悬停看六项明细
+    // 悬停看各项明细（书写只记录、不评星，故不带 ⭐）
     var detail = items.map(function(it) {
       return it.label + ' ' + (it.text || '') + (it.ok ? ' ⭐' : '');
     }).join('；');
@@ -8911,10 +8929,14 @@ function closeModal(e) {
   }
   destroyModalPlayers();
   document.getElementById('modal').classList.remove('open');
+  var _mb = document.querySelector('#modal .modal');
+  if (_mb) _mb.classList.remove('modal-fullscreen'); // 2026-11-14 还原复核全屏态
 }
 function closeModalDirect() {
   destroyModalPlayers();
   document.getElementById('modal').classList.remove('open');
+  var _mb = document.querySelector('#modal .modal');
+  if (_mb) _mb.classList.remove('modal-fullscreen'); // 2026-11-14 还原复核全屏态
 }
 
 // ===== FORM MODAL SYSTEM =====
@@ -14450,6 +14472,9 @@ async function reviewHw(hwId) {
 
     document.getElementById('modalContent').innerHTML = html;
     document.getElementById('modal').classList.add('open');
+    // 2026-11-14（年哥哥要求）：电脑端复核弹窗近全屏，批改更方便（手机端不变）
+    var _mbox = document.querySelector('#modal .modal');
+    if (_mbox && window.innerWidth >= 900) _mbox.classList.add('modal-fullscreen');
     renderReviewProblems();
     renderRvCommentImages();
     // 2026-11-14 年哥哥要求：电脑端点「复核」直接跳出作业原图 3× 预览（省一步）；
@@ -14593,10 +14618,14 @@ function renderReviewProblems() {
         var altLbl = (p.prev_read_ok !== undefined && p.prev_read_ok !== null)
           ? '上一轮' + (p.prev_read_ok ? '判对' : '判错') + '时读作'
           : 'AI 盲抄复核另读作';
+        // 2026-11-14 修复：原 flex 嵌套（flex:1;min-width:0 双层收缩链）在手机端 iOS Safari
+        // 宽度被压成一字一竖排、采纳按钮叠字。改为纯块级布局：文字自然换行，按钮右对齐放下。
         var altHtml = (alt && !p.is_correct)
-          ? '<div style="background:#FFF4E5;border:1px dashed #E8B368;border-radius:8px;padding:6px 10px;margin-top:6px;font-size:12px;color:#8A5300;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
-            '<span style="flex:1;min-width:0;">🔍 ' + altLbl + '：<b>' + fmtFrac(alt) + '</b>（与本次读法不一致，请对照原图）</span>' +
-            '<button type="button" onclick="adoptRvAlt(' + i + ')" title="把学生答案替换为上一轮/第二读法" style="flex:none;border:1px solid #E8B368;background:#fff;border-radius:6px;padding:3px 10px;font-size:12px;color:#8A5300;cursor:pointer;">✍ 采纳</button>' +
+          ? '<div style="background:#FFF4E5;border:1px dashed #E8B368;border-radius:8px;padding:6px 10px;margin-top:6px;font-size:12px;color:#8A5300;">' +
+            '<div style="line-height:1.6;word-break:break-word;">🔍 ' + altLbl + '：<b>' + fmtFrac(alt) + '</b>（与本次读法不一致，请对照原图）</div>' +
+            '<div style="text-align:right;margin-top:4px;">' +
+            '<button type="button" onclick="adoptRvAlt(' + i + ')" title="把学生答案替换为上一轮/第二读法" style="border:1px solid #E8B368;background:#fff;border-radius:6px;padding:3px 10px;font-size:12px;color:#8A5300;cursor:pointer;">✍ 采纳</button>' +
+            '</div>' +
             '</div>'
           : '';
         // 2026-10-26（年哥哥定）：判错才给错因码下拉。老师据原图人工判错（字迹看不清）
