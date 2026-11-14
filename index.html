@@ -225,17 +225,21 @@ html, body { overflow-x:clip; }
 
 /* ===== Task Section ===== */
 .task-grid {
-  display:grid; grid-template-columns:380px 1fr; gap:24px;
+  /* 2026-11-14（年哥反馈手机首页卡片只显示一半）：固定 380px 列在窄视口会撑破容器，
+     改成 minmax(0,380px) 可收缩，任何宽度都不会把卡片顶出屏幕 */
+  display:grid; grid-template-columns:minmax(0,380px) minmax(0,1fr); gap:24px;
 }
 .video-card {
   background:var(--bg-card); border-radius:var(--radius-lg);
   padding:24px; box-shadow:var(--shadow);
+  min-width:0; max-width:100%;
 }
 .video-thumb {
-  width:100%; height:200px; border-radius:var(--radius);
+  width:100%; max-width:100%; height:200px; border-radius:var(--radius);
   background:linear-gradient(135deg, #4A90D9, #7AB8F5);
   display:flex; align-items:center; justify-content:center;
   margin-bottom:16px; position:relative; cursor:pointer;
+  overflow:hidden;
 }
 .video-thumb .play-btn {
   width:60px; height:60px; background:rgba(255,255,255,0.85);
@@ -247,6 +251,7 @@ html, body { overflow-x:clip; }
 .exercise-card {
   background:var(--bg-card); border-radius:var(--radius-lg);
   padding:24px; box-shadow:var(--shadow);
+  min-width:0; max-width:100%;
 }
 .exercise-card h3 { font-size:18px; font-weight:600; margin-bottom:16px; }
 .exercise-item {
@@ -680,11 +685,16 @@ html, body { overflow-x:clip; }
 .cat-tab.active { background:var(--primary); color:white; }
 
 /* ===== Responsive ===== */
+/* 2026-11-14：任务区两列在 768~900 也会挤爆（平板/分屏/网页缩放把布局宽度报大时），
+   断点提到 900 并统一用 minmax(0,1fr)，任何宽度都不会横向溢出 */
+@media (max-width:900px) {
+  .task-grid { grid-template-columns:minmax(0,1fr); }
+}
 @media (max-width:768px) {
   .nav-desktop { display:none; }
   .mode-switch { display:none; }
   .menu-toggle { display:block; }
-  .task-grid { grid-template-columns:1fr; }
+  .task-grid { grid-template-columns:minmax(0,1fr); }
   .quick-grid { grid-template-columns:repeat(2,1fr); }
   .radar-section { grid-template-columns:1fr; }
   .footer-grid { grid-template-columns:1fr 1fr; gap:24px; }
@@ -15748,6 +15758,82 @@ if ('serviceWorker' in navigator) {
     }
   }).observe(document.body,{childList:true,subtree:true,characterData:true});
   twWalk(document.body);
+})();
+</script>
+
+<!-- 2026-11-14 手机端排版自检（临时诊断件）：检测到横向溢出时，左下角自动出现「排版自检」角标，
+     点开显示真实视口参数 + 最宽的元素，供远程定位「卡片只显示一半」的真凶。修好后可整块删除。
+     带 ?vpdebug=1 时无论是否溢出都显示。 -->
+<script>
+(function(){
+  if (window.__vpProbe) return; window.__vpProbe = true;
+  var badge = null, panel = null;
+  function cls(el){
+    var s = el.tagName.toLowerCase();
+    if (el.id) s += '#' + el.id;
+    if (el.className && typeof el.className === 'string') {
+      s += '.' + el.className.trim().split(/\s+/).slice(0,2).join('.');
+    }
+    return s;
+  }
+  function report(){
+    var de = document.documentElement;
+    var vv = window.visualViewport;
+    var lines = [];
+    lines.push('【视口】innerWidth=' + window.innerWidth + '  clientWidth=' + de.clientWidth + '  scrollWidth=' + de.scrollWidth);
+    lines.push('【设备】dpr=' + (window.devicePixelRatio || 1) + '  screen=' + screen.width + '×' + screen.height + '  avail=' + screen.availWidth + '×' + screen.availHeight + '  outerWidth=' + (window.outerWidth || '-'));
+    lines.push('【可视】visualViewport=' + (vv ? (Math.round(vv.width) + '×' + Math.round(vv.height) + ' scale=' + vv.scale.toFixed(2) + ' offsetLeft=' + Math.round(vv.offsetLeft)) : '不支持'));
+    lines.push('【媒体】≤480:' + (window.matchMedia('(max-width:480px)').matches ? 'Y' : 'N') + '  ≤768:' + (window.matchMedia('(max-width:768px)').matches ? 'Y' : 'N') + '  ≤900:' + (window.matchMedia('(max-width:900px)').matches ? 'Y' : 'N'));
+    var tg = document.getElementById('homeTaskGrid');
+    if (tg) {
+      var cs = getComputedStyle(tg);
+      lines.push('【任务区】宽=' + Math.round(tg.getBoundingClientRect().width) + '  列=' + cs.gridTemplateColumns);
+    }
+    var thumb = document.querySelector('#homeTaskGrid .video-thumb');
+    if (thumb) {
+      var r = thumb.getBoundingClientRect();
+      lines.push('【蓝卡】宽=' + Math.round(r.width) + '  left=' + Math.round(r.left) + '  right=' + Math.round(r.right));
+    }
+    // 最宽的元素（按右边界从大到小）
+    var list = [], all = document.querySelectorAll('body *');
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i], rc = el.getBoundingClientRect();
+      if (rc.width < 2) continue;
+      if (rc.right > de.clientWidth + 1) list.push({ r: Math.round(rc.right), w: Math.round(rc.width), n: cls(el) });
+    }
+    list.sort(function(a, b) { return b.r - a.r; });
+    lines.push('【超宽元素 top8】');
+    if (!list.length) lines.push('（无）');
+    list.slice(0, 8).forEach(function(x) { lines.push('· ' + x.n + '  宽' + x.w + ' 右边界' + x.r); });
+    lines.push('【UA】' + navigator.userAgent.slice(0, 130));
+    return lines.join('\n');
+  }
+  function show(){
+    if (panel) { panel.remove(); panel = null; return; }
+    panel = document.createElement('div');
+    panel.style.cssText = 'position:fixed;left:6px;right:6px;top:8px;bottom:8px;z-index:2147483000;background:#fff;border:2px solid #FF4D4F;border-radius:12px;padding:14px;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,.35);';
+    panel.innerHTML = '<div style="font-size:15px;font-weight:700;color:#C0392B;margin-bottom:8px;">📐 排版自检（截图发老师）</div>' +
+      '<pre style="font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-all;color:#222;font-family:Menlo,Consolas,monospace;margin:0;">' + report().replace(/</g, '&lt;') + '</pre>' +
+      '<button style="margin-top:12px;width:100%;padding:10px;border-radius:8px;background:#4A90D9;color:#fff;font-size:14px;font-weight:600;border:none;">关闭</button>';
+    panel.querySelector('button').onclick = show;
+    document.body.appendChild(panel);
+  }
+  function check(){
+    var de = document.documentElement;
+    var overflow = de.scrollWidth - de.clientWidth;
+    var force = /[?&]vpdebug=1/.test(location.search);
+    if (!force && overflow <= 2) { if (badge) { badge.remove(); badge = null; } return; }
+    if (badge) return;
+    badge = document.createElement('button');
+    badge.textContent = '📐 排版自检' + (overflow > 2 ? '（超宽' + overflow + 'px）' : '');
+    badge.style.cssText = 'position:fixed;left:8px;bottom:84px;z-index:2147482000;padding:8px 12px;border-radius:999px;background:#FF4D4F;color:#fff;font-size:12px;font-weight:700;border:none;box-shadow:0 4px 14px rgba(0,0,0,.3);';
+    badge.onclick = show;
+    document.body.appendChild(badge);
+  }
+  window.addEventListener('load', function() { setTimeout(check, 600); });
+  window.addEventListener('resize', function() { setTimeout(check, 300); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', function() { setTimeout(check, 300); });
+  setTimeout(check, 1500);
 })();
 </script>
 </body>
