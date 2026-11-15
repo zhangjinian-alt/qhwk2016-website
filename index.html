@@ -1289,7 +1289,7 @@ body::before {
 <div class="container section" id="cumulativeLeaderboardSection">
   <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
-      <h3 style="margin:0;font-size:18px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3c6" xlink:href="#tw-1f3c6"/></svg> 积分榜 · 成长星星榜</h3>
+      <h3 style="margin:0;font-size:18px;"><svg class="tw" viewBox="0 0 36 36"><use href="#tw-1f3c6" xlink:href="#tw-1f3c6"/></svg> 积分榜+星星榜</h3>
       <span id="cumulativeLeaderboardMeta" style="font-size:13px;color:var(--text-muted);"></span>
     </div>
     <div id="cumulativeLeaderboardRule" style="font-size:12.5px;color:var(--text-muted);line-height:1.7;background:#F7FAFE;border:1px solid #E3EDF9;border-radius:10px;padding:10px 12px;margin-bottom:16px;"></div>
@@ -1740,6 +1740,32 @@ function setStudentProfile(p) {
 }
 function clearStudentProfile() { localStorage.removeItem(STU_PROFILE_KEY); }
 function isStudentLoggedIn() { return !!getCloudToken() && !!getStudentProfile(); }
+// 2026-11-15（年哥反馈「学生看不到订正入口」根因修复）：
+// 30 天免登录恢复会话时只校验 token，**不会**补拉学生档案（setStudentProfile 只在
+// 手动登录/静默重登里调用）。本地档案一旦缺失（清缓存、换设备、旧会话），
+// isStudentLoggedIn() 就为 false → 订正区/撤销按钮整块不渲染，学生以为"没有入口"。
+// 这里在渲染作业反馈前补拉一次 /student/me，成功后落盘，后续判断恢复正常。
+var _stuProfileProbed = false;
+async function ensureStudentProfile() {
+  var p = getStudentProfile();
+  if (p) return p;
+  if (!isCloudLoggedIn() || _stuProfileProbed) return p;
+  _stuProfileProbed = true;
+  try {
+    var r = await fetch(API_BASE + "/student/me", {
+      headers: { "Authorization": "Bearer " + getCloudToken() }
+    });
+    if (r.ok) {
+      p = await r.json();
+      setStudentProfile(p);
+      if (p && p.display_name) {
+        appData.userName = p.display_name;
+        localStorage.setItem(DATA_KEY, encryptData(appData));
+      }
+    }
+  } catch (e) {}
+  return p;
+}
 // 当前自然周（ISO 周数），与后端 _current_week() 一致（仅 homework 作业数据用）
 function getIsoWeek(d) {
   d = d || new Date();
@@ -3236,7 +3262,7 @@ function applyStudentHomeStats(data) {
     var _ts = Number(data.total_stars) || 0;
     var _ws = Number(data.week_stars) || 0;
     st.textContent = _ts + ' 颗星星';
-    st.title = '成长星星榜累计得星：开学以来共 ' + _ts + ' 颗\n本周 ' + _ws + ' 颗（五项每周比上周，进步或持平各得 1 颗，最多 5 颗；作业书写只记录不评星）';
+    st.title = '星星榜累计得星：开学以来共 ' + _ts + ' 颗\n本周 ' + _ws + ' 颗（六项每周比上周，进步或持平各得 1 颗，最多 6 颗；上周为 0 本周仍为 0 的躺平持平不计星）';
   }
 }
 
@@ -6930,17 +6956,16 @@ function renderCumulativeLeaderboard(container, meta, data) {
     meta.textContent = parts.filter(function(p) { return p; }).join(' · ');
   }
 
-  // 规则说明（2026-11-14 年哥哥定：书写只记录不评星，实际评星五项）
+  // 规则说明（2026-11-15 年哥哥定稿，照发原文：六项评星、0~6 颗）
   var ruleEl = document.getElementById('cumulativeLeaderboardRule');
   if (ruleEl) {
     ruleEl.innerHTML =
-      '<div>成长星星榜：<b>作业正确率 · 逐题订正 · 学习兴趣 · 功勋墙 · 五维得分</b> 五项，' +
-      '每周每项只要比上周<b>有进步或持平</b>就得 1 颗星，回落不得星 —— 每人每周 0~' + starsMax + ' 颗。' +
+      '<div><b>积分榜</b>：显示累计积分总和、当周积分数及当周积分排名升降。</div>' +
+      '<div style="margin-top:3px;"><b>星星榜</b>：评价<b>作业正确率 · 作业书写 · 逐题订正 · 学习兴趣 · 功勋墙 · 五维得分</b> 六项，' +
+      '每周每项只要比上周<b>有进步或持平</b>就得 1 颗星，回落不得星 —— 每人每周 0~6 颗星。' +
       '头像上方挂的就是本周实际得星，星星数随后台数据实时刷新。' +
-      '从第' + starFromWeek + '周开始计星星，星星总数累计。</div>' +
-      '<div style="margin-top:3px;">' +
-      '<b>作业书写</b>：系统在批改作业时自动读取家长手写的书写评分，<b>只记录本周得分、不参与评星</b>' +
-      '（书写没有跨周可比的基线，比不出真实进步；分数照常保存，可在作业详情查看）。</div>';
+      '从第' + starFromWeek + '周开始计星星，星星总数累计。' +
+      '如果某项上周是"0"，本周依然是"0"这种躺平行为的"持平"，<b>不计星星</b>。</div>';
   }
 
   if (students.length === 0) {
@@ -6995,7 +7020,7 @@ function renderCumulativeLeaderboard(container, meta, data) {
       }
     } else {
       // 本周一颗没拿到：留一个极淡的占位，保持卡片高度整齐，也让孩子看见「这周没亮星」
-      starHtml = '<span title="本周五项均未比上周进步，未得星" style="display:inline-block;' +
+      starHtml = '<span title="本周六项均未比上周进步，未得星" style="display:inline-block;' +
         'width:14px;height:14px;line-height:14px;font-size:12px;color:#D3DAE4;margin-top:2px;">·</span>';
     }
 
@@ -7008,9 +7033,9 @@ function renderCumulativeLeaderboard(container, meta, data) {
     var url = rawUrl;
     if (rawUrl && typeof photoUrl === 'function') url = photoUrl(rawUrl);
     var initial = esc(s.name ? s.name.slice(-2) : '?');
-    // 2026-11-10 晚·年哥定：头像圆框圈线一律金色（不再按名次档金/银/铜），
-    // 名次档只用卡片浅底色与「金星档/银星档/铜星档」文案区分，视觉更统一。
-    var borderColor = '#E4B22A';
+    // 2026-11-15·年哥定：头像圆框圈线按名次档三色（前20金 / 21~40银 / 41后铜），
+    // 排名不看圈线色，看卡片顺序即可。
+    var borderColor = rank <= 20 ? '#E4B22A' : (rank <= 40 ? '#A8B4C0' : '#C4834A');
     var boxStyle = 'position:relative;width:56px;height:56px;margin:0 auto;';
     var wrapperStyle = 'position:absolute;top:0;left:0;width:56px;height:56px;box-sizing:border-box;' +
       'border-radius:50%;overflow:hidden;border:3px solid ' + borderColor + ';background:#E8ECF1;' +
@@ -7071,7 +7096,13 @@ function renderCumulativeLeaderboard(container, meta, data) {
       'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(s.name) + newBadge + '</div>';
     html += '<div style="font-size:12.5px;color:var(--primary);font-weight:600;margin-top:1px;">' +
       (Number(s.total) || 0).toFixed(1) + ' 分</div>';
-    html += '<div style="font-size:11px;color:var(--text-muted);margin-top:1px;">第 ' + rank + ' 名 ' + rcHtml + '</div>';
+    // 2026-11-15·年哥定：卡片上不再显示「第 N 名」（顺序即排名），改显本周新增积分
+    var _wgLine = (_wg === null) ? '' : (_wg > 0
+      ? '本周 +' + _wg.toFixed(1)
+      : (_wg < 0 ? '本周 ' + _wg.toFixed(1) : '本周 +0.0'));
+    var _wgColor = (_wg === null) ? 'var(--text-muted)' : (_wg > 0 ? '#E03E3E' : (_wg < 0 ? '#2E9E5B' : 'var(--text-muted)'));
+    html += '<div style="font-size:11px;font-weight:600;color:' + _wgColor + ';margin-top:1px;">' +
+      _wgLine + (rcHtml ? ' ' + rcHtml : '') + '</div>';
     html += '<div style="font-size:11.5px;color:#B8860B;font-weight:600;margin-top:1px;">⭐ 累计 ' +
       (s.total_stars || 0) + ' 颗</div>';
     html += '</div>';
@@ -10373,6 +10404,27 @@ function materialApiUrl(fileUrl) {
   var path = fileUrl.startsWith('/') ? fileUrl : '/' + fileUrl;
   return API_BASE.replace(/\/api$/, '') + path;
 }
+
+// 2026-11-15：doc/xls/ppt 类资料不走浏览器内联预览——手机上会把整页顶成
+// 文档预览、学生退不回来（1115 年哥哥报障）。改为 fetch blob 强制下载，
+// 页面不跳转；fetch 失败才兜底新标签打开。
+async function _downloadMaterialBlob(url, name) {
+  try {
+    showToast('正在下载「' + (name || '资料') + '」…');
+    var resp = await fetch(url, { cache: 'no-cache' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    var blob = await resp.blob();
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name || 'download';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() { URL.revokeObjectURL(a.href); if (a.parentNode) a.parentNode.removeChild(a); }, 4000);
+  } catch (e) {
+    console.log('资料下载兜底:', e && e.message);
+    window.open(url, '_blank', 'noopener');
+  }
+}
 function humanFileSize(bytes) {
   if (!bytes || bytes < 0) return '0 B';
   if (bytes < 1024) return bytes + ' B';
@@ -10438,9 +10490,18 @@ async function renderMaterials() {
     var loggedIn = isCloudLoggedIn();
     var titleEl;
     if (loggedIn) {
-      titleEl = '<a href="' + url + '" download="' + escapeHtml(m.original_name || '') + '" target="_blank" rel="noopener" ' +
-        'style="color:var(--primary);text-decoration:none;font-size:15px;font-weight:500;word-break:break-all;">' +
-        escapeHtml(m.title) + '</a>';
+      var _mext = (m.original_name || m.file_url || '').split('.').pop().toLowerCase();
+      var _forceDoc = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].indexOf(_mext) >= 0;
+      if (_forceDoc) {
+        titleEl = '<a href="javascript:void(0)" onclick="_downloadMaterialBlob(\'' + url + '\', \'' +
+          escapeHtml(m.original_name || '') + '\')" ' +
+          'style="color:var(--primary);text-decoration:none;font-size:15px;font-weight:500;word-break:break-all;">' +
+          escapeHtml(m.title) + '</a>';
+      } else {
+        titleEl = '<a href="' + url + '" download="' + escapeHtml(m.original_name || '') + '" target="_blank" rel="noopener" ' +
+          'style="color:var(--primary);text-decoration:none;font-size:15px;font-weight:500;word-break:break-all;">' +
+          escapeHtml(m.title) + '</a>';
+      }
     } else {
       titleEl = '<span onclick="openCloudLoginModal()" title="登录后才能下载" ' +
         'style="color:var(--text-secondary);font-size:15px;font-weight:500;cursor:pointer;word-break:break-all;">🔒 ' +
@@ -12776,6 +12837,7 @@ async function withdrawHw(hwId, status) {
 // 查看作业详细反馈
 async function viewHwFeedback(hwId, scrollToCorr) {
   try {
+    await ensureStudentProfile();   // 2026-11-15：档案缺失时先补拉，避免订正区被误判吞掉
     var resp = await fetchWithAuth('/homework/' + hwId);
     if (!resp.ok) throw new Error('获取详情失败');
     var hw = await resp.json();
@@ -12793,6 +12855,20 @@ async function viewHwFeedback(hwId, scrollToCorr) {
     try { grade = JSON.parse(hw.grade_result); } catch(e) {}
 
     var finalResult = hw.teacher_reviewed ? JSON.parse(hw.teacher_reviewed) : grade;
+    // 2026-11-15（年哥定）：**全对**要明确说「本周全对」，不能什么都不显示——
+    // 之前全对的作业既没有订正入口也没有任何说明，学生以为"入口不见了"来反馈。
+    var _allProbs = finalResult.problems || [];
+    var _totCnt = Number(finalResult.total_count || 0);
+    var _totOk = Number(finalResult.total_correct || 0);
+    var _allCorrect = (_totCnt > 0 && _totOk >= _totCnt &&
+      !_allProbs.some(function(p) { return p && p.is_correct !== true; }));
+    var _allCorrectBanner = _allCorrect
+      ? '<div style="background:#F6FFED;border:1.5px solid #B7EB8F;border-radius:var(--radius);padding:18px 16px;margin-top:16px;text-align:center;">' +
+        '<div style="font-size:34px;line-height:1;">🎉</div>' +
+        '<p style="font-size:17px;font-weight:700;color:#389E0D;margin-top:8px;">本周全对！</p>' +
+        '<p style="font-size:13px;color:var(--text-secondary);margin-top:6px;line-height:1.75;">这份作业没有错题，<b>不需要订正</b>～<br>订正分（+2）已自动计入「学习效果」，继续保持！</p>' +
+        '</div>'
+      : '';
     // 2026-10-18：订正合格的题号集合（后端逐题 answer_opened=1）——
     // 主列表「逐题批改」与订正区同步开放这些题的正确答案
     var _corrOpenedQkeys = ((hw.corrections && hw.corrections.items) || [])
@@ -12835,11 +12911,19 @@ async function viewHwFeedback(hwId, scrollToCorr) {
       }).join('');
     }
 
+    // 2026-11-15：万一「有错题但订正清单为空」（数据/后台异常），不要整块空白——
+    // 给一句兜底说明，学生至少知道不是自己找不到入口。
+    var _corrMissing = _allCorrect ? '' :
+      '<div id="hwCorrectionBox" style="background:#FFF7E6;border:1px solid #FFE7BA;border-radius:var(--radius);padding:16px;margin-top:16px;">' +
+      '<h4 style="margin-bottom:6px;">✏️ 错题订正</h4>' +
+      '<p style="font-size:13px;color:var(--text-secondary);line-height:1.75;">这份作业的错题清单暂时没取到，请下拉刷新重试；仍然没有的话请联系老师处理（评语与逐题批改不受影响）。</p></div>';
+
     var html = '<div class="hw-detail">' +
       hwDetailImagesHtml(hw.images && hw.images.length ? hw.images : [hw.image_url]) +
       '<div style="background:var(--primary-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;text-align:center;">' +
       '<p style="font-size:18px;font-weight:600;">正确率：' + finalResult.accuracy + '% (' + scoreFrac(finalResult.total_correct, finalResult.total_count) + ')</p>' +
       '</div>' +
+      _allCorrectBanner +
       (problemsHtml ? '<h4 style="margin-bottom:12px;">逐题批改</h4>' + problemsHtml : '') +
       '<div style="background:var(--bg);border-radius:var(--radius);padding:16px;margin-top:16px;">' +
       '<h4>📝 评语</h4>' +
@@ -12849,10 +12933,10 @@ async function viewHwFeedback(hwId, scrollToCorr) {
       // 订正区（2026-10-10 年哥定）：**第6周起**用「逐题订正」（每道错题一个格子，
       // AI 对照答案键单题判定，教师可逐题裁定）；**第5周及以前**仍用「整份一起订正」。
       (((hw.teach_week || 0) >= 6)
-        ? renderHwCorrectionSection(hw)
+        ? (renderHwCorrectionSection(hw) || _corrMissing)
         : (hw.corrected
             ? renderHwCorrectedInfo(hw)
-            : (isStudentLoggedIn() && parseFloat(finalResult.accuracy) < 100)
+            : (getCurrentRole() !== 'teacher' && !_allCorrect && parseFloat(finalResult.accuracy) < 100)
                 ? '<div style="background:#FFF7E6;border:1px solid #FFE7BA;border-radius:var(--radius);padding:16px;margin-top:16px;">' +
                   '<h4 style="margin-bottom:8px;">✏️ 订正错题（订正后学习效果 +2 分）</h4>' +
                   '<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">错题要弄明白才真正进步哦！选一种方式讲解你的订正思路。</p>' +
@@ -12916,10 +13000,14 @@ async function viewHwFeedback(hwId, scrollToCorr) {
 var _hwCorrState = { hwId: 0, items: [] };
 
 function _corrVerdictChip(it) {
+  // 2026-11-15（年哥定）：结论要写清楚——「订正合格」/「订正仍未合格」，
+  // 老师核定的再标一句「老师核定」，学生和家长不用猜。
   if (!it.submitted) return '<span style="background:#FFF1F0;color:#C62828;font-size:11px;padding:1px 8px;border-radius:8px;">未订正</span>';
   var v = it.verdict || '';
-  if (v === 'correct') return '<span style="background:#F6FFED;color:#389E0D;font-size:11px;padding:1px 8px;border-radius:8px;">✅ 订正正确</span>';
-  if (v === 'wrong') return '<span style="background:#FFF1F0;color:#C62828;font-size:11px;padding:1px 8px;border-radius:8px;">❌ 仍然不对</span>';
+  var byTeacher = !!((it.teacher_verdict || '').trim());
+  var _tag = byTeacher ? '<span style="font-weight:400;opacity:.85;">（老师核定）</span>' : '';
+  if (v === 'correct') return '<span style="background:#F6FFED;color:#389E0D;font-size:11px;padding:1px 8px;border-radius:8px;">✅ 订正合格' + _tag + '</span>';
+  if (v === 'wrong') return '<span style="background:#FFF1F0;color:#C62828;font-size:11px;padding:1px 8px;border-radius:8px;">❌ 订正仍未合格' + _tag + '</span>';
   if (v === 'uncertain') return '<span style="background:#FFF7E6;color:#B57D05;font-size:11px;padding:1px 8px;border-radius:8px;">⚠️ 待老师确认</span>';
   return '<span style="background:#F0F5FF;color:#1D39C4;font-size:11px;padding:1px 8px;border-radius:8px;">⏳ AI 判定中</span>';
 }
@@ -13211,7 +13299,11 @@ function renderHwCorrectionSection(hw) {
   var items = corr.items || [];
   if (!items.length) return '';
   var role = getCurrentRole();
-  var isStu = (role === 'student' || role === 'parent') && isStudentLoggedIn();
+  // 2026-11-15（年哥反馈学生看不到订正入口）：入口可见性不再绑「本地登录档案完整」——
+  // 非教师一律按学生视图给出订正按钮；真提交时 submitHwCorrection 再校验登录并提示。
+  // 原写法 `(role==='student'||role==='parent') && isStudentLoggedIn()` 一旦档案丢失
+  // 就会把整块订正按钮吞掉，正是本 bug 的来源。
+  var isStu = (role !== 'teacher');
   var isTeacher = (role === 'teacher');
   _hwCorrState = { hwId: hw.id, items: items };
   var n = items.length, sub = corr.submitted || 0;
@@ -13223,6 +13315,29 @@ function renderHwCorrectionSection(hw) {
   var tip = isStu
     ? '错题要弄明白才真正进步哦！第6周起改为<b>逐题订正</b>：一题一交，提交后 AI 会先判一遍，老师再复核。'
     : '逐题订正情况（AI 预判 + 你的裁定）；「待老师确认」的题建议点开核对一下。';
+  // 2026-11-15（年哥定）：订正要给出**明确结论**——「订正合格」/「订正仍未合格」，
+  // 不能只靠每道题的小圆点，家长和孩子都要一眼看清过没过。
+  var _vOk = items.filter(function(x) { return x.verdict === 'correct'; }).length;
+  var _vBad = items.filter(function(x) { return x.submitted && x.verdict === 'wrong'; }).length;
+  var _vUnc = items.filter(function(x) { return x.submitted && x.verdict === 'uncertain'; }).length;
+  var _vTodo = Math.max(0, n - sub);
+  var _vAllOk = (n > 0 && _vOk === n);
+  var verdictBar;
+  if (_vAllOk) {
+    verdictBar = '<div style="font-size:13.5px;font-weight:700;color:#237804;background:#F6FFED;border:1.5px solid #B7EB8F;border-radius:8px;padding:10px 12px;margin-bottom:10px;">' +
+      '✅ 错题已<b>全部订正合格</b>（' + _vOk + '/' + n + ' 题）' +
+      (isStu ? ' · 订正分（+2）已计入「学习效果」' : '') + '</div>';
+  } else {
+    var _vParts = [];
+    if (_vOk) _vParts.push('<span style="color:#389E0D;">订正合格 ' + _vOk + ' 题</span>');
+    if (_vBad) _vParts.push('<span style="color:#C62828;">订正仍未合格 ' + _vBad + ' 题</span>');
+    if (_vUnc) _vParts.push('<span style="color:#B57D05;">待老师确认 ' + _vUnc + ' 题</span>');
+    if (_vTodo) _vParts.push('<span style="color:#8C6D1F;">还没订正 ' + _vTodo + ' 题</span>');
+    var _vRed = _vBad > 0;
+    verdictBar = '<div style="font-size:13px;font-weight:600;color:' + (_vRed ? '#A8071A' : '#8C6D1F') + ';background:' + (_vRed ? '#FFF1F0' : '#FFFBE6') + ';border:1.5px solid ' + (_vRed ? '#FFA39E' : '#FFE58F') + ';border-radius:8px;padding:10px 12px;margin-bottom:10px;">' +
+      (_vRed ? '❌ 还有错题<b>订正仍未合格</b>：' : '📝 订正进度：') + _vParts.join(' · ') +
+      (_vRed ? '<br><span style="font-weight:400;font-size:12px;">按老师点评重新讲一遍并重新拍照/录视频提交</span>' : '') + '</div>';
+  }
   // 2026-10-11（年哥定）：第6周起统一订正已作废，改逐题订正——学生端提示需重做。
   // 第5周及以前（未启用逐题订正）仍按原来的"整份订正仍然有效"提示。
   var legacy = '';
@@ -13247,7 +13362,8 @@ function renderHwCorrectionSection(hw) {
     '<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">' + tip + '</p>' +
     legacy +
     retro +
-    '<div style="font-size:12px;color:var(--text-secondary);background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:12px;">' + stat + '</div>' +
+    '<div style="font-size:12px;color:var(--text-secondary);background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:10px;">' + stat + '</div>' +
+    verdictBar +
     items.map(function(it, i) { return _corrItemHtml(it, i, hw.id, isStu, isTeacher); }).join('') +
     '</div>';
 }
@@ -14232,11 +14348,11 @@ function urgeHomeworkNotice(kind, className) {
       return u.student_name + '（' + per + '）';
     });
     title = '【错题补订提醒】' + className + '历史周错题补订提醒';
-    content = '亲爱的同学和家长：\n以下同学还有以前周次的错题没有订正完：\n' + pastNames.join('、') + '\n\n现在补订同样有效：请登录后到「学习反馈 → 作业反馈」，找到对应周次的作业，点击「去逐题订正」补订（拍照 / 视频 / 文字均可）。全部错题订正合格后，订正分（+2）会补回到该周的学习效果分。';
+    content = '亲爱的同学和家长：\n以下同学还有以前周次的错题没有订正完：\n' + pastNames.join('、') + '\n\n现在补订同样有效：请登录后到「学习反馈 → 作业反馈」，找到对应周次的作业，点击「去逐题订正」补订（拍照 / 视频均可）。全部错题订正合格后，订正分（+2）会补回到该周的学习效果分。';
   } else {
     var fixNames = (cls.uncorrected || []).map(function(u) { return u.student_name + '（' + (u.items || []).length + ' 份）'; });
     title = '【错题订正提醒】' + className + '错题订正提醒';
-    content = '亲爱的同学和家长：\n以下同学的作业有错题还未订正：\n' + fixNames.join('、') + '\n\n请登录后到「学习反馈 → 作业反馈」，点击「查看详细反馈」，在弹窗底部完成错题订正（拍照 / 视频 / 文字均可）。订正完成后才能提交新的作业哦。';
+    content = '亲爱的同学和家长：\n以下同学的作业有错题还未订正：\n' + fixNames.join('、') + '\n\n请登录后到「学习反馈 → 作业反馈」，点击「查看详细反馈」，在弹窗底部完成错题订正（拍照 / 视频均可）。订正完成后才能提交新的作业哦。';
   }
   openFormModal('发布催办通知', [
     { label: '通知类型', name: 'type', type: 'select', value: '作业通知', options: [
@@ -14288,7 +14404,7 @@ async function loadStudentPendingCard() {
       var first = data.uncorrected[0];
       parts.push('<div style="background:#FFF1F0;border:1.5px solid #FFA39E;border-radius:var(--radius);padding:12px 16px;margin-bottom:10px;">' +
         '<p style="font-size:14px;font-weight:600;color:#CF1322;">✏️ 你有 ' + data.uncorrected.length + ' 份作业的错题还没订正</p>' +
-        '<p style="font-size:12px;color:var(--text-secondary);margin-top:4px;">点击下方作业卡片的「查看详细反馈」，拉到弹窗底部即可完成错题订正（拍照 / 视频 / 文字均可）</p>' +
+        '<p style="font-size:12px;color:var(--text-secondary);margin-top:4px;">点击下方作业卡片的「查看详细反馈」，拉到弹窗底部即可完成错题订正（拍照 / 视频均可）</p>' +
         '<button class="btn btn-primary" style="margin-top:8px;padding:6px 16px;font-size:13px;" onclick="viewHwFeedback(' + first.id + ')">✏️ 点击此处去订正错题</button></div>');
     }
     card.innerHTML = parts.join('');
@@ -14300,6 +14416,7 @@ async function loadStudentPendingCard() {
 async function loadHwFeedbackList() {
   var list = document.getElementById('hwFeedbackList');
   if (!list) return;
+  await ensureStudentProfile();   // 2026-11-15：档案缺失时先补拉，防止"已登录却被判未登录"
   try {
     // 2026-09-05：status=all 承接原「我的作业」职责（全状态展示），学生账号由服务端强制只返回本人
     var resp = await fetchWithAuth('/homework/list?status=all');
@@ -14340,7 +14457,13 @@ async function loadHwFeedbackList() {
       var corrPending = (h.correction_pending || 0);
       var corrDone = (h.correction_submitted || 0);
       var showCorrEntry = (h.status === 'reviewed' && h.total_count > 0 && h.total_correct < h.total_count);
-      var correctedBadge = (corrPending > 0)
+      // 2026-11-15（年哥定）：全对（复核后 100%）→ 显式打「🎉 本周全对」，
+      // 不再留空白让学生以为订正入口丢了。
+      var isFullCorrect = (h.status === 'reviewed' && h.total_count > 0 &&
+        Number(h.total_correct) >= Number(h.total_count));
+      var correctedBadge = (isFullCorrect)
+        ? ' <span class="ak-badge" style="background:#F6FFED;color:#389E0D;border-color:#B7EB8F;">🎉 本周全对</span>'
+        : (corrPending > 0)
         ? ' <span class="ak-badge" style="background:#FFF1F0;color:#CF1322;border-color:#FFA39E;">⏳ 待逐题订正 ' + corrPending + ' 题</span>'
         : ((h.corrected && h.status !== 'pending' && h.status !== 'grading' && h.status !== 'failed')
           ? ' <span class="ak-badge" style="background:#F6FFED;color:#389E0D;border-color:#B7EB8F;">✅ 已订正</span>'
@@ -14365,7 +14488,9 @@ async function loadHwFeedbackList() {
         // 2026-10-07（年哥哥定）：老师复核后不再给学生「撤回重交」，只留订正入口
         ((isTeacherRole || h.status !== 'reviewed')
           ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;color:var(--danger);" onclick="withdrawHw(' + h.id + ',\'' + h.status + '\')">↩️ 撤回重交</button>'
-          : '<span style="font-size:11px;color:var(--text-muted);align-self:center;">老师已复核 · 请用「查看详细反馈」订正错题</span>') +
+          : (isFullCorrect
+            ? '<span style="font-size:11px;color:#389E0D;align-self:center;">老师已复核 · 🎉 本周全对，无需订正</span>'
+            : '<span style="font-size:11px;color:var(--text-muted);align-self:center;">老师已复核 · 请用「查看详细反馈」订正错题</span>')) +
         '</div></div></div>';
     }).join('');
   } catch (e) { list.innerHTML = ''; }
