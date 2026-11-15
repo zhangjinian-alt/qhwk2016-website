@@ -14460,14 +14460,20 @@ async function loadHwFeedbackList() {
       var corrPending = (h.correction_pending || 0);
       var corrDone = (h.correction_submitted || 0);
       var showCorrEntry = (h.status === 'reviewed' && h.total_count > 0 && h.total_correct < h.total_count);
-      // 2026-11-15（年哥定）：全对（复核后 100%）→ 显式打「🎉 本周全对」，
-      // 不再留空白让学生以为订正入口丢了。
+      // 2026-11-15（年哥定）：卡片状态要给出明确结论——全对「本周全对」、
+      // 订正全部合格「订正合格」、交了仍有错「订正仍未合格」，不再笼统写"已订正"。
       var isFullCorrect = (h.status === 'reviewed' && h.total_count > 0 &&
         Number(h.total_correct) >= Number(h.total_count));
+      var corrTotal = Number(h.correction_total || 0);
+      var corrAllOk = (h.correction_all_correct === 1 || h.correction_all_correct === true);
       var correctedBadge = (isFullCorrect)
         ? ' <span class="ak-badge" style="background:#F6FFED;color:#389E0D;border-color:#B7EB8F;">🎉 本周全对</span>'
+        : (corrAllOk)
+        ? ' <span class="ak-badge" style="background:#F6FFED;color:#389E0D;border-color:#B7EB8F;">✅ 订正合格</span>'
         : (corrPending > 0)
-        ? ' <span class="ak-badge" style="background:#FFF1F0;color:#CF1322;border-color:#FFA39E;">⏳ 待逐题订正 ' + corrPending + ' 题</span>'
+        ? ' <span class="ak-badge" style="background:#FFF1F0;color:#CF1322;border-color:#FFA39E;">⏳ 待逐题订正 ' + corrPending + ' 题' + (corrDone ? '（已交 ' + corrDone + ' 题）' : '') + '</span>'
+        : (corrTotal > 0)
+        ? ' <span class="ak-badge" style="background:#FFF1F0;color:#C62828;border-color:#FFA39E;">❌ 订正仍未合格</span>'
         : ((h.corrected && h.status !== 'pending' && h.status !== 'grading' && h.status !== 'failed')
           ? ' <span class="ak-badge" style="background:#F6FFED;color:#389E0D;border-color:#B7EB8F;">✅ 已订正</span>'
           : '');
@@ -14493,7 +14499,9 @@ async function loadHwFeedbackList() {
           ? '<button class="btn btn-outline" style="padding:4px 12px;font-size:12px;color:var(--danger);" onclick="withdrawHw(' + h.id + ',\'' + h.status + '\')">↩️ 撤回重交</button>'
           : (isFullCorrect
             ? '<span style="font-size:11px;color:#389E0D;align-self:center;">老师已复核 · 🎉 本周全对，无需订正</span>'
-            : '<span style="font-size:11px;color:var(--text-muted);align-self:center;">老师已复核 · 请用「查看详细反馈」订正错题</span>')) +
+            : (corrAllOk
+              ? '<span style="font-size:11px;color:#389E0D;align-self:center;">老师已复核 · ✅ 订正合格，订正分已计入</span>'
+              : '<span style="font-size:11px;color:var(--text-muted);align-self:center;">老师已复核 · 请用「查看详细反馈」订正错题</span>'))) +
         '</div></div></div>';
     }).join('');
   } catch (e) { list.innerHTML = ''; }
