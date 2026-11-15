@@ -12861,7 +12861,10 @@ async function viewHwFeedback(hwId, scrollToCorr) {
     var _totCnt = Number(finalResult.total_count || 0);
     var _totOk = Number(finalResult.total_correct || 0);
     var _allCorrect = (_totCnt > 0 && _totOk >= _totCnt &&
-      !_allProbs.some(function(p) { return p && p.is_correct !== true; }));
+      !_allProbs.some(function(p) {
+        // is_correct 兼容 true / 1（历史数据有 0/1 写法）
+        return p && !(p.is_correct === true || p.is_correct === 1);
+      }));
     var _allCorrectBanner = _allCorrect
       ? '<div style="background:#F6FFED;border:1.5px solid #B7EB8F;border-radius:var(--radius);padding:18px 16px;margin-top:16px;text-align:center;">' +
         '<div style="font-size:34px;line-height:1;">🎉</div>' +
