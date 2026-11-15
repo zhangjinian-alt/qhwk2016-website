@@ -8895,8 +8895,9 @@ function initFlvPlayer(videoId, url) {
 
 // ===== 学生观看埋点（学习兴趣分数据源） =====
 // 视频播放时向 /api/watch 上报进度；完整观看（≥80%）计 1 次。
-// 学习兴趣 = max(自由观看分[完整观看数×2封顶10], 老师本周推送观看分[各视频观看百分比均值×10],
-//   易错题精讲分[同比例])，2026-09-30 起「推送的看完就满分」——只推 2 个同步课也能拿 10 分。
+// 2026-11-15（年哥哥定）学习兴趣分只认老师推送的内容：
+// 学习兴趣 = max(老师本周推送观看分[各视频观看百分比均值×10],
+//   易错题精讲分[同比例])——自由观看不再加分，但埋点仍需上报推送视频的观看进度。
 function attachWatchTrackingTo(videoEl, course, category) {
   if (!isStudentLoggedIn()) return;
   if (!videoEl || !videoEl.addEventListener) return;
