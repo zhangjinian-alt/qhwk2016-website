@@ -3518,6 +3518,9 @@ async function appendStudentLectureTasks(container) {
   box.innerHTML = h;
   var card = box.firstChild;
   card.id = 'homeLectureTasksCard';
+  // 2026-11-15（年哥哥反馈）：#homeTaskGrid 是两列网格，精讲卡作为第 3 个子元素
+  // 会流到新一行的左列、右列全空。让它横跨整行，排版不再缺半边。
+  card.style.gridColumn = '1 / -1';
   var stale = container.querySelector('#homeLectureTasksCard');
   if (stale) stale.remove();
   container.appendChild(card);
