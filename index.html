@@ -13893,9 +13893,23 @@ function _hwAccVal(h) {
 
 // 由提交日期反推教学周（用显示日期 slice(0,10)，与卡片上的日期一致）
 function _hwWeekInfo(item) {
-  var dstr = (item.created_at || '').slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dstr)) return null;
-  var w = getTeachWeek(new Date(dstr + 'T00:00:00'));
+  var w = null;
+  // 2026-11-22 时区 bug 修复：优先用后端返回的权威教学周戳（提交时按 _data_week_of 盖的戳）。
+  // 之前只用 created_at.slice(0,10)（UTC 日期）反推，会把「北京时间周五下午 16:00 之后
+  // 到次日早上 08:00 之间交的作业」误归到上一周（UTC 日期还停在周五）。
+  if (item && item.week && Number(item.week) > 0) {
+    w = Number(item.week);
+  } else {
+    // 兜底：created_at 是 UTC，+8 小时转北京时间再取日期反推
+    var cstr = ((item && item.created_at) || '').trim();
+    if (!cstr) return null;
+    var _d = new Date(cstr.replace(' ', 'T') + 'Z');
+    if (isNaN(_d.getTime())) return null;
+    var _bj = new Date(_d.getTime() + 8 * 3600000);
+    var dstr = _bj.toISOString().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dstr)) return null;
+    w = getTeachWeek(new Date(dstr + 'T00:00:00'));
+  }
   // 2026-09-30：周起点改走 teachWeekStartOf（兼容国庆调休断点表），标签范围仍为起点 ~ 起点+4 天
   var ws = teachWeekStartOf(w);
   var we = new Date(ws.getTime() + 4 * 86400000);
