@@ -184,6 +184,34 @@ html, body { overflow-x:clip; }
   display:inline-block; height:1.35em; width:auto;
   vertical-align:-0.35em; margin:0 2px;
   filter:drop-shadow(0 2px 4px rgba(0,0,0,.15));
+  /* 2026-11-25 年哥哥定：让它“飘”起来 + 轻微呼吸感，2 秒一循环 */
+  transform-origin:50% 88%;
+  will-change:transform;
+  cursor:pointer;
+  animation:qhHeroFloat 2s ease-in-out infinite;
+  transition:transform .28s cubic-bezier(.34,1.56,.64,1), filter .28s;
+}
+@keyframes qhHeroFloat {
+  0%,100% { transform:translateY(0) scale(1); }
+  50%     { transform:translateY(-6px) scale(1.03); }
+}
+/* 鼠标悬停：停下浮动、放大靠近、影子加深（“睁大眼睛凑过来”的感觉） */
+.hero h1 .hero-role-img:hover {
+  animation:none;
+  transform:translateY(-4px) scale(1.18) rotate(-3deg);
+  filter:drop-shadow(0 8px 14px rgba(74,144,217,.45)) saturate(1.15) brightness(1.04);
+}
+/* 点一下：蹦一蹦（触屏设备也有反馈） */
+.hero h1 .hero-role-img.hero-pop { animation:qhHeroPop .5s cubic-bezier(.34,1.56,.64,1); }
+@keyframes qhHeroPop {
+  0%   { transform:translateY(0) scale(1) rotate(0); }
+  35%  { transform:translateY(-14px) scale(1.16) rotate(3deg); }
+  70%  { transform:translateY(0) scale(.96) rotate(-1deg); }
+  100% { transform:translateY(0) scale(1) rotate(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero h1 .hero-role-img,
+  .hero h1 .hero-role-img.hero-pop { animation:none !important; }
 }
 .hero-cta { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
 .btn {
@@ -907,7 +935,8 @@ svg.tw{width:1em;height:1em;vertical-align:-0.125em;margin:0 .04em;}
 .btn { transition:transform .15s ease, box-shadow .25s ease, background .25s ease; }
 .btn:active { transform:scale(.95); }
 @keyframes qh-bob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
-.hero-badge .mascot { width:32px; height:32px; animation:qh-bob 3s ease-in-out infinite; }
+/* 2026-11-25 年哥哥定：顶部「欢迎回来」徽章里的小图保持静态，不做浮动（动效只留给大标题里的吉祥物） */
+.hero-badge .mascot { width:32px; height:32px; }
 .qh-empty { text-align:center; padding:26px 12px; }
 .qh-empty img { width:64px; height:64px; object-fit:contain; animation:qh-bob 3s ease-in-out infinite; }
 .qh-empty .qh-say { display:inline-block; background:var(--primary-bg); color:var(--primary-dark); border-radius:16px; padding:8px 18px; font-size:15px; font-weight:600; margin-top:10px; }
@@ -3268,7 +3297,9 @@ function applyStudentHomeStats(data) {
 
 function heroRoleImg() {
   // 首页 hero 标题里的角色形象（图片替代"角色"文字）
-  return '<img class="hero-role-img" src="role-mascot.png?v=20260906" alt="角色" loading="eager">';
+  // 2026-11-25 年哥哥定：点一下会蹦一下（触屏没有 hover，用点击给反馈）
+  return '<img class="hero-role-img" src="role-mascot.png?v=20260906" alt="角色" loading="eager"'
+    + ' onclick="this.classList.remove(\'hero-pop\');void this.offsetWidth;this.classList.add(\'hero-pop\')">';
 }
 
 function updateWelcome() {
