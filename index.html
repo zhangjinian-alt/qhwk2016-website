@@ -1833,7 +1833,14 @@ function getTeachWeekRange(w) {
 }
 function getTeachWeek(d) {
   d = d || new Date();
-  var cur = new Date(d.getTime()); cur.setHours(0,0,0,0);
+  // 2026-11-27 年哥哥定：全站统一口径——每周五 12:00 之后即算下一周。
+  // 作业标题 / 标准答案标题 / 页面「本周」/ 评比数据全部同步，不再分两套口径
+  // （原实现周六 0 点才翻，周五下午家长交作业、老师传答案仍预填上一周标题）。
+  // 传历史日期时同样按 12:00 分界，与后端 _data_week_of() 的数据归属窗口一致；
+  // _twDate() 生成的零点日期不带时刻，不会被误翻。
+  var eff = d;
+  if (d.getDay() === 5 && d.getHours() >= 12) eff = new Date(d.getTime() + 86400000);
+  var cur = new Date(eff.getTime()); cur.setHours(0,0,0,0);
   // 断点表从后往前找锚点：落在 [锚点起点, 下一断点起点) 内即属该周次；仅最后一个断点之后走 7 天递推
   var keys = Object.keys(TEACH_WEEK_OVERRIDES).map(Number).sort(function(a, b) { return b - a; });
   for (var i = 0; i < keys.length; i++) {
@@ -1851,6 +1858,8 @@ function getTeachWeek(d) {
   var w = Math.floor((cur - _twDate(TEACH_WEEK_START)) / 86400000 / 7) + 1;
   return w < 1 ? 1 : w;
 }
+
+// 2026-11-27 统一口径后不再需要单独的「作业周」函数：getTeachWeek() 已按周五 12:00 翻周。
 
 // 当前教学周的起始日（YYYY-MM-DD），"当周"数据分组统一用它，与后端 _teach_week_start_date 一致
 function getTeachWeekStartDate() {
