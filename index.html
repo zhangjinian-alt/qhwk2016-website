@@ -1314,7 +1314,7 @@ body::before {
 </div>
 
 <!-- 积分榜 + 成长星星榜（2026-11-10 年哥定：原「综合素养五维积分总榜」更名；
-     积分口径不变、全班全量展示；头像上方挂本周五项星星（书写只记录不评星），颜色按积分名次金/银/铜） -->
+     积分口径不变、全班全量展示；头像上方挂本周六项星星（含作业书写，2026-11-28 起恢复评星），颜色按积分名次金/银/铜） -->
 <div class="container section" id="cumulativeLeaderboardSection">
   <div style="background:var(--bg-card);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
@@ -6984,7 +6984,7 @@ function renderCumulativeLeaderboard(container, meta, data) {
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   };
   var students = data.top_students || [];
-  var starsMax = data.stars_max || 5;
+  var starsMax = data.stars_max || 6;
   var goldCut = data.gold_cut || 20;
   var silverCut = data.silver_cut || 40;
   var fromWeek = data.wrote_star_from_week || 10;
@@ -7035,8 +7035,9 @@ function renderCumulativeLeaderboard(container, meta, data) {
     var isTop3 = rank <= 3;
 
     // 本周星级（2026-11-10 晚·年哥定）：沿用 2026-09-16 原样式——
-    // 立体金属星挂件、中间大两边小、弧形排；颗数＝本周实际得星数（0~5，
-    // 2026-11-14 起书写只记录不评星，故上限由 6 降为 5），
+    // 立体金属星挂件、中间大两边小、弧形排；颗数＝本周实际得星数（0~6），
+    // 2026-11-28 年哥定：书写分改读「每周三维评价表第一列」，恢复「比上周持平/进步」
+    // 评星，六项全部可评星，上限恢复 6（榜头文案一直是 0~6，现已一致）。
     // 星色仍按积分名次金/银/铜（前20金 / 21~40银 / 41后铜）。
     var shape = {
       1: { s: [25],                     d: [0] },
@@ -7114,7 +7115,7 @@ function renderCumulativeLeaderboard(container, meta, data) {
       ? '本周 +' + _wg.toFixed(1)
       : (_wg < 0 ? '本周 ' + _wg.toFixed(1) : '本周 +0.0'));
 
-    // 悬停看各项明细（书写只记录、不评星，故不带 ⭐）
+    // 悬停看各项明细（六项均参与评星，得星的项带 ⭐）
     var detail = items.map(function(it) {
       return it.label + ' ' + (it.text || '') + (it.ok ? ' ⭐' : '');
     }).join('；');
