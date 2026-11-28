@@ -653,7 +653,7 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
     </div>
     <div class="modal-body">
       <div id="cloudLoginSection">
-        <p style="font-size:12px;color:var(--slate-500);margin-bottom:16px;line-height:1.7;">将老师三维评分（思维品质/行为表现/学习习惯）上传到云端，可跨设备恢复、供学生端查询。<br>请使用教师账号登录（与主站"☁️ 云端同步"同一账号）。</p>
+        <p style="font-size:12px;color:var(--slate-500);margin-bottom:16px;line-height:1.7;">将老师三维评分（思维品质/行为表现/学习习惯）上传到云端，可跨设备恢复、供学生端查询。<br>2026-11-28 起：三维评价表<b>第一列「书写分」</b>会一并上传，供星星榜「作业书写」项比上周评星（可为负分/小数，空＝未登记）。<br>请使用教师账号登录（与主站"☁️ 云端同步"同一账号）。</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <input id="cloudUsername" placeholder="教师账号" style="flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;">
           <input id="cloudPassword" type="password" placeholder="密码" style="flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--slate-200);border-radius:9px;font-size:13px;">
@@ -678,6 +678,7 @@ svg text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Y
         </div>
         <div id="cloudHint" style="font-size:12px;color:var(--slate-500);margin-top:12px;line-height:1.7;">
           上传：把当前班级本周学生的老师三维评分（思维/合作/习惯）保存到云端（重复上传覆盖该周三维，不影响系统自动的"兴趣/效果"分）。<br>
+          书写分：Excel 表头含「书写分」的列会作为第一列数据自动识别并一起上传；没有该列或该格为空的学生不改云端旧值。<br>
           下载：拉取云端该班级全部周次的<b>完整五维</b>（含系统自动的学习兴趣/学习效果）并合并到本地。
         </div>
         <div id="cloudSyncStatus" style="display:none;margin-top:12px;padding:10px 12px;border-radius:9px;background:var(--slate-50);border:1px solid var(--slate-200);font-size:12px;color:var(--slate-600);line-height:1.6;"></div>
@@ -887,19 +888,26 @@ const TEACH_WEEK_START = '2026-09-04';
 // 教学周起点调休断点表（2026-09-30 年哥哥定，国庆调休；2026-10-10 二次调整）：第5周起点前移至 9/30
 // （9/30~10/7 整段假期全算第5周，第4周收窄为 9/25~9/29），第6周起点 10/8（节后第一天上课），
 // 第7周起点 10/16（第6周延至 10/15，共 8 天），之后恢复每 7 天一周。格式 {周次: 该周实际起始日}。
+// 2026-11-14 年哥哥定（星星周期改制）：第10周起点 11/6（延至 11/13 含周五），第11周起点 11/14（周六），
+// 此后每周六翻周（周六~下周五）。
 // ⚠️ 必须与后端 _TEACH_WEEK_START_OVERRIDES、主站 index.html TEACH_WEEK_OVERRIDES 保持一致。
-const TEACH_WEEK_OVERRIDES = { 5: '2026-09-30', 6: '2026-10-08', 7: '2026-10-16' };
+// ⚠️ 相邻锚点间隔 >8 天（跨多周）须按 7 天递推折算周次（getTeachWeek 内 gap 判断）。
+const TEACH_WEEK_OVERRIDES = { 5: '2026-09-30', 6: '2026-10-08', 7: '2026-10-16', 10: '2026-11-06', 11: '2026-11-14' };
 function _twDate(s){ return new Date(s + 'T00:00:00'); }
 function getTeachWeek(d){
   d = d || new Date();
   const cur = new Date(d.getTime()); cur.setHours(0, 0, 0, 0);
-  // 断点表从后往前找锚点：落在 [锚点起点, 下一断点起点) 内即属该周次；仅最后一个断点之后走 7 天递推
+  // 断点表从后往前找锚点：间隔 <=8 天=调休周整段归锚点周次，>8 天跨多周按 7 天递推（2026-11-14 修正）
   const keys = Object.keys(TEACH_WEEK_OVERRIDES).map(Number).sort(function(a, b) { return b - a; });
   for (let i = 0; i < keys.length; i++) {
     const k = keys[i], ks = _twDate(TEACH_WEEK_OVERRIDES[k]);
     if (cur < ks) continue;
     const bigger = keys.filter(function(x) { return x > k; }).sort(function(a, b) { return a - b; });
-    if (bigger.length && cur < _twDate(TEACH_WEEK_OVERRIDES[bigger[0]])) return k;
+    if (bigger.length && cur < _twDate(TEACH_WEEK_OVERRIDES[bigger[0]])) {
+      const ns = _twDate(TEACH_WEEK_OVERRIDES[bigger[0]]);
+      if (ns - ks <= 8 * 86400000) return k;
+      return k + Math.floor((cur - ks) / 86400000 / 7);
+    }
     return k + Math.floor((cur - ks) / 86400000 / 7);
   }
   const w = Math.floor((cur - _twDate(TEACH_WEEK_START)) / 86400000 / 7) + 1;
@@ -1968,12 +1976,16 @@ async function cloudUpload(){
     const wk = getWeekDataStrict(s, week);
     if(!wk) missingWeekNames.push(s.name);
     const wd = wk || {};
-    records.push({
+    var rec = {
       student_name: s.name,
       think: wd.think !== undefined ? wd.think : (wd.focus || 0),
       coop: wd.coop !== undefined ? wd.coop : (wd.attitude !== undefined ? wd.attitude : (wd.homework || 0)),
       habit: wd.habit !== undefined ? wd.habit : (wd.writing || 0)
-    });
+    };
+    // 2026-11-28 年哥定：三维评价表第一列「书写分」随三维分一起上传（独立字段）。
+    // 未登记的学生不带该字段，云端保留原值，不会被 0 覆盖。
+    if(wd.handwriting !== undefined && wd.handwriting !== null) rec.handwriting = wd.handwriting;
+    records.push(rec);
   });
   const statusBox = $('#cloudSyncStatus');
   function setStatus(html, type){
@@ -2109,6 +2121,8 @@ async function cloudDownload(silent){
       if(_ct > 0 || wk.think === undefined) wk.think = _ct;
       if(_cc > 0 || wk.coop === undefined) wk.coop = _cc;
       if(_ch > 0 || wk.habit === undefined) wk.habit = _ch;
+      // 2026-11-28：云端书写分（三维评价表第一列）合并回本地；0 与负分都是有效登记值
+      if(r.handwriting !== undefined && r.handwriting !== null) wk.handwriting = Number(r.handwriting);
     });
     // 按 id 稳定排序
     STATE.students.sort(function(a,b){ return (a.id||0) - (b.id||0); });
@@ -2610,6 +2624,11 @@ function parseJSON(text){
     const weeks = s.weeks.map(w=>{
       const wk = { week:w.week||1 };
       DIM_KEYS.forEach(k=>{ wk[k] = clamp(parseInt(w[k])||0, 0, 10); });
+      // 2026-11-28：JSON 导入同样支持书写分（可负/小数，不 clamp）
+      if(w.handwriting !== undefined && w.handwriting !== null && w.handwriting !== ''){
+        const _hf = Number(w.handwriting);
+        if(!isNaN(_hf)) wk.handwriting = _hf;
+      }
       maxWeek = Math.max(maxWeek, wk.week);
       return wk;
     }).sort((a,b)=>a.week-b.week);
@@ -2713,6 +2732,11 @@ function parseExcelWorkbook(workbook){
     var key = null;
     if(/姓名/.test(h)){ nameCol = idx; return; }
     if(/^(序号|排名|学号|总分|总评|合计|备注)/.test(h)){ ignoreCols.push(idx); return; }
+    // 2026-11-28 年哥定：每周「三维评价数据」表的第一列数据＝书写分（表头「书写分」）。
+    // 必须**先于** habit 词表识别——'书写分'含'书写'二字，旧词表会把它误判成
+    // 「学习习惯」，结果书写分丢失、还会把真正的习惯列覆盖掉。书写分可正可负可小数，
+    // 是独立字段，不参与三维、不参与积分，只供星星榜「作业书写」项比上周用。
+    if(/书写分/.test(h) || /^书写$/.test(h)){ colMap.push({ col: idx, key: 'handwriting' }); return; }
     var lower = h.toLowerCase();
     if(lower === 'think') key = 'think';
     else if(lower === 'coop') key = 'coop';
@@ -2766,6 +2790,15 @@ function parseExcelWorkbook(workbook){
     var scores = {};
     colMap.forEach(function(m){
       var raw = row[m.col];
+      if(m.key === 'handwriting'){
+        // 书写分独立口径：可正可负可小数，绝不 clamp(0,10) / Math.round；
+        // 空单元格＝该生本周未登记，不写 scores（上传时该字段缺失，云端保留 NULL）。
+        if(raw !== null && raw !== undefined && raw !== ''){
+          var f = parseFloat(String(raw).trim());
+          if(!isNaN(f)) scores.handwriting = f;
+        }
+        return;
+      }
       var val = 0;
       if(raw !== null && raw !== undefined && raw !== ''){
         var n = Number(String(raw).trim());
@@ -2800,6 +2833,7 @@ function parseExcelWorkbook(workbook){
       if(rec){
         var wk = { week: w };
         DIM_KEYS.forEach(function(k){ wk[k] = rec.scores.hasOwnProperty(k) ? rec.scores[k] : 0; });
+        if(rec.scores.hasOwnProperty('handwriting')) wk.handwriting = rec.scores.handwriting;
         weeks.push(wk);
       }
     }
