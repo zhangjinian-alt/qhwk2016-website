@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>403班 · 积分榜 · 成长星星榜</title>
-<meta name="description" content="403班本学期累计积分榜与成长星星榜，家长可直接查看">
+<title>403班 · 积分榜+星星榜</title>
+<meta name="description" content="403班本学期累计积分榜与星星榜，家长可直接查看">
 <style>
   :root{
     --primary:#4A90D9; --text-primary:#1F2D3D; --text-muted:#8492A6;
@@ -65,7 +65,7 @@
 <body>
 <div class="wrap">
   <div class="head">
-    <h1>🏆 403班 · 积分榜 · 成长星星榜</h1>
+    <h1>🏆 403班 · 积分榜+星星榜</h1>
     <div class="sub" id="headSub">本学期累计积分排名 + 每周六项成长星星，每周自动更新</div>
   </div>
 
@@ -114,7 +114,7 @@ function renderCumulativeLeaderboard(container, meta, data) {
   var goldCut = data.gold_cut || 20;
   var silverCut = data.silver_cut || 40;
   var fromWeek = data.wrote_star_from_week || 10;
-  var starFromWeek = data.star_from_week || 10;
+  var starFromWeek = data.star_from_week || 11;
   var curWeek = data.current_week || 0;
 
   if (meta) {
@@ -125,23 +125,16 @@ function renderCumulativeLeaderboard(container, meta, data) {
     meta.textContent = parts.filter(function(p) { return p; }).join(' · ');
   }
 
-  // 规则 / 图例（星星颜色按积分名次分档）
+  // 规则说明（2026-11-15 年哥哥定稿，照发原文：六项评星、0~6 颗）
   var ruleEl = document.getElementById('cumulativeLeaderboardRule');
   if (ruleEl) {
-    var sIcon = function(f) {
-      return '<img src="' + f + '?cb=20261110a" style="width:13px;height:13px;vertical-align:-2px;">';
-    };
     ruleEl.innerHTML =
-      '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:3px;">' +
-        '<span>' + sIcon('stars/star-gold.png') + ' 本周得星（统一金色）</span>' +
-        '<span style="color:#B4BECE;">名次档看卡片描边：前 ' + goldCut + ' 名金框 · 第 ' +
-          (goldCut + 1) + '~' + silverCut + ' 名银框 · 第 ' + (silverCut + 1) + ' 名以后铜框</span>' +
-      '</div>' +
-      '<div>⭐ 星星评比：<b>作业正确率 · 作业书写 · 逐题订正 · 学习兴趣 · 功勋墙 · 五维得分</b> 六项，' +
-        '每周每项只要比上周<b>有进步或持平</b>就得 1 颗星，回落不得星 —— 每人每周 0~' + starsMax + ' 颗。' +
-        '头像上方挂的就是本周实际得星，星数随后台数据实时刷新。</div>' +
-      '<div style="margin-top:2px;">星星自第 ' + starFromWeek + ' 周起算，之前的周不计星；' +
-        '「作业书写」由老师批改时识别家长写在卷面上的书写评分，自第 ' + fromWeek + ' 周起计入。</div>';
+      '<div><b>积分榜</b>：显示累计积分总和、当周积分数及当周积分排名升降。</div>' +
+      '<div style="margin-top:3px;"><b>星星榜</b>：评价<b>作业正确率 · 作业书写 · 逐题订正 · 学习兴趣 · 功勋墙 · 五维得分</b> 六项，' +
+      '每周每项只要比上周<b>有进步或持平</b>就得 1 颗星，回落不得星 —— 每人每周 0~6 颗星。' +
+      '头像上方挂的就是本周实际得星，星星数随后台数据实时刷新。' +
+      '从第' + starFromWeek + '周开始计星星，星星总数累计。' +
+      '如果某项上周是"0"，本周依然是"0"这种躺平行为的"持平"，<b>不计星星</b>。</div>';
   }
 
   if (students.length === 0) {
@@ -169,6 +162,8 @@ function renderCumulativeLeaderboard(container, meta, data) {
 
     // 本周星级（2026-11-10 晚·年哥定）：沿用 2026-09-16 原样式——
     // 立体金属星挂件、中间大两边小、弧形排；颗数＝本周实际得星数（0~6），
+    // 2026-11-28 年哥定：书写分改读「每周三维评价表第一列」，恢复「比上周持平/进步」
+    // 评星，六项全部可评星，上限恢复 6（榜头文案一直是 0~6，现已一致）。
     // 星色仍按积分名次金/银/铜（前20金 / 21~40银 / 41后铜）。
     var shape = {
       1: { s: [25],                     d: [0] },
@@ -189,7 +184,7 @@ function renderCumulativeLeaderboard(container, meta, data) {
       for (var k = 0; k < gotN; k++) {
         var it = got[k];
         var tip = it.label + '：' + (it.text || '') + '  ⭐';
-        starHtml += '<img src="' + STAR_IMG + '?cb=20260916a" alt="" title="' + esc(tip) + '" ' +
+        starHtml += '<img src="' + STAR_IMG + '?cb=20261114a" alt="" title="' + esc(tip) + '" ' +
           'style="width:' + sh.s[k] + 'px;height:' + sh.s[k] + 'px;margin:0 -1px;' +
           'margin-top:' + sh.d[k] + 'px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));">';
       }
@@ -208,9 +203,9 @@ function renderCumulativeLeaderboard(container, meta, data) {
     var url = rawUrl;
     if (rawUrl && typeof photoUrl === 'function') url = photoUrl(rawUrl);
     var initial = esc(s.name ? s.name.slice(-2) : '?');
-    // 2026-11-10 晚·年哥定：头像圆框圈线一律金色（不再按名次档金/银/铜），
-    // 名次档只用卡片浅底色与「金星档/银星档/铜星档」文案区分，视觉更统一。
-    var borderColor = '#E4B22A';
+    // 2026-11-15·年哥定：头像圆框圈线按名次档三色（前20金 / 21~40银 / 41后铜），
+    // 排名不看圈线色，看卡片顺序即可。
+    var borderColor = rank <= 20 ? '#E4B22A' : (rank <= 40 ? '#A8B4C0' : '#C4834A');
     var boxStyle = 'position:relative;width:56px;height:56px;margin:0 auto;';
     var wrapperStyle = 'position:absolute;top:0;left:0;width:56px;height:56px;box-sizing:border-box;' +
       'border-radius:50%;overflow:hidden;border:3px solid ' + borderColor + ';background:#E8ECF1;' +
@@ -246,7 +241,7 @@ function renderCumulativeLeaderboard(container, meta, data) {
       ? '本周 +' + _wg.toFixed(1)
       : (_wg < 0 ? '本周 ' + _wg.toFixed(1) : '本周 +0.0'));
 
-    // 悬停看六项明细
+    // 悬停看各项明细（六项均参与评星，得星的项带 ⭐）
     var detail = items.map(function(it) {
       return it.label + ' ' + (it.text || '') + (it.ok ? ' ⭐' : '');
     }).join('；');
@@ -271,7 +266,13 @@ function renderCumulativeLeaderboard(container, meta, data) {
       'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(s.name) + newBadge + '</div>';
     html += '<div style="font-size:12.5px;color:var(--primary);font-weight:600;margin-top:1px;">' +
       (Number(s.total) || 0).toFixed(1) + ' 分</div>';
-    html += '<div style="font-size:11px;color:var(--text-muted);margin-top:1px;">第 ' + rank + ' 名 ' + rcHtml + '</div>';
+    // 2026-11-15·年哥定：卡片上不再显示「第 N 名」（顺序即排名），改显本周新增积分
+    var _wgLine = (_wg === null) ? '' : (_wg > 0
+      ? '本周 +' + _wg.toFixed(1)
+      : (_wg < 0 ? '本周 ' + _wg.toFixed(1) : '本周 +0.0'));
+    var _wgColor = (_wg === null) ? 'var(--text-muted)' : (_wg > 0 ? '#E03E3E' : (_wg < 0 ? '#2E9E5B' : 'var(--text-muted)'));
+    html += '<div style="font-size:11px;font-weight:600;color:' + _wgColor + ';margin-top:1px;">' +
+      _wgLine + (rcHtml ? ' ' + rcHtml : '') + '</div>';
     html += '<div style="font-size:11.5px;color:#B8860B;font-weight:600;margin-top:1px;">⭐ 累计 ' +
       (s.total_stars || 0) + ' 颗</div>';
     html += '</div>';
